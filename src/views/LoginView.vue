@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const router   = useRouter()
+const router    = useRouter()
+const route     = useRoute()
 const authStore = useAuthStore()
+
+const successMsg = computed(() => {
+  if (route.query.registered === 'company')
+    return '🎉 Company account created! Please sign in to continue.'
+  if (route.query.registered === 'partner')
+    return '✅ Partner application submitted! Our team will review and contact you within 2–3 business days.'
+  if (route.query.registered === 'employee')
+    return '✅ Application submitted! Your HR team will review and activate your account shortly.'
+  return ''
+})
 
 // Two-step state
 const step     = ref<'email' | 'password'>('email')
@@ -36,7 +47,21 @@ async function handleSignIn() {
   error.value   = ''
   try {
     await authStore.login(email.value, password.value)
-    router.push('/dashboard')
+    // Redirect based on role
+    const redirectTo = route.query.redirect as string | undefined
+    if (redirectTo) {
+      router.push(redirectTo)
+    } else if (authStore.isAdmin) {
+      router.push('/admin/dashboard')
+    } else if (authStore.isHR) {
+      router.push('/hr/dashboard')
+    } else if (authStore.isEmployee) {
+      router.push('/employee/dashboard')
+    } else if (authStore.isPartner) {
+      router.push('/partner/dashboard')
+    } else {
+      router.push('/')
+    }
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong.'
   } finally {
@@ -60,6 +85,7 @@ async function handleSignIn() {
       <!-- ── Step 1 : Email ── -->
       <template v-if="step === 'email'">
         <div class="card-body">
+          <div v-if="successMsg" class="success-msg">{{ successMsg }}</div>
           <h1 class="heading">Enter your email</h1>
           <p class="subtext">Sign in to your FitAccess Ethiopia account to manage your team's wellness.</p>
 
@@ -87,7 +113,7 @@ async function handleSignIn() {
             >
               Continue
             </button>
-            <a href="#" class="link-signup">Sign up for free</a>
+            <RouterLink to="/signup/company" class="link-signup">Sign up for free</RouterLink>
           </div>
         </div>
       </template>
@@ -372,6 +398,18 @@ async function handleSignIn() {
 }
 .btn-continue.active:active { transform: translateY(0); }
 .btn-continue:disabled { opacity: 1; }
+
+/* Success message */
+.success-msg {
+  font-size: 0.9rem;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
 
 /* Signup link */
 .link-signup {
