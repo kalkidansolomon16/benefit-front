@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
+const router     = useRouter()
 const isScrolled = ref(false)
 const mobileOpen = ref(false)
 
@@ -10,11 +11,23 @@ onMounted(() => window.addEventListener('scroll', onScroll))
 onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
 const navLinks = [
-  { label: 'Plans & Pricing', href: '#plans' },
-  { label: 'For Companies', href: '#how-it-works' },
-  { label: 'For Employees', href: '#wellness' },
-  { label: 'For Partners', href: '#why' },
+  { label: 'Plans & Pricing', href: '#plans',        route: null },
+  { label: 'How It Works',    href: '#how-it-works', route: null },
+  { label: 'For Companies',   href: null,             route: '/signup/company' },
+  { label: 'For Employees',   href: null,             route: '/signup/employee' },
+  { label: 'For Partners',    href: null,             route: '/signup/partner' },
 ]
+
+function handleNavClick(link: { href: string | null; route: string | null }) {
+  mobileOpen.value = false
+  if (link.route) {
+    router.push(link.route)
+  } else if (link.href) {
+    const el = document.querySelector(link.href)
+    if (el) el.scrollIntoView({ behavior: 'smooth' })
+    else window.location.hash = link.href
+  }
+}
 </script>
 
 <template>
@@ -29,14 +42,19 @@ const navLinks = [
       <!-- Desktop Links -->
       <ul class="nav-links">
         <li v-for="link in navLinks" :key="link.label">
-          <a :href="link.href" class="nav-link">{{ link.label }}</a>
+          <a
+            class="nav-link"
+            :class="{ 'nav-link-route': link.route }"
+            @click.prevent="handleNavClick(link)"
+            href="#"
+          >{{ link.label }}</a>
         </li>
       </ul>
 
       <!-- Actions -->
       <div class="nav-actions">
         <RouterLink to="/login" class="nav-login">Log in</RouterLink>
-        <a href="#hero" class="btn btn-primary nav-cta">Get Free Quote</a>
+        <RouterLink to="/signup/company" class="btn btn-primary nav-cta">Get Started</RouterLink>
       </div>
 
       <!-- Hamburger -->
@@ -51,12 +69,12 @@ const navLinks = [
     <div class="mobile-menu" :class="{ open: mobileOpen }">
       <ul>
         <li v-for="link in navLinks" :key="link.label">
-          <a :href="link.href" class="mobile-link" @click="mobileOpen = false">{{ link.label }}</a>
+          <a class="mobile-link" href="#" @click.prevent="handleNavClick(link)">{{ link.label }}</a>
         </li>
       </ul>
       <div class="mobile-actions">
-        <RouterLink to="/login" class="btn btn-outline w-full">Log in</RouterLink>
-        <a href="#hero" class="btn btn-primary w-full">Get Free Quote</a>
+        <RouterLink to="/login" class="btn btn-outline w-full" @click="mobileOpen = false">Log in</RouterLink>
+        <RouterLink to="/signup/company" class="btn btn-primary w-full" @click="mobileOpen = false">Get Started</RouterLink>
       </div>
     </div>
   </nav>

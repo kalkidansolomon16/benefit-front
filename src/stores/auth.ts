@@ -21,6 +21,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isHR         = computed(() => user.value?.role === 'company_hr')
   const isEmployee   = computed(() => user.value?.role === 'employee')
   const isGymStaff   = computed(() => user.value?.role === 'gym_staff')
+  const isPartner    = computed(() => user.value?.role === 'gym_partner')
 
   function setSession(newUser: User, newToken: string) {
     user.value  = newUser
@@ -62,5 +63,5 @@ export const useAuthStore = defineStore('auth', () => {
     clearSession()
   }
 
-  return { user, token, isLoggedIn, isAdmin, isHR, isEmployee, isGymStaff, login, logout, setSession, clearSession }
+  return { user, token, isLoggedIn, isAdmin, isHR, isEmployee, isGymStaff, isPartner, login, logout, setSession, clearSession }
 })

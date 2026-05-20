@@ -1,0 +1,257 @@
+<template>
+  <div class="emp-shell">
+
+    <!-- ── Sidebar ──────────────────────────────────────────────── -->
+    <aside class="sidebar" :class="{ 'sidebar--open': mobileOpen }">
+
+      <!-- Logo -->
+      <div class="sidebar-logo">
+        <div class="logo-circle">F</div>
+        <div>
+          <p class="logo-name">FitAccess</p>
+          <p class="logo-sub">ETHIOPIA</p>
+        </div>
+      </div>
+
+      <!-- Employee chip -->
+      <div class="emp-chip">
+        <p class="chip-label">MEMBER</p>
+        <p class="chip-name" :title="employeeName">{{ employeeName }}</p>
+        <p class="chip-plan">{{ planName }}</p>
+      </div>
+
+      <!-- Nav -->
+      <nav class="sidebar-nav">
+        <RouterLink
+          v-for="item in navItems"
+          :key="item.name"
+          :to="item.to"
+          class="nav-item"
+          active-class="nav-item--active"
+          @click="mobileOpen = false"
+        >
+          <span class="nav-icon" v-html="item.icon"></span>
+          <span class="nav-label">{{ item.label }}</span>
+        </RouterLink>
+      </nav>
+
+      <!-- Sign out -->
+      <div class="sidebar-footer">
+        <button class="signout-btn" @click="handleLogout">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Mobile overlay -->
+    <div v-if="mobileOpen" class="mobile-overlay" @click="mobileOpen = false"></div>
+
+    <!-- ── Main ─────────────────────────────────────────────────── -->
+    <div class="main-wrap">
+      <header class="top-bar">
+        <button class="hamburger" @click="mobileOpen = !mobileOpen">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div class="top-bar-text">
+          <h1 class="page-title">{{ currentTitle }}</h1>
+          <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <RouterView />
+      </main>
+    </div>
+
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useApi } from '@/composables/useApi'
+
+const auth   = useAuthStore()
+const router = useRouter()
+const route  = useRoute()
+const api    = useApi()
+
+const mobileOpen   = ref(false)
+const employeeName = ref('Loading…')
+const planName     = ref('')
+
+onMounted(async () => {
+  try {
+    const res = await api.get<{ profile: { name: string }; pass: { plan_name: string } }>('employee/dashboard')
+    employeeName.value = res.profile?.name ?? auth.user?.name ?? 'Member'
+    planName.value     = res.pass?.plan_name ?? ''
+  } catch {
+    employeeName.value = auth.user?.name ?? 'Member'
+  }
+})
+
+const navItems = [
+  {
+    name: 'dashboard',
+    label: 'My Dashboard',
+    to: '/employee/dashboard',
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
+  },
+  {
+    name: 'gyms',
+    label: 'Find Gyms',
+    to: '/employee/gyms',
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+  },
+  {
+    name: 'checkins',
+    label: 'My Check-ins',
+    to: '/employee/checkins',
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  },
+]
+
+const pageMeta: Record<string, { title: string; sub?: string }> = {
+  'employee-dashboard': { title: 'My Dashboard',  sub: 'Your wellness membership overview' },
+  'employee-gyms':      { title: 'Find Gyms',     sub: 'Gyms available on your plan' },
+  'employee-checkins':  { title: 'My Check-ins',  sub: 'Your attendance history' },
+}
+
+const currentTitle    = computed(() => {
+  if (route.name === 'employee-dashboard') return `Welcome, ${employeeName.value.split(' ')[0]}`
+  return pageMeta[route.name as string]?.title ?? 'Employee Portal'
+})
+const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub ?? '')
+
+async function handleLogout() {
+  await auth.logout()
+  router.push('/login')
+}
+</script>
+
+<style scoped>
+.emp-shell {
+  display: flex;
+  min-height: 100vh;
+  background: #f0f2f5;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: #0d1b2e;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.logo-circle {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #e0386a, #f97316);
+  color: #fff; font-weight: 800; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
+.logo-sub  { font-size: 0.65rem; color: #e0386a; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+
+/* Employee chip */
+.emp-chip {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.chip-label { font-size: 0.65rem; color: #64748b; letter-spacing: 0.1em; margin: 0 0 3px; text-transform: uppercase; }
+.chip-name  {
+  font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0 0 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chip-plan {
+  font-size: 0.72rem; color: #e0386a; font-weight: 600; margin: 0;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* Nav */
+.sidebar-nav {
+  flex: 1; padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 8px;
+  color: #64748b; text-decoration: none;
+  font-size: 0.84rem; font-weight: 500;
+  transition: color .15s, background .15s;
+}
+.nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
+.nav-item--active { color: #e0386a; background: rgba(224,56,106,0.1); }
+.nav-icon { flex-shrink: 0; display: flex; align-items: center; }
+.nav-label { white-space: nowrap; }
+
+/* Footer */
+.sidebar-footer { padding: 14px 10px; border-top: 1px solid rgba(255,255,255,0.06); }
+.signout-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; background: transparent; border: none;
+  border-radius: 8px; color: #64748b; font-size: 0.84rem; cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.signout-btn:hover { color: #f87171; background: rgba(239,68,68,0.08); }
+
+/* Mobile overlay */
+.mobile-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 99;
+}
+
+/* ── Main ──────────────────────────────────────────────────────── */
+.main-wrap {
+  flex: 1; margin-left: 240px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+
+.top-bar {
+  display: flex; align-items: flex-start;
+  padding: 28px 32px 0;
+  background: #f0f2f5;
+  gap: 12px;
+}
+.hamburger {
+  display: none; background: none; border: none;
+  color: #475569; cursor: pointer; padding: 4px; border-radius: 6px; flex-shrink: 0;
+}
+.top-bar-text { flex: 1; }
+.page-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
+.page-sub   { font-size: 0.82rem; color: #94a3b8; margin: 0; }
+
+.page-content {
+  flex: 1; padding: 20px 32px 32px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); transition: transform .25s; }
+  .sidebar--open { transform: translateX(0); }
+  .mobile-overlay { display: block; }
+  .main-wrap { margin-left: 0; }
+  .hamburger { display: block; }
+}
+</style>
