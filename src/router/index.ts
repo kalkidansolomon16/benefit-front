@@ -113,6 +113,11 @@ const router = createRouter({
           name: 'hr-employees',
           component: () => import('../views/hr/HREmployees.vue'),
         },
+        {
+          path: 'billing',
+          name: 'hr-billing',
+          component: () => import('../views/hr/HRBilling.vue'),
+        },
       ],
     },
 
@@ -157,6 +162,16 @@ const router = createRouter({
           path: 'activity',
           name: 'admin-activity',
           component: () => import('../views/admin/ActivityLogView.vue'),
+        },
+        {
+          path: 'billing/invoices',
+          name: 'admin-billing-invoices',
+          component: () => import('../views/admin/BillingInvoicesView.vue'),
+        },
+        {
+          path: 'billing/payment-methods',
+          name: 'admin-payment-methods',
+          component: () => import('../views/admin/PaymentMethodsView.vue'),
         },
       ],
     },

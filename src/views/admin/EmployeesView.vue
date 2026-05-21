@@ -20,6 +20,11 @@
         <option value="enrolled">Active</option>
         <option value="not_enrolled">Inactive</option>
       </select>
+      <select v-model="filterPayment" class="select-box">
+        <option value="">All payments</option>
+        <option value="paid">Paid</option>
+        <option value="unpaid">Unpaid</option>
+      </select>
     </div>
 
     <div v-if="loading" class="state-msg">Loading employees…</div>
@@ -35,6 +40,7 @@
             <th>FAN NUMBER</th>
             <th>PACKAGE</th>
             <th>STATUS</th>
+            <th>PAYMENT</th>
             <th>ACTION</th>
           </tr>
         </thead>
@@ -51,6 +57,11 @@
             <td>
               <span class="status-badge" :class="e.is_enrolled ? 'enrolled' : 'not'">
                 {{ e.is_enrolled ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td>
+              <span class="pay-badge" :class="e.payment_status === 'paid' ? 'pay-paid' : 'pay-unpaid'">
+                {{ e.payment_status === 'paid' ? 'Paid' : 'Unpaid' }}
               </span>
             </td>
             <td>
@@ -86,6 +97,7 @@ interface Employee {
   id: number
   fan_number: string | null
   is_enrolled: boolean
+  payment_status: 'paid' | 'unpaid'
   active_membership_id: number | null
   user?:    { name: string; email: string; phone: string | null }
   company?: { name: string; tier: string }
@@ -96,8 +108,9 @@ const employees   = ref<Employee[]>([])
 const loading     = ref(true)
 const search      = ref('')
 const filterTier  = ref('')
-const filterStatus = ref('')
-const page        = ref(1)
+const filterStatus  = ref('')
+const filterPayment = ref('')
+const page          = ref(1)
 const meta        = ref<Meta | null>(null)
 
 async function load() {
@@ -124,6 +137,7 @@ const filtered = computed(() =>
     if (filterTier.value && e.company?.tier !== filterTier.value) return false
     if (filterStatus.value === 'enrolled'     && !e.is_enrolled) return false
     if (filterStatus.value === 'not_enrolled' &&  e.is_enrolled) return false
+    if (filterPayment.value && e.payment_status !== filterPayment.value) return false
     return true
   })
 )
@@ -145,10 +159,12 @@ async function suspendMembership(e: Employee) {
 
 function exportCsv() {
   const rows = [
-    ['Name', 'Email', 'Company', 'FAN Number', 'Package', 'Status'],
+    ['Name', 'Email', 'Company', 'FAN Number', 'Package', 'Status', 'Payment'],
     ...employees.value.map(e => [
       e.user?.name ?? '', e.user?.email ?? '', e.company?.name ?? '',
-      e.fan_number ?? '', tierLabel(e.company?.tier), e.is_enrolled ? 'Active' : 'Inactive',
+      e.fan_number ?? '', tierLabel(e.company?.tier),
+      e.is_enrolled ? 'Active' : 'Inactive',
+      e.payment_status === 'paid' ? 'Paid' : 'Unpaid',
     ]),
   ]
   const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
@@ -215,6 +231,10 @@ function exportCsv() {
 }
 .status-badge.enrolled { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
 .status-badge.not      { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+.pay-badge   { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.pay-paid    { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+.pay-unpaid  { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
 
 .action-link {
   background: none; border: none; font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 0;
