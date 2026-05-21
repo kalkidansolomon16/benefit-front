@@ -3,8 +3,14 @@
 
     <!-- Filters -->
     <div class="filter-bar">
-      <input v-model="dateFrom" type="date" class="date-input" />
-      <input v-model="dateTo"   type="date" class="date-input" />
+      <div class="date-wrap">
+        <input v-model="dateFrom" type="date" class="date-input" placeholder="From date" />
+        <svg class="date-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="date-wrap">
+        <input v-model="dateTo" type="date" class="date-input" placeholder="To date" />
+        <svg class="date-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
       <select v-model="filterRole" class="select-box">
         <option value="">All roles</option>
         <option value="super_admin">Super Admin</option>
@@ -130,12 +136,27 @@ function actionLabel(action: string, modelType: string) {
 .page { display: flex; flex-direction: column; gap: 16px; }
 
 .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; }
-.date-input, .select-box {
+.select-box {
   padding: 9px 12px; background: white; border: 1px solid #e2e8f0;
   border-radius: 10px; font-size: 0.84rem; color: #0f172a; outline: none;
 }
-.date-input { color-scheme: light; }
-.date-input:focus, .select-box:focus { border-color: #14b8a6; }
+.select-box:focus { border-color: #14b8a6; }
+/* Custom date input */
+.date-wrap { position: relative; }
+.date-input {
+  padding: 9px 38px 9px 13px; background: white; border: 1.5px solid #e2e8f0;
+  border-radius: 10px; font-size: 0.84rem; color: #0f172a; outline: none;
+  font-family: inherit; cursor: pointer; color-scheme: light;
+  transition: border-color .15s, box-shadow .15s;
+}
+.date-input:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.1); }
+.date-icon {
+  position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+  color: #94a3b8; pointer-events: none;
+}
+.date-input::-webkit-calendar-picker-indicator {
+  opacity: 0; cursor: pointer; position: absolute; right: 0; top: 0; width: 38px; height: 100%;
+}
 
 .state-msg { text-align: center; color: #94a3b8; padding: 48px; background: white; border-radius: 14px; }
 

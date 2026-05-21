@@ -47,7 +47,10 @@
 
         <div class="field">
           <label class="field-label">DATE JOINED COMPANY</label>
-          <input v-model="form.joined_at" type="date" class="input input-full" />
+          <div class="date-wrap">
+            <input v-model="form.joined_at" type="date" class="input input-full date-input-styled" />
+            <svg class="date-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
         </div>
       </div>
 
@@ -269,6 +272,20 @@ function reset() {
 .input-error     { border-color: #ef4444; }
 .input-full      { width: 100%; box-sizing: border-box; }
 .err-msg         { font-size: 0.72rem; color: #ef4444; margin: 0; }
+
+/* Styled date input */
+.date-wrap { position: relative; width: 100%; }
+.date-input-styled {
+  padding-right: 40px !important; cursor: pointer;
+  color-scheme: light;
+}
+.date-icon {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: #94a3b8; pointer-events: none;
+}
+.date-input-styled::-webkit-calendar-picker-indicator {
+  opacity: 0; cursor: pointer; position: absolute; right: 0; top: 0; width: 40px; height: 100%;
+}
 
 /* Photo zone */
 .photo-zone {
