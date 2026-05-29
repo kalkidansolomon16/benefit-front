@@ -4,11 +4,11 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-// ── Step state ─────────────────────────────────────────────────────────────
+// -- Step state -------------------------------------------------------------
 const step = ref(1)
 const TOTAL_STEPS = 3
 
-// ── Step 1: Company Info ────────────────────────────────────────────────────
+// -- Step 1: Company Info ----------------------------------------------------
 const companyName        = ref('')
 const industry           = ref('')
 const companySize        = ref('')
@@ -73,13 +73,13 @@ const paymentMethods = [
 ]
 const companySizes = ['10 – 50', '51 – 200', '201 – 500', '501 – 1,000', '1,000+']
 
-// ── Step 2: Contact Person ──────────────────────────────────────────────────
+// -- Step 2: Contact Person --------------------------------------------------
 const fullName  = ref('')
 const jobTitle  = ref('')
 const workEmail = ref('')
 const phone     = ref('')
 
-// ── Step 3: Account ─────────────────────────────────────────────────────────
+// -- Step 3: Account ---------------------------------------------------------
 const password        = ref('')
 const confirmPassword = ref('')
 const showPass        = ref(false)
@@ -88,7 +88,7 @@ const agreeTerms      = ref(false)
 const loading         = ref(false)
 const error           = ref('')
 
-// ── Password strength rules ──────────────────────────────────────────────────
+// -- Password strength rules --------------------------------------------------
 const strengthRules = computed(() => [
   { id: 'len',     label: 'At least 8 characters',      ok: password.value.length >= 8 },
   { id: 'upper',   label: 'One uppercase letter (A–Z)',  ok: /[A-Z]/.test(password.value) },
@@ -102,7 +102,7 @@ const strengthScore = computed(() => strengthRules.value.filter(r => r.ok).lengt
 const strengthLabel = computed(() => {
   const s = strengthScore.value
   if (s <= 1) return { text: 'Very weak',  color: '#dc2626' }
-  if (s === 2) return { text: 'Weak',       color: '#f97316' }
+  if (s === 2) return { text: 'Weak',       color: '#2EB84B' }
   if (s === 3) return { text: 'Fair',       color: '#eab308' }
   if (s === 4) return { text: 'Strong',     color: '#22c55e' }
   return               { text: 'Very strong', color: '#16a34a' }
@@ -110,7 +110,7 @@ const strengthLabel = computed(() => {
 
 const passwordStrong = computed(() => strengthScore.value === 5)
 
-// ── Validation ──────────────────────────────────────────────────────────────
+// -- Validation --------------------------------------------------------------
 const step1Valid = computed(() =>
   companyName.value.trim() && industry.value && companySize.value && !!licenseFile.value
 )
@@ -192,7 +192,7 @@ async function handleSubmit() {
 
       <!-- Brand -->
       <div class="brand">
-        <span class="brand-icon">✦</span>
+        
         <span class="brand-name">FitAccess</span>
       </div>
 
@@ -221,7 +221,7 @@ async function handleSubmit() {
         </div>
       </div>
 
-      <!-- ── STEP 1: Company Info ── -->
+      <!-- -- STEP 1: Company Info -- -->
       <div v-if="step === 1" class="card-body">
         <h1 class="heading">Register your company</h1>
         <p class="subtext">Tell us about your Ethiopian organisation. All billing is in ETB.</p>
@@ -264,7 +264,7 @@ async function handleSubmit() {
             </div>
           </div>
 
-          <!-- ── Preferred Payment Method ── -->
+          <!-- -- Preferred Payment Method -- -->
           <div class="field-group">
             <label class="field-label">Preferred Payment Method <span class="optional">(optional)</span></label>
             <div class="select-wrap">
@@ -278,7 +278,7 @@ async function handleSubmit() {
             </div>
           </div>
 
-          <!-- ── Business Licence Upload ── -->
+          <!-- -- Business Licence Upload -- -->
           <div class="field-group">
             <label class="field-label">
               Business Licence <span class="req">*</span>
@@ -294,7 +294,7 @@ async function handleSubmit() {
               @dragover.prevent
               @drop.prevent="e => { ($refs.licenseInput as HTMLInputElement).files = e.dataTransfer?.files ?? null; onLicenseChange({ target: $refs.licenseInput } as unknown as Event) }"
             >
-              <div class="upload-icon">📄</div>
+              <div class="upload-icon"><svg width="28" height="28" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
               <div class="upload-text">
                 <span class="upload-cta">Click to upload</span> or drag & drop
               </div>
@@ -312,7 +312,7 @@ async function handleSubmit() {
             <div v-else class="upload-preview">
               <!-- PDF preview -->
               <div v-if="licensePreview === 'pdf'" class="preview-pdf">
-                <span class="preview-pdf-icon">📄</span>
+                <span class="preview-pdf-icon"><svg width="28" height="28" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
                 <div class="preview-info">
                   <span class="preview-name">{{ licenseFile.name }}</span>
                   <span class="preview-size">{{ (licenseFile.size / 1024).toFixed(0) }} KB · PDF</span>
@@ -345,7 +345,7 @@ async function handleSubmit() {
         <p class="signin-link">Already have an account? <RouterLink to="/login">Sign in</RouterLink></p>
       </div>
 
-      <!-- ── STEP 2: Contact Person ── -->
+      <!-- -- STEP 2: Contact Person -- -->
       <div v-else-if="step === 2" class="card-body">
         <button class="back-btn" @click="back">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
@@ -397,7 +397,7 @@ async function handleSubmit() {
         </div>
       </div>
 
-      <!-- ── STEP 3: Create Account ── -->
+      <!-- -- STEP 3: Create Account -- -->
       <div v-else class="card-body">
         <button class="back-btn" @click="back">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
@@ -500,7 +500,7 @@ async function handleSubmit() {
               Passwords do not match.
             </p>
             <p v-else-if="confirmPassword && password === confirmPassword && passwordStrong" class="field-hint ok-hint">
-              ✓ Passwords match
+              ? Passwords match
             </p>
           </div>
 
@@ -542,7 +542,7 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
-/* ── Page ────────────────────────────────────────────────── */
+/* -- Page -------------------------------------------------- */
 .signup-page {
   min-height: 100vh;
   background: #f0ede8;
@@ -554,7 +554,7 @@ async function handleSubmit() {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
-/* ── Card ────────────────────────────────────────────────── */
+/* -- Card -------------------------------------------------- */
 .signup-card {
   width: 100%;
   max-width: 640px;
@@ -566,17 +566,17 @@ async function handleSubmit() {
   margin-bottom: 24px;
 }
 
-/* ── Brand ───────────────────────────────────────────────── */
+/* -- Brand ------------------------------------------------- */
 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 28px;
 }
-.brand-icon { font-size: 1.6rem; color: #e0386a; line-height: 1; }
-.brand-name  { font-size: 1.4rem; font-weight: 800; color: #e0386a; letter-spacing: -0.01em; }
+.brand-icon { font-size: 1.6rem; color: #4CD964; line-height: 1; }
+.brand-name  { font-size: 1.4rem; font-weight: 800; color: #4CD964; letter-spacing: -0.01em; }
 
-/* ── Progress ────────────────────────────────────────────── */
+/* -- Progress ---------------------------------------------- */
 .progress-wrap {
   margin-bottom: 36px;
 }
@@ -635,7 +635,7 @@ async function handleSubmit() {
   transition: width 0.4s ease;
 }
 
-/* ── Card Body ───────────────────────────────────────────── */
+/* -- Card Body --------------------------------------------- */
 .card-body { display: flex; flex-direction: column; }
 
 .back-btn {
@@ -663,7 +663,7 @@ async function handleSubmit() {
 }
 .subtext strong { color: #333; }
 
-/* ── Fields ──────────────────────────────────────────────── */
+/* -- Fields ------------------------------------------------ */
 .fields {
   display: flex;
   flex-direction: column;
@@ -685,7 +685,7 @@ async function handleSubmit() {
   font-weight: 600;
   color: #333;
 }
-.req { color: #e0386a; }
+.req { color: #4CD964; }
 .optional { color: #aaa; font-weight: 400; }
 
 .input {
@@ -707,10 +707,10 @@ async function handleSubmit() {
   background: #fff;
   box-shadow: 0 0 0 3px rgba(27,58,107,0.07);
 }
-.input.input-error { border-color: #e0386a; box-shadow: 0 0 0 3px rgba(224,56,106,0.08); }
+.input.input-error { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(224,56,106,0.08); }
 .input.input-ok    { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.08); }
 
-/* ── Password strength ───────────────────────────────────── */
+/* -- Password strength ------------------------------------- */
 .strength-wrap {
   display: flex;
   flex-direction: column;
@@ -776,7 +776,7 @@ async function handleSubmit() {
   color: #888;
 }
 
-/* ── Phone ───────────────────────────────────────────────── */
+/* -- Phone ------------------------------------------------- */
 .phone-wrap {
   display: flex;
   gap: 0;
@@ -814,9 +814,9 @@ async function handleSubmit() {
 }
 
 .field-hint  { font-size: 0.78rem; color: #999; margin-top: 2px; }
-.error-hint  { color: #e0386a; }
+.error-hint  { color: #4CD964; }
 
-/* ── Pass wrap ───────────────────────────────────────────── */
+/* -- Pass wrap --------------------------------------------- */
 .pass-wrap { position: relative; }
 .pass-wrap .input { padding-right: 48px; }
 .toggle-pass {
@@ -829,7 +829,7 @@ async function handleSubmit() {
 }
 .toggle-pass:hover { color: #333; }
 
-/* ── Checkbox ────────────────────────────────────────────── */
+/* -- Checkbox ---------------------------------------------- */
 .checkbox-row {
   display: flex;
   align-items: flex-start;
@@ -847,7 +847,7 @@ async function handleSubmit() {
 }
 .link { color: #1b3a6b; text-decoration: underline; }
 
-/* ── Upload zone ─────────────────────────────────────────── */
+/* -- Upload zone ------------------------------------------- */
 .field-hint-inline {
   font-weight: 400;
   color: #aaa;
@@ -864,8 +864,8 @@ async function handleSubmit() {
   background: #f9f7f5;
   transition: all 0.2s;
 }
-.upload-zone:hover { border-color: #1b3a6b; background: #f0f4ff; }
-.upload-zone-error { border-color: #e0386a; background: #fff8f9; }
+.upload-zone:hover { border-color: #1b3a6b; background: #EBFAEE; }
+.upload-zone-error { border-color: #4CD964; background: #fff8f9; }
 
 .upload-icon { font-size: 2rem; margin-bottom: 8px; }
 .upload-text {
@@ -913,9 +913,9 @@ async function handleSubmit() {
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s;
 }
-.preview-remove:hover { background: #e0386a; }
+.preview-remove:hover { background: #4CD964; }
 
-/* ── Actions ─────────────────────────────────────────────── */
+/* -- Actions ----------------------------------------------- */
 .actions { margin-bottom: 16px; }
 .btn-next {
   width: 100%;
@@ -951,7 +951,7 @@ async function handleSubmit() {
 
 .error-msg {
   font-size: 0.88rem;
-  color: #e0386a;
+  color: #4CD964;
   background: #fff0f4;
   border: 1px solid #fad0db;
   border-radius: 8px;
@@ -959,7 +959,7 @@ async function handleSubmit() {
   margin-bottom: 16px;
 }
 
-/* ── Spinner ─────────────────────────────────────────────── */
+/* -- Spinner ----------------------------------------------- */
 .spinner {
   width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.4);
@@ -970,7 +970,7 @@ async function handleSubmit() {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Footer ──────────────────────────────────────────────── */
+/* -- Footer ------------------------------------------------ */
 .signup-footer {
   padding: 20px 0 32px;
   text-align: center;
@@ -978,7 +978,7 @@ async function handleSubmit() {
 .footer-notice { font-size: 0.8rem; color: #aaa; }
 .footer-notice a { color: #888; text-decoration: underline; }
 
-/* ── Responsive ──────────────────────────────────────────── */
+/* -- Responsive -------------------------------------------- */
 @media (max-width: 600px) {
   .signup-card { padding: 28px 22px 36px; }
   .field-row   { grid-template-columns: 1fr; }

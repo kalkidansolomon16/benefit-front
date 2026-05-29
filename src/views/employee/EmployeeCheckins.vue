@@ -65,7 +65,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="c in filteredCheckins" :key="c.id">
+            <tr v-for="c in paginatedCheckins" :key="c.id">
               <td class="cell-gym">{{ c.gym_name }}</td>
               <td class="cell-loc">{{ c.gym_sub_city || '—' }}</td>
               <td>
@@ -82,6 +82,13 @@
         </table>
       </div>
 
+      <AppPagination
+        v-model:page="ciPage"
+        :total-pages="ciTotalPages"
+        :total="filteredCheckins.length"
+        :per-page="ciPerPage"
+      />
+
     </template>
 
     <!-- Error -->
@@ -94,8 +101,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 interface CheckIn {
   id: number
@@ -147,6 +155,11 @@ const availableMonths = computed(() => {
   }))
 })
 
+const ciPage    = ref(1)
+const ciPerPage = 20
+const ciTotalPages   = computed(() => Math.max(1, Math.ceil(filteredCheckins.value.length / ciPerPage)))
+const paginatedCheckins = computed(() => filteredCheckins.value.slice((ciPage.value - 1) * ciPerPage, ciPage.value * ciPerPage))
+
 const filteredCheckins = computed(() => {
   return (checkins.value ?? []).filter(c => {
     const matchSearch = !search.value ||
@@ -176,6 +189,8 @@ async function load() {
 
 onMounted(load)
 
+watch(filteredCheckins, () => { ciPage.value = 1 })
+
 function formatDateTime(d: string | null): string {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', {
@@ -199,7 +214,7 @@ function tierLabel(t: string): string {
 }
 .spinner {
   width: 34px; height: 34px; border: 3px solid #e2e8f0;
-  border-top-color: #e0386a; border-radius: 50%; animation: spin 0.7s linear infinite;
+  border-top-color: #4CD964; border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .retry-btn {
@@ -231,7 +246,7 @@ function tierLabel(t: string): string {
   font-size: 0.9rem; color: #1e293b; background: #fff;
   outline: none; transition: border-color 0.2s; font-family: inherit;
 }
-.search-input:focus { border-color: #e0386a; }
+.search-input:focus { border-color: #4CD964; }
 .search-input::placeholder { color: #94a3b8; }
 .clear-btn {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
@@ -244,7 +259,7 @@ function tierLabel(t: string): string {
   outline: none; cursor: pointer; font-family: inherit;
   transition: border-color 0.2s;
 }
-.month-select:focus { border-color: #e0386a; }
+.month-select:focus { border-color: #4CD964; }
 
 /* Empty */
 .empty-state {
@@ -293,9 +308,9 @@ function tierLabel(t: string): string {
   display: inline-block; padding: 3px 9px;
   border-radius: 10px; font-size: 0.71rem; font-weight: 600;
 }
-.tier-tag--platinum   { background: #f5f3ff; color: #7c3aed; }
-.tier-tag--premium    { background: #eff6ff; color: #2563eb; }
-.tier-tag--basic_plus { background: #e0f2fe; color: #0284c7; }
+.tier-tag--platinum   { background: #EBFAEE; color: #2EB84B; }
+.tier-tag--premium    { background: #EBFAEE; color: #4CD964; }
+.tier-tag--basic_plus { background: #e0f2fe; color: #2EB84B; }
 .tier-tag--basic      { background: #f1f5f9; color: #64748b; }
 
 @media (max-width: 700px) {

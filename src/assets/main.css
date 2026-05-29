@@ -52,7 +52,7 @@
 .btn-primary:hover {
   background: var(--color-green-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 200, 150, 0.35);
+  box-shadow: 0 6px 20px rgba(76, 217, 100, 0.35);
 }
 
 .btn-outline {

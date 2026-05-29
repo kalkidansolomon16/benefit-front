@@ -6,16 +6,16 @@
 
     <!-- No invoices -->
     <div v-else-if="!detailInv && invoices.length === 0" class="empty-state">
-      <div class="empty-icon">🧾</div>
+      <div class="empty-icon"><svg width="32" height="32" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
       <p class="empty-title">No invoices yet</p>
       <p class="empty-sub">Your invoices will appear here once the admin sends them.</p>
     </div>
 
-    <!-- ═══════════════════ INVOICE LIST ═══════════════════ -->
+    <!-- ------------------- INVOICE LIST ------------------- -->
     <template v-else-if="!detailInv">
       <div class="inv-list">
         <div
-          v-for="inv in invoices" :key="inv.id"
+          v-for="inv in paginatedInvoices" :key="inv.id"
           class="inv-card"
           :class="{ 'inv-card--overdue': isOverdue(inv) }"
           @click="openDetail(inv)"
@@ -41,9 +41,16 @@
           </div>
         </div>
       </div>
+
+      <AppPagination
+        v-model:page="billPage"
+        :total-pages="billTotalPages"
+        :total="invoices.length"
+        :per-page="billPerPage"
+      />
     </template>
 
-    <!-- ═══════════════════ INVOICE DETAIL ═══════════════════ -->
+    <!-- ------------------- INVOICE DETAIL ------------------- -->
     <template v-else>
 
       <!-- Back -->
@@ -128,9 +135,15 @@
         <div v-if="detailInv.negotiation" class="neg-status-panel" :class="'neg-' + detailInv.negotiation.status">
           <div class="neg-status-header">
             <span class="neg-status-icon">
-              <template v-if="detailInv.negotiation.status === 'pending'">⏳</template>
-              <template v-else-if="detailInv.negotiation.status === 'approved'">✅</template>
-              <template v-else>❌</template>
+              <template v-if="detailInv.negotiation.status === 'pending'">
+                <svg width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </template>
+              <template v-else-if="detailInv.negotiation.status === 'approved'">
+                <svg width="18" height="18" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+              </template>
+              <template v-else>
+                <svg width="18" height="18" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </template>
             </span>
             <div>
               <p class="neg-status-title">
@@ -190,41 +203,65 @@
             </button>
           </template>
 
-          <!-- OVERDUE state -->
+          <!-- OVERDUE state — Pay Now is locked until admin re-issues the invoice -->
           <template v-else-if="detailInv.status === 'overdue'">
             <div class="overdue-actions">
-              <!-- No negotiation yet -->
+
+              <!-- No negotiation yet: Pay Now disabled, must request extension -->
               <template v-if="!detailInv.negotiation">
-                <button class="btn-proceed" @click="payModal.show = true">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                  Pay Now
-                </button>
+                <div class="locked-pay-wrap">
+                  <button class="btn-proceed btn-proceed--locked" disabled>
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Pay Now
+                  </button>
+                  <p class="locked-hint">Payment is locked. Submit an extension request and wait for the admin to re-issue your invoice before paying.</p>
+                </div>
                 <button class="btn-negotiate" @click="negModal.show = true">
                   <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   Request Extension
                 </button>
               </template>
 
-              <!-- Pending negotiation: still allow paying -->
+              <!-- Pending negotiation: Pay Now locked, waiting for admin -->
               <template v-else-if="detailInv.negotiation.status === 'pending'">
-                <button class="btn-proceed btn-proceed--sm" @click="payModal.show = true">Pay Now</button>
-                <p class="neg-pending-note">Your extension request is under admin review.</p>
+                <div class="locked-pay-wrap">
+                  <button class="btn-proceed btn-proceed--locked" disabled>
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Pay Now
+                  </button>
+                  <p class="locked-hint">Your extension request is under admin review. Payment will be unlocked once the admin approves and re-issues the invoice.</p>
+                </div>
               </template>
 
-              <!-- Approved: reactivate pay button -->
+              <!-- Approved: Pay Now still locked — admin must re-send invoice first (status changes to 'sent') -->
               <template v-else-if="detailInv.negotiation.status === 'approved'">
-                <button class="btn-proceed" @click="payModal.show = true">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                  Proceed to Payment
+                <div class="locked-pay-wrap">
+                  <button class="btn-proceed btn-proceed--locked" disabled>
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Pay Now
+                  </button>
+                  <div class="approved-hint">
+                    <svg width="15" height="15" fill="none" stroke="#15803d" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                    <p>Extension approved! Waiting for the admin to re-issue the invoice. You will be able to pay once the new invoice is sent.</p>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Rejected: Pay Now locked, allow re-submitting negotiation -->
+              <template v-else-if="detailInv.negotiation.status === 'rejected'">
+                <div class="locked-pay-wrap">
+                  <button class="btn-proceed btn-proceed--locked" disabled>
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Pay Now
+                  </button>
+                  <p class="locked-hint locked-hint--danger">Your extension request was rejected. Contact the admin directly or submit a new request with more details.</p>
+                </div>
+                <button class="btn-negotiate" @click="negModal.show = true">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  Re-submit Request
                 </button>
               </template>
 
-              <!-- Rejected: just allow paying, warn strongly -->
-              <template v-else-if="detailInv.negotiation.status === 'rejected'">
-                <button class="btn-proceed btn-proceed--danger" @click="payModal.show = true">
-                  Pay Now to Avoid Suspension
-                </button>
-              </template>
             </div>
           </template>
         </div>
@@ -232,7 +269,7 @@
       </div>
     </template>
 
-    <!-- ═══════════════════ NEGOTIATION MODAL ═══════════════════ -->
+    <!-- ------------------- NEGOTIATION MODAL ------------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="negModal.show" class="modal-backdrop" @click.self="negModal.show = false">
@@ -254,7 +291,7 @@
                 <textarea
                   v-model="negModal.reason"
                   rows="5"
-                  placeholder="Describe your situation in detail — e.g. cash flow delays, pending transfer approval, bank processing issues…"
+                  placeholder="Describe your situation in detail — e.g. cash flow delays, pending transfer approval, bank processing issues—"
                 />
                 <p class="char-hint">{{ negModal.reason.length }} / 2000 characters (minimum 20)</p>
               </div>
@@ -271,7 +308,7 @@
       </Transition>
     </Teleport>
 
-    <!-- ═══════════════════ PAYMENT MODAL ═══════════════════ -->
+    <!-- ------------------- PAYMENT MODAL ------------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="payModal.show" class="modal-backdrop" @click.self="payModal.show = false">
@@ -279,7 +316,7 @@
             <div class="modal-header">
               <div>
                 <p class="modal-title">Submit Payment</p>
-                <p class="modal-sub">Invoice {{ detailInv?.invoice_number }} · ETB {{ Number(detailInv?.total_amount).toLocaleString() }}</p>
+                <p class="modal-sub">Invoice {{ detailInv?.invoice_number }} — ETB {{ Number(detailInv?.total_amount).toLocaleString() }}</p>
               </div>
               <button class="modal-close" @click="payModal.show = false">✕</button>
             </div>
@@ -321,7 +358,7 @@
                     <p class="upload-hint">JPG, PNG or PDF, max 5 MB</p>
                   </template>
                   <template v-else>
-                    <svg width="24" height="24" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                    <svg width="24" height="24" fill="none" stroke="#2EB84B" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                     <p class="upload-text upload-text--ok">{{ payModal.file.name }}</p>
                     <p class="upload-hint">Click to change</p>
                   </template>
@@ -352,8 +389,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 interface InvoiceItem { plan_tier: string; plan_name: string; employee_count: number; unit_price: number; subtotal: number }
 interface Negotiation {
@@ -381,6 +419,11 @@ const api            = useApi()
 const loading        = ref(true)
 const invoices       = ref<Invoice[]>([])
 const detailInv      = ref<Invoice | null>(null)
+
+const billPage    = ref(1)
+const billPerPage = 10
+const billTotalPages   = computed(() => Math.max(1, Math.ceil(invoices.value.length / billPerPage)))
+const paginatedInvoices = computed(() => invoices.value.slice((billPage.value - 1) * billPerPage, billPage.value * billPerPage))
 const paymentMethods = ref<PaymentMethod[]>([])
 const methodsLoading = ref(false)
 const fileInput      = ref<HTMLInputElement | null>(null)
@@ -398,6 +441,7 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 
 async function load() {
   loading.value = true
+  billPage.value = 1
   try { invoices.value = await api.get<Invoice[]>('hr/billing/invoices') }
   finally { loading.value = false }
 }
@@ -450,7 +494,7 @@ async function submitPayment() {
     })
     if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as any).message || `HTTP ${res.status}`) }
     payModal.show = false
-    showToast('Payment submitted. Admin will verify within 1–2 business days.')
+    showToast('Payment submitted. Admin will verify within 1—2 business days.')
     detailInv.value = await api.get<Invoice>(`hr/billing/invoices/${detailInv.value!.id}`)
   } catch (e: unknown) {
     payModal.error = e instanceof Error ? e.message : 'Failed to submit payment.'
@@ -511,8 +555,8 @@ function formatDate(dt: string | null) {
 .inv-due--over { color: #ef4444; font-weight: 600; }
 .inv-badge   { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .inv-draft   { background: #f1f5f9; color: #64748b; }
-.inv-sent    { background: #dbeafe; color: #1d4ed8; }
-.inv-paid    { background: #d1fae5; color: #059669; }
+.inv-sent    { background: #EBFAEE; color: #2EB84B; }
+.inv-paid    { background: #d1fae5; color: #2EB84B; }
 .inv-overdue { background: #fee2e2; color: #dc2626; }
 
 /* Back button */
@@ -554,10 +598,10 @@ function formatDate(dt: string | null) {
 .tr { text-align: right; }
 .fw { font-weight: 700; }
 .total-label { font-size: 0.88rem; font-weight: 700; color: #0f172a; }
-.total-val   { font-size: 1.1rem; color: #14b8a6; font-weight: 700; }
+.total-val   { font-size: 1.1rem; color: #4CD964; font-weight: 700; }
 .plan-chip { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: #f1f5f9; color: #475569; }
-.chip-platinum   { background: #f5f3ff; color: #7c3aed; }
-.chip-basic_plus { background: #e0f2fe; color: #0284c7; }
+.chip-platinum   { background: #EBFAEE; color: #2EB84B; }
+.chip-basic_plus { background: #e0f2fe; color: #2EB84B; }
 .chip-basic      { background: #f1f5f9; color: #64748b; }
 
 /* Meta row */
@@ -582,7 +626,7 @@ function formatDate(dt: string | null) {
 .neg-status-date  { font-size: 0.75rem; color: #94a3b8; margin: 0; }
 .neg-badge { padding: 2px 9px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; }
 .neg-badge-pending  { background: #fef9c3; color: #a16207; }
-.neg-badge-approved { background: #d1fae5; color: #059669; }
+.neg-badge-approved { background: #d1fae5; color: #2EB84B; }
 .neg-badge-rejected { background: #fee2e2; color: #dc2626; }
 .neg-reason-text { font-size: 0.84rem; color: #374151; font-style: italic; margin: 0; padding: 10px 14px; background: white; border-radius: 8px; line-height: 1.55; }
 .neg-admin-notes { display: flex; flex-direction: column; gap: 3px; }
@@ -599,7 +643,7 @@ function formatDate(dt: string | null) {
 .pay-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .ps-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .ps-pending  { background: #fef9c3; color: #a16207; }
-.ps-verified { background: #d1fae5; color: #059669; }
+.ps-verified { background: #d1fae5; color: #2EB84B; }
 .ps-rejected { background: #fee2e2; color: #dc2626; }
 .pay-note { font-size: 0.75rem; color: #ef4444; margin: 0; max-width: 200px; text-align: right; }
 
@@ -619,13 +663,20 @@ function formatDate(dt: string | null) {
 /* Buttons */
 .btn-proceed {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 12px 24px; background: #14b8a6; color: white;
+  padding: 12px 24px; background: #4CD964; color: white;
   border: none; border-radius: 12px; font-size: 0.88rem; font-weight: 700;
   cursor: pointer; transition: opacity .15s;
 }
 .btn-proceed:hover { opacity: .9; }
 .btn-proceed--sm { padding: 9px 18px; font-size: 0.84rem; }
 .btn-proceed--danger { background: #dc2626; }
+.btn-proceed--locked { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+.btn-proceed--locked:hover { opacity: 0.7; }
+.locked-pay-wrap { display: flex; flex-direction: column; gap: 8px; }
+.locked-hint { font-size: 0.8rem; color: #64748b; margin: 0; max-width: 420px; line-height: 1.5; }
+.locked-hint--danger { color: #dc2626; }
+.approved-hint { display: flex; align-items: flex-start; gap: 7px; font-size: 0.8rem; color: #15803d; line-height: 1.5; }
+.approved-hint p { margin: 0; }
 .btn-negotiate {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 12px 22px; background: white; color: #0f172a;
@@ -648,7 +699,7 @@ function formatDate(dt: string | null) {
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 0.82rem; font-weight: 600; color: #374151; }
 .field textarea { padding: 10px 13px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.88rem; color: #0f172a; font-family: inherit; outline: none; resize: vertical; min-height: 120px; transition: border-color .15s; }
-.field textarea:focus { border-color: #14b8a6; }
+.field textarea:focus { border-color: #4CD964; }
 .req { color: #ef4444; }
 .field-hint { font-size: 0.76rem; color: #94a3b8; margin: 0; }
 .char-hint   { font-size: 0.72rem; color: #94a3b8; margin: 0; text-align: right; }
@@ -661,10 +712,10 @@ function formatDate(dt: string | null) {
   background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 16px;
   cursor: pointer; text-align: left; transition: all .15s;
 }
-.method-select-card:hover { border-color: #14b8a6; background: #f0fdfa; }
-.method-select-card--selected { border-color: #14b8a6; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(20,184,166,.15); }
+.method-select-card:hover { border-color: #4CD964; background: #f0fdfa; }
+.method-select-card--selected { border-color: #4CD964; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(20,184,166,.15); }
 .msc-check { width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
-.method-select-card--selected .msc-check { background: #14b8a6; color: white; }
+.method-select-card--selected .msc-check { background: #4CD964; color: white; }
 .msc-bank   { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
 .msc-holder { font-size: 0.78rem; color: #64748b; margin: 0 0 3px; }
 .msc-acct   { font-size: 0.78rem; color: #374151; margin: 0; font-family: monospace; }
@@ -677,17 +728,17 @@ function formatDate(dt: string | null) {
   border: 2px dashed #e2e8f0; border-radius: 12px; padding: 24px;
   cursor: pointer; transition: border-color .15s, background .15s;
 }
-.upload-zone:hover { border-color: #14b8a6; background: #f0fdfa; }
-.upload-zone--has  { border-color: #10b981; background: #f0fdf4; }
+.upload-zone:hover { border-color: #4CD964; background: #f0fdfa; }
+.upload-zone--has  { border-color: #4CD964; background: #f0fdf4; }
 .upload-text { font-size: 0.88rem; font-weight: 600; color: #475569; margin: 0; }
-.upload-text--ok { color: #059669; }
+.upload-text--ok { color: #2EB84B; }
 .upload-hint { font-size: 0.74rem; color: #94a3b8; margin: 0; }
 
 .form-error { font-size: 0.8rem; color: #ef4444; margin: 0; }
 .btn-cancel { padding: 9px 20px; background: white; color: #64748b; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.84rem; font-weight: 500; cursor: pointer; }
 .btn-cancel:hover { background: #f8fafc; }
 .btn-submit-pay {
-  padding: 9px 22px; background: #14b8a6; color: white; border: none;
+  padding: 9px 22px; background: #4CD964; color: white; border: none;
   border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s;
 }
 .btn-submit-pay:hover:not(:disabled) { opacity: .85; }

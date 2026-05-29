@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-shell">
 
     <!-- ── Sidebar ─────────────────────────────────────────────── -->
@@ -6,7 +6,7 @@
 
       <!-- Logo -->
       <div class="sidebar-logo">
-        <div class="logo-circle">F</div>
+        <img src="/logo.png" alt="FitAccess" class="logo-img" />
         <div>
           <p class="logo-name">FitAccess</p>
           <p class="logo-sub">ETHIOPIA</p>
@@ -15,7 +15,7 @@
 
       <!-- User chip -->
       <div class="user-chip">
-        <p class="user-role-label">ADMIN</p>
+        <p class="user-role-label">{{ roleLabel }}</p>
         <p class="user-email">{{ auth.user?.email ?? 'admin@fitaccess.et' }}</p>
       </div>
 
@@ -74,60 +74,101 @@ const router = useRouter()
 const route  = useRoute()
 const mobileOpen = ref(false)
 
-const navItems = [
-  {
-    name: 'dashboard', label: 'Dashboard', to: '/admin/dashboard',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
-  },
-  {
-    name: 'companies', label: 'Companies', to: '/admin/companies',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  },
-  {
-    name: 'gyms', label: 'Gyms', to: '/admin/gyms',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`,
-  },
-  {
-    name: 'employees', label: 'All Employees', to: '/admin/employees',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-  },
-  {
-    name: 'plans', label: 'Plans', to: '/admin/plans',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
-  },
-  {
-    name: 'attendance', label: 'Attendance Report', to: '/admin/attendance',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
-  },
-  {
-    name: 'activity', label: 'Activity Log', to: '/admin/activity',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
-  },
-  {
-    name: 'billing-invoices', label: 'Invoices', to: '/admin/billing/invoices',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
-  },
-  {
-    name: 'billing-payment-methods', label: 'Payment Methods', to: '/admin/billing/payment-methods',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  },
-]
+const navItems = computed(() => {
+  const all = [
+    {
+      name: 'dashboard', label: 'Dashboard', to: '/admin/dashboard',
+      permission: 'dashboard.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
+    },
+    {
+      name: 'companies', label: 'Companies', to: '/admin/companies',
+      permission: 'companies.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    },
+    {
+      name: 'gyms', label: 'Gyms', to: '/admin/gyms',
+      permission: 'gyms.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`,
+    },
+    {
+      name: 'employees', label: 'All Employees', to: '/admin/employees',
+      permission: 'employees.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    },
+    {
+      name: 'plans', label: 'Plans', to: '/admin/plans',
+      permission: 'plans.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+    },
+    {
+      name: 'memberships', label: 'Memberships', to: '/admin/memberships',
+      permission: 'employees.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
+    },
+    {
+      name: 'attendance', label: 'Attendance Report', to: '/admin/attendance',
+      permission: 'reports.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+    },
+    {
+      name: 'activity', label: 'Activity Log', to: '/admin/activity',
+      permission: 'activity_log.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+    },
+    {
+      name: 'billing-invoices', label: 'Invoices', to: '/admin/billing/invoices',
+      permission: 'billing.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+    },
+    {
+      name: 'billing-payment-methods', label: 'Payment Methods', to: '/admin/billing/payment-methods',
+      permission: 'payment_methods.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    },
+    {
+      name: 'team', label: 'Team', to: '/admin/team',
+      permission: 'team.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    },
+    {
+      name: 'permissions', label: 'Permissions', to: '/admin/permissions',
+      permission: 'permissions.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    },
+  ]
+
+  return all.filter(item => auth.hasPermission(item.permission))
+})
 
 const pageMeta: Record<string, { title: string; sub?: string }> = {
   'admin-dashboard':  { title: 'Dashboard' },
   'admin-companies':  { title: 'Companies' },
   'admin-gyms':       { title: 'Gyms' },
   'admin-employees':  { title: 'All Employees' },
-  'admin-plans':      { title: 'Membership Plans', sub: 'Create and manage subscription plans' },
+  'admin-plans':        { title: 'Membership Plans', sub: 'Create and manage subscription plans' },
+  'admin-memberships':  { title: 'Memberships', sub: 'Assign and manage employee gym memberships' },
   'admin-attendance':         { title: 'Attendance Report', sub: 'Gym check-in analytics by period' },
   'admin-activity':           { title: 'Activity Log', sub: 'Immutable record of all system actions' },
   'admin-billing-invoices':   { title: 'Billing Invoices', sub: 'Generate and manage company invoices' },
   'admin-billing-payments':   { title: 'Payment Receipts', sub: 'Review and verify company payments' },
   'admin-payment-methods':    { title: 'Payment Methods', sub: 'Manage bank accounts for company payments' },
+  'admin-team':               { title: 'Team Management', sub: 'Manage Finance and Support sub-users' },
+  'admin-permissions':        { title: 'Permissions', sub: 'Grant or revoke permissions for admin roles' },
 }
 
-const currentTitle    = computed(() => pageMeta[route.name as string]?.title    ?? 'Admin')
-const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub      ?? '')
+const currentTitle    = computed(() => pageMeta[route.name as string]?.title ?? 'Admin')
+const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub    ?? '')
+
+const roleLabel = computed(() => {
+  const map: Record<string, string> = {
+    super_admin:    'SUPER ADMIN',
+    fitaccess_admin:'ADMIN',
+    admin_finance:  'FINANCE',
+    admin_support:  'SUPPORT',
+  }
+  return map[auth.user?.role ?? ''] ?? 'ADMIN'
+})
 
 async function handleLogout() {
   await auth.logout()
@@ -166,20 +207,9 @@ async function handleLogout() {
   padding: 22px 20px 18px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.logo-circle {
-  width: 36px; height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #14b8a6, #3b82f6);
-  color: #fff;
-  font-weight: 800;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+.logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #14b8a6; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* User chip */
 .user-chip {
@@ -210,7 +240,7 @@ async function handleLogout() {
   transition: color 0.15s, background 0.15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #14b8a6; background: rgba(20,184,166,0.08); }
+.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.08); }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; }
 

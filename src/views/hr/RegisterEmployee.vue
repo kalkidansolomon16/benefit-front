@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Success banner -->
@@ -237,7 +237,7 @@ function reset() {
 
 .banner-success {
   padding: 12px 16px; background: #d1fae5; border: 1px solid #a7f3d0;
-  border-radius: 10px; color: #059669; font-size: 0.88rem; font-weight: 500;
+  border-radius: 10px; color: #2EB84B; font-size: 0.88rem; font-weight: 500;
 }
 .banner-error {
   padding: 12px 16px; background: #fee2e2; border: 1px solid #fecaca;
@@ -268,7 +268,7 @@ function reset() {
   border-radius: 10px; font-size: 0.875rem; color: #0f172a; outline: none;
   transition: border-color .15s;
 }
-.input:focus     { border-color: #14b8a6; background: white; }
+.input:focus     { border-color: #4CD964; background: white; }
 .input-error     { border-color: #ef4444; }
 .input-full      { width: 100%; box-sizing: border-box; }
 .err-msg         { font-size: 0.72rem; color: #ef4444; margin: 0; }
@@ -295,11 +295,11 @@ function reset() {
   cursor: pointer; transition: border-color .15s, background .15s;
   min-height: 160px;
 }
-.photo-zone:hover         { border-color: #14b8a6; background: #f0fdf9; }
-.photo-zone--over         { border-color: #14b8a6; background: #f0fdf9; }
+.photo-zone:hover         { border-color: #4CD964; background: #f0fdf9; }
+.photo-zone--over         { border-color: #4CD964; background: #f0fdf9; }
 .photo-zone--filled       { padding: 12px; }
 .photo-label  { font-size: 0.88rem; color: #64748b; margin: 0; }
-.browse-link  { color: #14b8a6; font-weight: 600; }
+.browse-link  { color: #4CD964; font-weight: 600; }
 .photo-hint   { font-size: 0.72rem; color: #94a3b8; margin: 0; }
 .photo-preview { max-height: 180px; border-radius: 10px; object-fit: cover; }
 .remove-photo {
@@ -317,7 +317,7 @@ function reset() {
 }
 .btn-cancel:hover { border-color: #94a3b8; }
 .btn-submit {
-  padding: 10px 28px; background: #14b8a6; border: none;
+  padding: 10px 28px; background: #4CD964; border: none;
   border-radius: 10px; color: white; font-size: 0.875rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }

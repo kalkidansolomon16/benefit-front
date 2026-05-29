@@ -1,7 +1,7 @@
 <template>
   <div class="page">
 
-    <!-- ── Tab bar ───────────────────────────────────────────── -->
+    <!-- -- Tab bar --------------------------------------------- -->
     <div class="tab-bar">
       <button
         class="tab-btn"
@@ -21,9 +21,9 @@
       </button>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════
+    <!-- ----------------------------------------------------------
          TAB 1 — ACTIVE GYMS
-    ═══════════════════════════════════════════════════════════ -->
+    ----------------------------------------------------------- -->
     <div v-if="tab === 'gyms'">
       <div class="page-actions">
         <p class="count-label">{{ gyms.length }} registered</p>
@@ -34,7 +34,7 @@
 
       <div v-else class="gym-grid">
         <div
-          v-for="g in gyms"
+          v-for="g in paginatedGyms"
           :key="g.id"
           class="gym-card"
           :class="'card-' + gymTierKey(g.tier)"
@@ -62,13 +62,24 @@
               {{ g.is_partner ? 'Partner' : 'Regular' }}
             </span>
           </div>
+          <div v-if="g.contact_email" class="gc-email">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            {{ g.contact_email }}
+          </div>
         </div>
       </div>
+
+      <AppPagination
+        v-model:page="gymPage"
+        :total-pages="gymTotalPages"
+        :total="gyms.length"
+        :per-page="gymPerPage"
+      />
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════
+    <!-- ----------------------------------------------------------
          TAB 2 — PARTNER APPLICATIONS
-    ═══════════════════════════════════════════════════════════ -->
+    ----------------------------------------------------------- -->
     <div v-else>
 
       <!-- Status filter -->
@@ -93,14 +104,14 @@
 
       <!-- Application cards -->
       <div v-else class="app-list">
-        <div v-for="app in applications" :key="app.id" class="app-card">
+        <div v-for="app in paginatedApps" :key="app.id" class="app-card">
 
           <!-- Card header -->
           <div class="app-card-header">
             <div class="app-avatar">{{ app.facility_name.slice(0,2).toUpperCase() }}</div>
             <div class="app-header-info">
               <h3 class="app-name">{{ app.facility_name }}</h3>
-              <p class="app-contact">{{ app.contact_person }} · {{ app.contact_email }}</p>
+              <p class="app-contact">{{ app.contact_person }} — {{ app.contact_email }}</p>
             </div>
             <span class="status-badge" :class="`status--${app.status}`">
               {{ app.status.charAt(0).toUpperCase() + app.status.slice(1) }}
@@ -184,9 +195,16 @@
 
         </div>
       </div>
+
+      <AppPagination
+        v-model:page="appPage"
+        :total-pages="appTotalPages"
+        :total="applications.length"
+        :per-page="appPerPage"
+      />
     </div>
 
-    <!-- ══ Approve Modal ══ -->
+    <!-- -- Approve Modal -- -->
     <Teleport to="body">
       <div v-if="approveModal" class="modal-overlay" @click.self="approveModal = false">
         <div class="modal">
@@ -233,7 +251,7 @@
       </div>
     </Teleport>
 
-    <!-- ══ Reject Modal ══ -->
+    <!-- -- Reject Modal -- -->
     <Teleport to="body">
       <div v-if="rejectModal" class="modal-overlay" @click.self="rejectModal = false">
         <div class="modal">
@@ -252,7 +270,7 @@
                 v-model="rejectReason"
                 class="textarea"
                 rows="3"
-                placeholder="e.g. Incomplete documentation, facility does not meet standards…"
+                placeholder="e.g. Incomplete documentation, facility does not meet standards—"
               ></textarea>
             </div>
           </div>
@@ -268,7 +286,7 @@
       </div>
     </Teleport>
 
-    <!-- ══ Toast ══ -->
+    <!-- -- Toast -- -->
     <Teleport to="body">
       <Transition name="toast">
         <div v-if="toast.show" class="toast" :class="`toast--${toast.type}`">
@@ -281,21 +299,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
 
-// ── Tabs ────────────────────────────────────────────────────
+// -- Tabs ----------------------------------------------------
 const tab = ref<'gyms' | 'applications'>('gyms')
 
-// ── Gyms ────────────────────────────────────────────────────
+// -- Gyms ----------------------------------------------------
 interface Gym {
   id: number; name: string; tier: string; sub_city: string
+  contact_email: string | null
   is_partner: boolean; checkins_today: number; total_members: number
 }
 const gyms       = ref<Gym[]>([])
 const loadingGyms = ref(true)
+const gymPage    = ref(1)
+const gymPerPage = 12
+const gymTotalPages   = computed(() => Math.max(1, Math.ceil(gyms.value.length / gymPerPage)))
+const paginatedGyms   = computed(() => gyms.value.slice((gymPage.value - 1) * gymPerPage, gymPage.value * gymPerPage))
 
 async function loadGyms() {
   loadingGyms.value = true
@@ -306,7 +330,7 @@ async function loadGyms() {
   }
 }
 
-// ── Partner Applications ─────────────────────────────────────
+// -- Partner Applications -------------------------------------
 interface Application {
   id: number
   facility_name: string
@@ -333,6 +357,10 @@ const applications  = ref<Application[]>([])
 const loadingApps   = ref(false)
 const pendingCount  = ref(0)
 const appStatus     = ref('all')
+const appPage       = ref(1)
+const appPerPage    = 8
+const appTotalPages    = computed(() => Math.max(1, Math.ceil(applications.value.length / appPerPage)))
+const paginatedApps    = computed(() => applications.value.slice((appPage.value - 1) * appPerPage, appPage.value * appPerPage))
 
 const statusFilters = [
   { value: 'all',      label: 'All' },
@@ -343,6 +371,7 @@ const statusFilters = [
 
 async function loadApplications() {
   loadingApps.value = true
+  appPage.value = 1
   try {
     const params = appStatus.value !== 'all' ? `?status=${appStatus.value}` : ''
     const res = await api.get<{ data: Application[]; pending_count: number }>(`partner-applications${params}`)
@@ -353,17 +382,17 @@ async function loadApplications() {
   }
 }
 
-// ── Approve ─────────────────────────────────────────────────
+// -- Approve -------------------------------------------------
 const approveModal   = ref(false)
 const approveLoading = ref(false)
 const approveTier    = ref('')
 const selectedApp    = ref<Application | null>(null)
 
 const tierOptions = [
-  { value: 'basic',      label: '🏋️ Basic' },
-  { value: 'basic_plus', label: '⭐ Basic Plus' },
-  { value: 'premium',    label: '💎 Premium' },
-  { value: 'platinum',   label: '👑 Platinum' },
+  { value: 'basic',      label: 'Basic' },
+  { value: 'basic_plus', label: 'Basic Plus' },
+  { value: 'premium',    label: 'Premium' },
+  { value: 'platinum',   label: 'Platinum' },
 ]
 
 function openApprove(app: Application) {
@@ -387,7 +416,7 @@ async function confirmApprove() {
   }
 }
 
-// ── Reject ──────────────────────────────────────────────────
+// -- Reject --------------------------------------------------
 const rejectModal   = ref(false)
 const rejectLoading = ref(false)
 const rejectReason  = ref('')
@@ -413,7 +442,7 @@ async function confirmReject() {
   }
 }
 
-// ── Toast ────────────────────────────────────────────────────
+// -- Toast ----------------------------------------------------
 const toast = ref({ show: false, message: '', type: 'success' })
 let toastTimer: ReturnType<typeof setTimeout>
 function showToast(message: string, type = 'success') {
@@ -422,12 +451,12 @@ function showToast(message: string, type = 'success') {
   toastTimer = setTimeout(() => { toast.value.show = false }, 4000)
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+// -- Helpers --------------------------------------------------
 const categoryMap: Record<string, string> = {
-  gym: '🏋️ Gym & Fitness', swimming: '🏊 Swimming Pool',
-  spa: '💆 Spa & Hydrotherapy', reflexology: '🤲 Reflexology & Massage',
-  cinema: '🎬 Cinema / Theatre', yoga: '🧘 Yoga & Pilates',
-  sauna: '🧖 Sauna & Steam', nutrition: '🥗 Nutrition Clinic',
+  gym: '??? Gym & Fitness', swimming: '?? Swimming Pool',
+  spa: '?? Spa & Hydrotherapy', reflexology: '?? Reflexology & Massage',
+  cinema: '?? Cinema / Theatre', yoga: '?? Yoga & Pilates',
+  sauna: '?? Sauna & Steam', nutrition: '?? Nutrition Clinic',
 }
 function categoryLabel(c: string): string { return categoryMap[c] ?? c }
 
@@ -454,7 +483,7 @@ onMounted(() => {
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 20px; font-family: 'Inter', system-ui, sans-serif; }
 
-/* ── Tab bar ──────────────────────────────────────────────── */
+/* -- Tab bar ------------------------------------------------ */
 .tab-bar { display: flex; gap: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 4px; width: fit-content; }
 .tab-btn {
   display: flex; align-items: center; gap: 8px;
@@ -475,7 +504,7 @@ onMounted(() => {
 .tab-count--red { background: #fee2e2 !important; color: #dc2626 !important; }
 .tab-btn.active .tab-count--red { background: rgba(220,38,38,0.2) !important; color: #fca5a5 !important; }
 
-/* ── Gyms tab ─────────────────────────────────────────────── */
+/* -- Gyms tab ----------------------------------------------- */
 .page-actions { display: flex; align-items: center; justify-content: space-between; }
 .count-label  { font-size: 0.85rem; color: #94a3b8; margin: 0; }
 .state-msg    { text-align: center; color: #94a3b8; padding: 56px; background: white; border-radius: 14px; border: 1px solid #e2e8f0; }
@@ -493,21 +522,22 @@ onMounted(() => {
 .gc-header     { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .gc-name       { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
 .gc-tier-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
-.tb-platinum   { background: #ede9fe; color: #7c3aed; }
-.tb-plus       { background: #d1fae5; color: #059669; }
+.tb-platinum   { background: #ede9fe; color: #2EB84B; }
+.tb-plus       { background: #d1fae5; color: #2EB84B; }
 .tb-basic      { background: #f1f5f9; color: #64748b; }
-.gc-big-num    { font-size: 2rem; font-weight: 800; color: #7c3aed; line-height: 1; }
-.card-plus .gc-big-num { color: #14b8a6; }
+.gc-big-num    { font-size: 2rem; font-weight: 800; color: #2EB84B; line-height: 1; }
+.card-plus .gc-big-num { color: #4CD964; }
 .gc-stats      { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .gc-stat-label { font-size: 0.72rem; color: #94a3b8; margin: 0 0 3px; }
 .gc-stat-val   { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; }
 .gc-footer     { display: flex; align-items: center; justify-content: space-between; }
 .gc-city       { font-size: 0.75rem; color: #94a3b8; }
+.gc-email      { display: flex; align-items: center; gap: 5px; font-size: 0.74rem; color: #64748b; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .gc-partner-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
-.partner { background: #d1fae5; color: #059669; }
+.partner { background: #d1fae5; color: #2EB84B; }
 .regular { background: #f1f5f9; color: #94a3b8; }
 
-/* ── Applications tab ─────────────────────────────────────── */
+/* -- Applications tab --------------------------------------- */
 .app-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .filter-tabs { display: flex; gap: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 3px; }
 .filter-btn {
@@ -528,7 +558,7 @@ onMounted(() => {
 .app-card-header { display: flex; align-items: center; gap: 14px; }
 .app-avatar {
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #16a34a, #2563eb);
+  background: linear-gradient(135deg, #16a34a, #4CD964);
   color: #fff; font-weight: 800; font-size: 1rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -552,7 +582,7 @@ onMounted(() => {
 .app-section-sub   { font-size: 0.78rem; color: #64748b; margin: 0; }
 
 .cat-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
-.cat-chip  { padding: 3px 9px; background: #f0f9ff; color: #0284c7; border-radius: 20px; font-size: 0.73rem; font-weight: 600; }
+.cat-chip  { padding: 3px 9px; background: #EBFAEE; color: #2EB84B; border-radius: 20px; font-size: 0.73rem; font-weight: 600; }
 
 .app-amenities { display: flex; flex-wrap: wrap; gap: 6px; }
 .amenity-chip  { padding: 3px 9px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 0.73rem; color: #475569; }
@@ -561,7 +591,7 @@ onMounted(() => {
   display: flex; align-items: center; gap: 6px;
   font-size: 0.8rem; color: #64748b;
 }
-.license-link { color: #2563eb; font-weight: 600; text-decoration: none; }
+.license-link { color: #4CD964; font-weight: 600; text-decoration: none; }
 .license-link:hover { text-decoration: underline; }
 
 .rejection-note {
@@ -588,7 +618,7 @@ onMounted(() => {
 }
 .btn-reject:hover { background: #fff1f2; }
 
-/* ── Modals ───────────────────────────────────────────────── */
+/* -- Modals ------------------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.45);
@@ -617,7 +647,7 @@ onMounted(() => {
 
 .field-group  { display: flex; flex-direction: column; gap: 8px; }
 .field-label  { font-size: 0.85rem; font-weight: 600; color: #334155; }
-.req          { color: #e0386a; }
+.req          { color: #4CD964; }
 .optional     { color: #94a3b8; font-weight: 400; font-size: 0.78rem; }
 
 /* Tier selector in modal */
@@ -633,8 +663,8 @@ onMounted(() => {
 .tier-btn.selected { border-color: #16a34a; background: #f0fdf4; color: #166534; font-weight: 700; }
 .tier-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .dot-basic      { background: #64748b; }
-.dot-basic_plus { background: #0284c7; }
-.dot-premium    { background: #7c3aed; }
+.dot-basic_plus { background: #2EB84B; }
+.dot-premium    { background: #2EB84B; }
 .dot-platinum   { background: #f59e0b; }
 
 .textarea {
@@ -669,7 +699,7 @@ onMounted(() => {
 .btn-confirm-reject:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-confirm-reject:not(:disabled):hover { opacity: 0.85; }
 
-/* ── Toast ────────────────────────────────────────────────── */
+/* -- Toast -------------------------------------------------- */
 .toast {
   position: fixed; bottom: 28px; right: 28px; z-index: 999;
   padding: 13px 20px; border-radius: 12px;
@@ -689,7 +719,7 @@ onMounted(() => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Responsive ───────────────────────────────────────────── */
+/* -- Responsive --------------------------------------------- */
 @media (max-width: 700px) {
   .app-body { grid-template-columns: 1fr; }
   .tier-grid { grid-template-columns: 1fr; }

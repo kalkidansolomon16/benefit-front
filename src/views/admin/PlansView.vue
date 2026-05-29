@@ -27,7 +27,7 @@
     <!-- Plans Grid -->
     <div v-else class="plans-grid">
       <div
-        v-for="plan in plans"
+        v-for="plan in paginatedPlans"
         :key="plan.id"
         class="plan-card"
         :class="{ 'plan-card--inactive': !plan.is_active }"
@@ -91,7 +91,14 @@
       </div>
     </div>
 
-    <!-- ── Add / Edit Modal ─────────────────────────────────────── -->
+    <AppPagination
+      v-model:page="planPage"
+      :total-pages="planTotalPages"
+      :total="plans.length"
+      :per-page="planPerPage"
+    />
+
+    <!-- -- Add / Edit Modal --------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal-fade">
         <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
@@ -211,7 +218,7 @@
       </Transition>
     </Teleport>
 
-    <!-- ── Delete Confirm Modal ─────────────────────────────────── -->
+    <!-- -- Delete Confirm Modal ----------------------------------- -->
     <Teleport to="body">
       <Transition name="modal-fade">
         <div v-if="deleteTarget" class="modal-backdrop" @click.self="deleteTarget = null">
@@ -249,6 +256,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
 
@@ -269,6 +277,11 @@ const loading = ref(true)
 
 const activePlans = computed(() => plans.value.filter(p => p.is_active).length)
 
+const planPage    = ref(1)
+const planPerPage = 12
+const planTotalPages  = computed(() => Math.max(1, Math.ceil(plans.value.length / planPerPage)))
+const paginatedPlans  = computed(() => plans.value.slice((planPage.value - 1) * planPerPage, planPage.value * planPerPage))
+
 async function fetchPlans() {
   loading.value = true
   try {
@@ -279,7 +292,7 @@ async function fetchPlans() {
 }
 onMounted(fetchPlans)
 
-// ── Form modal ───────────────────────────────────────────────────
+// -- Form modal ---------------------------------------------------
 const showModal  = ref(false)
 const editing    = ref<Plan | null>(null)
 const saving     = ref(false)
@@ -369,7 +382,7 @@ async function savePlan() {
   }
 }
 
-// ── Toggle active ────────────────────────────────────────────────
+// -- Toggle active ------------------------------------------------
 async function toggleActive(plan: Plan) {
   try {
     const res = await api.patch<{ is_active: boolean; message: string }>(`membership-plans/${plan.id}/toggle-active`, {})
@@ -380,7 +393,7 @@ async function toggleActive(plan: Plan) {
   }
 }
 
-// ── Delete ───────────────────────────────────────────────────────
+// -- Delete -------------------------------------------------------
 const deleteTarget = ref<Plan | null>(null)
 const deleteError  = ref('')
 const deleting     = ref(false)
@@ -406,14 +419,14 @@ async function deletePlan() {
   }
 }
 
-// ── Toast ────────────────────────────────────────────────────────
+// -- Toast --------------------------------------------------------
 const toast = ref<{ msg: string; type: 'success' | 'error' } | null>(null)
 function showToast(msg: string, type: 'success' | 'error') {
   toast.value = { msg, type }
   setTimeout(() => { toast.value = null }, 3000)
 }
 
-// ── Helpers ──────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------
 function levelLabel(level: string): string {
   const map: Record<string, string> = {
     all: 'All Levels', staff: 'Staff / Manager',
@@ -475,7 +488,7 @@ function levelLabel(level: string): string {
 .tier-badge {
   font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; padding: 3px 9px; border-radius: 20px;
-  background: #eff6ff; color: #1b3a6b;
+  background: #EBFAEE; color: #1b3a6b;
 }
 .inactive-badge {
   font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
@@ -519,10 +532,10 @@ function levelLabel(level: string): string {
   display: flex; align-items: flex-start; gap: 7px;
   font-size: 0.8rem; color: #475569;
 }
-.plan-features li svg { flex-shrink: 0; color: #10b981; margin-top: 1px; }
+.plan-features li svg { flex-shrink: 0; color: #4CD964; margin-top: 1px; }
 .no-features { font-size: 0.78rem; color: #cbd5e1; margin: 0; }
 
-/* ── Modal ───────────────────────────────────────────────────── */
+/* -- Modal ----------------------------------------------------- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45);
   z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px;

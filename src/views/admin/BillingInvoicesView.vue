@@ -34,7 +34,7 @@
       </button>
     </div>
 
-    <!-- ════════════════ INVOICES SECTION ════════════════ -->
+    <!-- ---------------- INVOICES SECTION ---------------- -->
     <template v-if="activeSection === 'invoices'">
 
       <!-- Toolbar -->
@@ -58,13 +58,13 @@
 
       <div v-if="invLoading" class="state-msg">Loading invoices…</div>
       <div v-else-if="filteredInvoices.length === 0" class="empty-state">
-        <div class="empty-icon">🧾</div>
+        <div class="empty-icon"><svg width="32" height="32" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <p class="empty-title">No invoices found</p>
         <p class="empty-sub">Generate an invoice for a company to get started.</p>
       </div>
 
       <div v-else class="invoices-list">
-        <div v-for="inv in filteredInvoices" :key="inv.id" class="invoice-card" @click="openDetail(inv)">
+        <div v-for="inv in paginatedInvoices" :key="inv.id" class="invoice-card" @click="openDetail(inv)">
           <div class="inv-left">
             <div class="inv-avatar">{{ (inv.company?.name ?? '?').slice(0, 2).toUpperCase() }}</div>
             <div>
@@ -79,14 +79,21 @@
         </div>
       </div>
 
+      <AppPagination
+        v-model:page="invPage"
+        :total-pages="invTotalPages"
+        :total="filteredInvoices.length"
+        :per-page="invPerPage"
+      />
+
     </template>
 
-    <!-- ════════════════ RECEIPTS SECTION ════════════════ -->
+    <!-- ---------------- RECEIPTS SECTION ---------------- -->
     <template v-if="activeSection === 'receipts'">
 
       <div v-if="rcptLoading" class="state-msg">Loading receipts…</div>
       <div v-else-if="pendingPayments.length === 0" class="empty-state">
-        <div class="empty-icon">✅</div>
+        <div class="empty-icon"><svg width="32" height="32" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <p class="empty-title">All receipts reviewed</p>
         <p class="empty-sub">No pending payment receipts at this time.</p>
       </div>
@@ -130,12 +137,12 @@
 
     </template>
 
-    <!-- ════════════════ NEGOTIATIONS SECTION ════════════════ -->
+    <!-- ---------------- NEGOTIATIONS SECTION ---------------- -->
     <template v-if="activeSection === 'negotiations'">
 
       <div v-if="negLoading" class="state-msg">Loading negotiations…</div>
       <div v-else-if="negotiations.length === 0" class="empty-state">
-        <div class="empty-icon">🤝</div>
+        <div class="empty-icon"><svg width="32" height="32" fill="none" stroke="#94a3b8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <p class="empty-title">No pending negotiations</p>
         <p class="empty-sub">Companies with overdue invoices can request payment extensions here.</p>
       </div>
@@ -181,7 +188,7 @@
 
     </template>
 
-    <!-- ════════════════ GENERATE INVOICE MODAL ════════════════ -->
+    <!-- ---------------- GENERATE INVOICE MODAL ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="genModal.show" class="modal-backdrop" @click.self="genModal.show = false">
@@ -261,7 +268,7 @@
       </Transition>
     </Teleport>
 
-    <!-- ════════════════ INVOICE DETAIL MODAL ════════════════ -->
+    <!-- ---------------- INVOICE DETAIL MODAL ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="detailModal.show" class="modal-backdrop" @click.self="detailModal.show = false">
@@ -324,7 +331,7 @@
                 :disabled="detailSending"
                 @click="sendInvoice"
               >
-                {{ detailSending ? 'Sending…' : '📤 Send to Company' }}
+                {{ detailSending ? 'Sending…' : 'Send to Company' }}
               </button>
               <button
                 v-if="detailModal.inv?.status === 'draft'"
@@ -337,12 +344,12 @@
       </Transition>
     </Teleport>
 
-    <!-- ════════════════ VERIFY CONFIRM MODAL ════════════════ -->
+    <!-- ---------------- VERIFY CONFIRM MODAL ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="verifyModal.show" class="modal-backdrop" @click.self="verifyModal.show = false">
           <div class="modal modal--confirm">
-            <div class="confirm-icon">✅</div>
+            <div class="confirm-icon"><svg width="40" height="40" fill="none" stroke="#4CD964" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
             <p class="confirm-title">Verify Payment</p>
             <p class="confirm-body">
               Confirm payment from <strong>{{ verifyModal.payment?.company?.name }}</strong> and mark
@@ -359,7 +366,7 @@
       </Transition>
     </Teleport>
 
-    <!-- ════════════════ REJECT MODAL ════════════════ -->
+    <!-- ---------------- REJECT MODAL ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="rejectModal.show" class="modal-backdrop" @click.self="rejectModal.show = false">
@@ -389,12 +396,12 @@
       </Transition>
     </Teleport>
 
-    <!-- ════════════════ APPROVE NEGOTIATION MODAL ════════════════ -->
+    <!-- ---------------- APPROVE NEGOTIATION MODAL ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="approveNegModal.show" class="modal-backdrop" @click.self="approveNegModal.show = false">
           <div class="modal modal--confirm">
-            <div class="confirm-icon">🤝</div>
+            <div class="confirm-icon"><svg width="40" height="40" fill="none" stroke="#4CD964" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
             <p class="confirm-title">Approve Extension</p>
             <p class="confirm-body">
               Approve the extension request from <strong>{{ approveNegModal.neg?.company?.name }}</strong>?
@@ -415,7 +422,7 @@
       </Transition>
     </Teleport>
 
-    <!-- ════════════════ REJECT NEGOTIATION MODAL ════════════════ -->
+    <!-- ---------------- REJECT NEGOTIATION MODAL ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="rejectNegModal.show" class="modal-backdrop" @click.self="rejectNegModal.show = false">
@@ -445,13 +452,13 @@
       </Transition>
     </Teleport>
 
-    <!-- ════════════════ COMPANY ACTION MODAL (after rejection) ════════════════ -->
+    <!-- ---------------- COMPANY ACTION MODAL (after rejection) ---------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="companyActionModal.show" class="modal-backdrop">
           <div class="modal modal--action">
             <div class="action-modal-top">
-              <div class="action-modal-icon">⚠️</div>
+              <div class="action-modal-icon"><svg width="44" height="44" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
               <p class="action-modal-title">What action do you want to take?</p>
               <p class="action-modal-sub">
                 Extension request from <strong>{{ companyActionModal.companyName }}</strong> was rejected.
@@ -469,7 +476,7 @@
                   <svg v-if="companyActionModal.action === 'suspend'" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div>
-                  <p class="action-opt-title">🔒 Suspend Company</p>
+                  <p class="action-opt-title">Suspend Company</p>
                   <p class="action-opt-desc">Temporarily disable the account. Can be reactivated later.</p>
                 </div>
               </button>
@@ -482,7 +489,7 @@
                   <svg v-if="companyActionModal.action === 'ban'" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div>
-                  <p class="action-opt-title">🚫 Permanently Ban</p>
+                  <p class="action-opt-title">Permanently Ban</p>
                   <p class="action-opt-desc">Block this company from the platform permanently.</p>
                 </div>
               </button>
@@ -495,7 +502,7 @@
                   <svg v-if="companyActionModal.action === 'none'" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div>
-                  <p class="action-opt-title">⏩ No Action Now</p>
+                  <p class="action-opt-title">No Action Now</p>
                   <p class="action-opt-desc">Leave the account active. Decide later.</p>
                 </div>
               </button>
@@ -541,8 +548,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 interface InvoiceItem { plan_tier: string; plan_name: string; employee_count: number; unit_price: number; subtotal: number }
 interface LatestPayment { status: string; submitted_at: string; payment_method_bank: string; admin_notes: string | null }
@@ -611,6 +619,11 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
   toastTimer = setTimeout(() => { toast.show = false }, 4000)
 }
 
+const invPage     = ref(1)
+const invPerPage  = 15
+const invTotalPages = computed(() => Math.max(1, Math.ceil(filteredInvoices.value.length / invPerPage)))
+const paginatedInvoices = computed(() => filteredInvoices.value.slice((invPage.value - 1) * invPerPage, invPage.value * invPerPage))
+
 const filteredInvoices = computed(() => {
   return invoices.value.filter(inv => {
     const matchSearch = !invSearch.value ||
@@ -654,7 +667,9 @@ async function loadNegotiations() {
 
 onMounted(() => { loadInvoices(); loadPendingPayments(); loadNegotiations(); loadCompanies() })
 
-// ── Generate invoice ───────────────────────────────────────────
+watch(filteredInvoices, () => { invPage.value = 1 })
+
+// -- Generate invoice -------------------------------------------
 function openGenerate() {
   Object.assign(genForm, { company_id: '', billing_month: '', due_date: '', notes: '' })
   genPreview.value = null
@@ -729,7 +744,7 @@ async function generateInvoice() {
   }
 }
 
-// ── Invoice detail ─────────────────────────────────────────────
+// -- Invoice detail ---------------------------------------------
 async function openDetail(inv: Invoice) {
   const full = await api.get<Invoice>(`admin/billing/invoices/${inv.id}`)
   detailModal.inv  = full
@@ -763,7 +778,7 @@ async function deleteInvoice() {
   }
 }
 
-// ── Payment verification ───────────────────────────────────────
+// -- Payment verification ---------------------------------------
 function verifyPayment(p: Payment) {
   verifyModal.payment = p
   verifyModal.loading = false
@@ -809,7 +824,7 @@ async function confirmReject() {
   }
 }
 
-// ── Negotiations ───────────────────────────────────────────────
+// -- Negotiations -----------------------------------------------
 function openApproveNeg(n: Negotiation) {
   approveNegModal.neg   = n
   approveNegModal.notes = ''
@@ -875,7 +890,7 @@ async function confirmCompanyAction() {
   } finally { companyActionModal.loading = false }
 }
 
-// ── Helpers ────────────────────────────────────────────────────
+// -- Helpers ----------------------------------------------------
 function invStatusLabel(s: string) {
   return { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' }[s] ?? s
 }
@@ -910,9 +925,9 @@ function formatDate(dt: string | null) {
 .search-wrap { position: relative; flex: 1; min-width: 220px; }
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .search-input { width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.88rem; color: #0f172a; outline: none; font-family: inherit; }
-.search-input:focus { border-color: #14b8a6; }
+.search-input:focus { border-color: #4CD964; }
 .filter-select { padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.84rem; color: #0f172a; background: white; outline: none; cursor: pointer; font-family: inherit; }
-.filter-select:focus { border-color: #14b8a6; }
+.filter-select:focus { border-color: #4CD964; }
 .btn-generate { display: flex; align-items: center; gap: 7px; padding: 10px 18px; background: #0f172a; color: white; border: none; border-radius: 10px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; white-space: nowrap; }
 .btn-generate:hover { opacity: .85; }
 
@@ -938,8 +953,8 @@ function formatDate(dt: string | null) {
 .inv-amount  { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0; }
 .inv-badge   { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .inv-draft   { background: #f1f5f9; color: #64748b; }
-.inv-sent    { background: #dbeafe; color: #1d4ed8; }
-.inv-paid    { background: #d1fae5; color: #059669; }
+.inv-sent    { background: #EBFAEE; color: #2EB84B; }
+.inv-paid    { background: #d1fae5; color: #2EB84B; }
 .inv-overdue { background: #fee2e2; color: #dc2626; }
 
 /* Receipt cards */
@@ -955,8 +970,8 @@ function formatDate(dt: string | null) {
 .rcpt-view-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: #f1f5f9; color: #0f172a; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: background .15s; }
 .rcpt-view-btn:hover { background: #e2e8f0; }
 .rcpt-actions { display: flex; gap: 10px; }
-.btn-verify { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #059669; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
-.btn-verify:hover { background: #059669; color: white; }
+.btn-verify { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #2EB84B; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-verify:hover { background: #2EB84B; color: white; }
 .btn-reject-pay { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-reject-pay:hover { background: #dc2626; color: white; }
 
@@ -979,7 +994,7 @@ function formatDate(dt: string | null) {
   padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px;
   font-size: 0.88rem; color: #0f172a; background: white; font-family: inherit; outline: none;
 }
-.field input:focus, .field select:focus, .field textarea:focus { border-color: #14b8a6; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #4CD964; }
 
 /* Styled date inputs */
 .date-wrap {
@@ -992,7 +1007,7 @@ function formatDate(dt: string | null) {
   font-family: inherit; outline: none; cursor: pointer;
   color-scheme: light; transition: border-color .15s, box-shadow .15s;
 }
-.date-input:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.1); }
+.date-input:focus { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(76,217,100,0.1); }
 .date-icon {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   color: #94a3b8; pointer-events: none;
@@ -1017,7 +1032,7 @@ function formatDate(dt: string | null) {
 .tc { text-align: right; }
 .fw { font-weight: 700; }
 .total-label { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
-.total-val   { font-size: 1rem; color: #14b8a6; }
+.total-val   { font-size: 1rem; color: #4CD964; }
 .preview-loading { text-align: center; font-size: 0.84rem; color: #94a3b8; }
 
 /* Detail meta */
@@ -1031,7 +1046,7 @@ function formatDate(dt: string | null) {
 .lp-bank { font-size: 0.88rem; font-weight: 600; color: #0f172a; }
 .lp-status { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .ps-pending  { background: #fef9c3; color: #a16207; }
-.ps-verified { background: #d1fae5; color: #059669; }
+.ps-verified { background: #d1fae5; color: #2EB84B; }
 .ps-rejected { background: #fee2e2; color: #dc2626; }
 .lp-date { font-size: 0.76rem; color: #94a3b8; margin: 4px 0 0; }
 
@@ -1055,7 +1070,7 @@ function formatDate(dt: string | null) {
 .confirm-body  { font-size: 0.88rem; color: #64748b; margin: 0; line-height: 1.6; }
 .confirm-body strong { color: #0f172a; }
 .confirm-actions { display: flex; gap: 10px; justify-content: center; margin-top: 4px; }
-.btn-verify-confirm { padding: 10px 24px; background: #059669; color: white; border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+.btn-verify-confirm { padding: 10px 24px; background: #2EB84B; color: white; border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
 .btn-verify-confirm:hover:not(:disabled) { opacity: .85; }
 .btn-verify-confirm:disabled { opacity: .5; cursor: default; }
 
@@ -1081,14 +1096,14 @@ function formatDate(dt: string | null) {
 .neg-reason-text  { font-size: 0.87rem; color: #0f172a; margin: 0; line-height: 1.55; }
 .neg-submitted { font-size: 0.74rem; color: #94a3b8; margin: 0; }
 .neg-card-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-approve-neg { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #059669; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
-.btn-approve-neg:hover { background: #059669; color: white; }
+.btn-approve-neg { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #2EB84B; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-approve-neg:hover { background: #2EB84B; color: white; }
 .btn-reject-neg  { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-reject-neg:hover { background: #dc2626; color: white; }
 
 /* Approve neg modal */
 .modal--confirm textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.86rem; font-family: inherit; outline: none; resize: vertical; min-height: 60px; box-sizing: border-box; }
-.modal--confirm textarea:focus { border-color: #14b8a6; }
+.modal--confirm textarea:focus { border-color: #4CD964; }
 .modal--confirm .field label { font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
 
 /* Company action modal */
@@ -1116,7 +1131,7 @@ function formatDate(dt: string | null) {
 .action-options + .field { margin-top: 8px; }
 .action-options + .field label { font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
 .action-options + .field textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.86rem; font-family: inherit; outline: none; resize: vertical; min-height: 80px; box-sizing: border-box; }
-.action-options + .field textarea:focus { border-color: #14b8a6; }
+.action-options + .field textarea:focus { border-color: #4CD964; }
 .btn-action-confirm { padding: 9px 22px; color: white; border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
 .btn-action-confirm:disabled { opacity: .5; cursor: default; }
 .btn-suspend { background: #f59e0b; }

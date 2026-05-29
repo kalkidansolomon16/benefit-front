@@ -10,7 +10,7 @@ const testimonials = [
     company: 'Commercial Bank of Ethiopia',
     avatar: '👩‍💼',
     rating: 5,
-    color: '#dbeafe',
+    color: '#EBFAEE',
   },
   {
     quote:

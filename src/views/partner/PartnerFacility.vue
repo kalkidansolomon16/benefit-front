@@ -3,7 +3,7 @@
 
     <div v-if="loading" class="pf-loading">
       <div class="spinner"></div>
-      <p>Loading facility infoâ€¦</p>
+      <p>Loading facility info…</p>
     </div>
 
     <template v-else-if="gym">
@@ -19,7 +19,7 @@
               {{ gym.is_active ? 'Active' : 'Inactive' }}
             </span>
           </div>
-          <p class="profile-sub">Partner Gym Â· {{ gym.city }}</p>
+          <p class="profile-sub">Partner Gym · {{ gym.city }}</p>
           <p v-if="gym.partnership_start" class="profile-since">
             Partner since <strong>{{ gym.partnership_start }}</strong>
           </p>
@@ -226,7 +226,7 @@ function tierLabel(tier: string): string {
 }
 .spinner {
   width: 30px; height: 30px;
-  border: 3px solid #e2e8f0; border-top-color: #10b981;
+  border: 3px solid #e2e8f0; border-top-color: #4CD964;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -237,7 +237,7 @@ function tierLabel(tier: string): string {
 }
 .retry-btn {
   padding: 8px 20px; border-radius: 8px; border: none;
-  background: #10b981; color: #fff; font-weight: 600; cursor: pointer;
+  background: #4CD964; color: #fff; font-weight: 600; cursor: pointer;
 }
 
 /* Profile card */
@@ -248,7 +248,7 @@ function tierLabel(tier: string): string {
 }
 .profile-avatar {
   width: 60px; height: 60px; border-radius: 16px; flex-shrink: 0;
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #4CD964, #2EB84B);
   color: #fff; font-weight: 800; font-size: 1.3rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -262,8 +262,8 @@ function tierLabel(tier: string): string {
   padding: 3px 9px; border-radius: 20px;
 }
 .tier--basic      { background: #f1f5f9; color: #64748b; }
-.tier--basic_plus { background: #eff6ff; color: #3b82f6; }
-.tier--premium    { background: #f0fdf4; color: #10b981; }
+.tier--basic_plus { background: #EBFAEE; color: #3b82f6; }
+.tier--premium    { background: #f0fdf4; color: #4CD964; }
 .tier--platinum   { background: #faf5ff; color: #a855f7; }
 
 .status-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 9px; border-radius: 20px; }

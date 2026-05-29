@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -30,7 +30,7 @@ const strengthScore = computed(() => strengthRules.value.filter(r => r.ok).lengt
 const strengthLabel = computed(() => {
   const s = strengthScore.value
   if (s <= 1) return { text: 'Very weak',   color: '#dc2626' }
-  if (s === 2) return { text: 'Weak',        color: '#f97316' }
+  if (s === 2) return { text: 'Weak',        color: '#2EB84B' }
   if (s === 3) return { text: 'Fair',        color: '#eab308' }
   if (s === 4) return { text: 'Strong',      color: '#22c55e' }
   return               { text: 'Very strong', color: '#16a34a' }
@@ -443,21 +443,21 @@ async function handleSubmit() {
   padding: 40px 48px 48px; box-shadow: 0 2px 12px rgba(0,0,0,.06); margin-bottom: 24px;
 }
 .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
-.brand-icon { font-size: 1.6rem; color: #e0386a; }
-.brand-name { font-size: 1.4rem; font-weight: 800; color: #e0386a; letter-spacing: -0.01em; }
-.brand-tag  { margin-left: 6px; font-size: 0.7rem; font-weight: 700; background: #e0386a; color: #fff; padding: 3px 9px; border-radius: 20px; letter-spacing: 0.05em; }
+.brand-icon { font-size: 1.6rem; color: #4CD964; }
+.brand-name { font-size: 1.4rem; font-weight: 800; color: #4CD964; letter-spacing: -0.01em; }
+.brand-tag  { margin-left: 6px; font-size: 0.7rem; font-weight: 700; background: #4CD964; color: #fff; padding: 3px 9px; border-radius: 20px; letter-spacing: 0.05em; }
 
 .progress-wrap { margin-bottom: 36px; }
 .progress-steps { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .progress-step  { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
 .step-dot { width: 28px; height: 28px; border-radius: 50%; background: #eee; color: #aaa; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; transition: all 0.3s; }
-.progress-step.active .step-dot { background: #e0386a; color: #fff; box-shadow: 0 0 0 4px rgba(224,56,106,.15); }
+.progress-step.active .step-dot { background: #4CD964; color: #fff; box-shadow: 0 0 0 4px rgba(224,56,106,.15); }
 .progress-step.done   .step-dot { background: #16a34a; color: #fff; }
 .step-label { font-size: 0.72rem; color: #aaa; font-weight: 500; transition: color 0.3s; }
-.progress-step.active .step-label { color: #e0386a; font-weight: 600; }
+.progress-step.active .step-label { color: #4CD964; font-weight: 600; }
 .progress-step.done   .step-label { color: #16a34a; }
 .progress-track { height: 3px; background: #e8e4df; border-radius: 99px; overflow: hidden; margin-top: 4px; }
-.progress-fill  { height: 100%; background: linear-gradient(90deg, #16a34a, #e0386a); border-radius: 99px; transition: width 0.4s ease; }
+.progress-fill  { height: 100%; background: linear-gradient(90deg, #16a34a, #4CD964); border-radius: 99px; transition: width 0.4s ease; }
 
 .card-body { display: flex; flex-direction: column; }
 .back-btn  { display: flex; align-items: center; background: none; border: none; color: #555; cursor: pointer; padding: 0; margin-bottom: 20px; width: fit-content; transition: color 0.2s; }
@@ -470,10 +470,10 @@ async function handleSubmit() {
 .field-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .field-group { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 0.85rem; font-weight: 600; color: #333; }
-.req { color: #e0386a; }
+.req { color: #4CD964; }
 .optional { color: #aaa; font-weight: 400; }
 .field-hint { font-size: 0.78rem; color: #999; margin-top: 2px; }
-.error-hint { color: #e0386a !important; }
+.error-hint { color: #4CD964 !important; }
 .ok-hint    { color: #16a34a !important; font-weight: 500; }
 
 .input {
@@ -482,15 +482,15 @@ async function handleSubmit() {
   outline: none; transition: border-color 0.2s, box-shadow 0.2s;
   font-family: inherit; box-sizing: border-box;
 }
-.input:focus       { border-color: #e0386a; background: #fff; box-shadow: 0 0 0 3px rgba(224,56,106,.07); }
-.input.input-error { border-color: #e0386a; }
+.input:focus       { border-color: #4CD964; background: #fff; box-shadow: 0 0 0 3px rgba(224,56,106,.07); }
+.input.input-error { border-color: #4CD964; }
 .input.input-ok    { border-color: #16a34a; }
 .input::placeholder { color: #aaa; }
 .mono { font-family: 'Courier New', monospace; letter-spacing: 0.12em; font-size: 1rem; }
 .textarea { resize: vertical; min-height: 80px; }
 
 .phone-wrap { display: flex; border-radius: 10px; overflow: hidden; border: 1.5px solid #ddd8d2; background: #f9f7f5; transition: border-color .2s; }
-.phone-wrap:focus-within { border-color: #e0386a; background: #fff; box-shadow: 0 0 0 3px rgba(224,56,106,.07); }
+.phone-wrap:focus-within { border-color: #4CD964; background: #fff; box-shadow: 0 0 0 3px rgba(224,56,106,.07); }
 .phone-prefix { display: flex; align-items: center; gap: 6px; padding: 0 14px; background: #f0ede8; border-right: 1.5px solid #ddd8d2; font-size: 0.9rem; font-weight: 600; color: #333; white-space: nowrap; }
 .flag { font-size: 1.1rem; }
 .phone-input { border: none !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; flex: 1; }
@@ -538,14 +538,14 @@ async function handleSubmit() {
 
 .actions { margin-bottom: 16px; }
 .btn-next { width: 100%; padding: 15px; border-radius: 50px; font-size: 0.97rem; font-weight: 700; border: none; background: #ccc; color: #888; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s; font-family: inherit; }
-.btn-next.active { background: #e0386a; color: #fff; cursor: pointer; }
+.btn-next.active { background: #4CD964; color: #fff; cursor: pointer; }
 .btn-next.active:hover { background: #c72d5a; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(224,56,106,.35); }
 
 .signin-link { font-size: 0.88rem; color: #888; text-align: center; }
-.signin-link a { color: #e0386a; font-weight: 600; text-decoration: none; }
+.signin-link a { color: #4CD964; font-weight: 600; text-decoration: none; }
 .signin-link a:hover { text-decoration: underline; }
 
-.error-msg { font-size: 0.88rem; color: #e0386a; background: #fff0f4; border: 1px solid #fad0db; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+.error-msg { font-size: 0.88rem; color: #4CD964; background: #fff0f4; border: 1px solid #fad0db; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
 
 .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -562,7 +562,7 @@ async function handleSubmit() {
 }
 .plans-spinner {
   width: 28px; height: 28px;
-  border: 3px solid #e2e8f0; border-top-color: #e0386a;
+  border: 3px solid #e2e8f0; border-top-color: #4CD964;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 
@@ -576,14 +576,14 @@ async function handleSubmit() {
   border: 2px solid #e0dbd4; border-radius: 12px; padding: 16px;
   cursor: pointer; transition: all .2s; background: #f9f7f5;
 }
-.plan-card:hover { border-color: #e0386a; background: #fff; box-shadow: 0 4px 14px rgba(224,56,106,.12); }
-.plan-card--selected { border-color: #e0386a; background: #fff8fa; box-shadow: 0 4px 14px rgba(224,56,106,.15); }
+.plan-card:hover { border-color: #4CD964; background: #fff; box-shadow: 0 4px 14px rgba(224,56,106,.12); }
+.plan-card--selected { border-color: #4CD964; background: #fff8fa; box-shadow: 0 4px 14px rgba(224,56,106,.15); }
 
 .plan-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
 .plan-tier-badge {
   display: inline-block; font-size: 0.62rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
-  background: #ffe4ec; color: #e0386a;
+  background: #ffe4ec; color: #4CD964;
   padding: 2px 8px; border-radius: 20px; margin-bottom: 4px;
 }
 .plan-card-name { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; }
@@ -594,11 +594,11 @@ async function handleSubmit() {
   display: flex; align-items: center; justify-content: center;
   transition: all .2s;
 }
-.plan-check--on { background: #e0386a; border-color: #e0386a; }
+.plan-check--on { background: #4CD964; border-color: #4CD964; }
 
 .plan-price-row { display: flex; align-items: baseline; gap: 2px; margin-bottom: 10px; }
 .plan-currency { font-size: 0.7rem; font-weight: 600; color: #94a3b8; }
-.plan-amount   { font-size: 1.3rem; font-weight: 800; color: #e0386a; line-height: 1; }
+.plan-amount   { font-size: 1.3rem; font-weight: 800; color: #4CD964; line-height: 1; }
 .plan-period   { font-size: 0.65rem; color: #94a3b8; }
 
 .plan-features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
@@ -607,7 +607,7 @@ async function handleSubmit() {
 
 .plan-tier-chip {
   font-size: 0.72rem !important; font-weight: 700;
-  background: #ffe4ec; color: #e0386a;
+  background: #ffe4ec; color: #4CD964;
   padding: 2px 9px; border-radius: 20px;
 }
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="hr-shell">
 
     <!-- ── Sidebar ─────────────────────────────────────────────── -->
@@ -6,7 +6,7 @@
 
       <!-- Logo -->
       <div class="sidebar-logo">
-        <div class="logo-circle">F</div>
+        <img src="/logo.png" alt="FitAccess" class="logo-img" />
         <div>
           <p class="logo-name">FitAccess</p>
           <p class="logo-sub">ETHIOPIA</p>
@@ -15,7 +15,7 @@
 
       <!-- Company chip -->
       <div class="company-chip">
-        <p class="company-label">COMPANY</p>
+        <p class="company-label">{{ hrRoleLabel }}</p>
         <p class="company-name" :title="companyName">{{ companyName }}</p>
       </div>
 
@@ -57,7 +57,7 @@
           <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
         </div>
         <!-- Register Employee shortcut on dashboard -->
-        <RouterLink v-if="route.name === 'hr-dashboard'" to="/hr/register" class="btn-register">
+        <RouterLink v-if="route.name === 'hr-dashboard' && auth.hasPermission('co.employees.manage')" to="/hr/register" class="btn-register">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
           Register Employee
         </RouterLink>
@@ -94,30 +94,44 @@ onMounted(async () => {
   }
 })
 
-const navItems = [
-  {
-    name: 'dashboard', label: 'Dashboard', to: '/hr/dashboard',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
-  },
-  {
-    name: 'register', label: 'Register Employee', to: '/hr/register',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`,
-  },
-  {
-    name: 'employees', label: 'Employees', to: '/hr/employees',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-  },
-  {
-    name: 'billing', label: 'Billing & Invoices', to: '/hr/billing',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
-  },
-]
+const navItems = computed(() => {
+  const all = [
+    {
+      name: 'dashboard', label: 'Dashboard', to: '/hr/dashboard',
+      permission: 'co.dashboard.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
+    },
+    {
+      name: 'register', label: 'Register Employee', to: '/hr/register',
+      permission: 'co.employees.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`,
+    },
+    {
+      name: 'employees', label: 'Employees', to: '/hr/employees',
+      permission: 'co.employees.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    },
+    {
+      name: 'billing', label: 'Billing & Invoices', to: '/hr/billing',
+      permission: 'co.billing.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+    },
+    {
+      name: 'team', label: 'Team', to: '/hr/team',
+      permission: 'co.team.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    },
+  ]
+
+  return all.filter(item => auth.hasPermission(item.permission))
+})
 
 const pageMeta: Record<string, { title: string; sub?: string }> = {
   'hr-dashboard': { title: `Welcome, ${companyName.value}`, sub: 'Corporate membership overview' },
   'hr-register':  { title: 'Register Employee', sub: 'Add a new employee to the gym membership programme' },
   'hr-employees': { title: 'Employees' },
   'hr-billing':   { title: 'Billing & Invoices', sub: 'View invoices and submit payments' },
+  'hr-team':      { title: 'Team Management', sub: 'Manage Finance and CEO sub-accounts' },
 }
 
 const currentTitle    = computed(() => {
@@ -125,6 +139,15 @@ const currentTitle    = computed(() => {
   return pageMeta[route.name as string]?.title ?? 'HR Portal'
 })
 const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub ?? '')
+
+const hrRoleLabel = computed(() => {
+  const map: Record<string, string> = {
+    company_hr:      'HR',
+    company_finance: 'FINANCE',
+    company_ceo:     'CEO',
+  }
+  return map[auth.user?.role ?? ''] ?? 'COMPANY'
+})
 
 async function handleLogout() {
   await auth.logout()
@@ -158,14 +181,9 @@ async function handleLogout() {
   padding: 22px 20px 18px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.logo-circle {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, #14b8a6, #3b82f6);
-  color: #fff; font-weight: 800; font-size: 1.1rem;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
+.logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #14b8a6; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* Company chip */
 .company-chip {
@@ -191,7 +209,7 @@ async function handleLogout() {
   transition: color .15s, background .15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #14b8a6; background: rgba(20,184,166,0.08); }
+.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.08); }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; }
 
@@ -233,7 +251,7 @@ async function handleLogout() {
 
 .btn-register {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 18px; background: #14b8a6; color: white;
+  padding: 10px 18px; background: #4CD964; color: white;
   border: none; border-radius: 10px; font-size: 0.84rem; font-weight: 600;
   text-decoration: none; flex-shrink: 0; margin-top: 2px;
   transition: opacity .15s;

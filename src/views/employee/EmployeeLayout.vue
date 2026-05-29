@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="emp-shell">
 
     <!-- ── Sidebar ──────────────────────────────────────────────── -->
@@ -6,7 +6,7 @@
 
       <!-- Logo -->
       <div class="sidebar-logo">
-        <div class="logo-circle">F</div>
+        <img src="/logo.png" alt="FitAccess" class="logo-img" />
         <div>
           <p class="logo-name">FitAccess</p>
           <p class="logo-sub">ETHIOPIA</p>
@@ -114,6 +114,12 @@ const navItems = [
     icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
   },
   {
+    name: 'barcode',
+    label: 'My Gym Pass',
+    to: '/employee/barcode',
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="7" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="13" y1="9" x2="13" y2="15"/><line x1="17" y1="9" x2="17" y2="15"/></svg>`,
+  },
+  {
     name: 'checkins',
     label: 'My Check-ins',
     to: '/employee/checkins',
@@ -125,6 +131,7 @@ const pageMeta: Record<string, { title: string; sub?: string }> = {
   'employee-dashboard': { title: 'My Dashboard',  sub: 'Your wellness membership overview' },
   'employee-gyms':      { title: 'Find Gyms',     sub: 'Gyms available on your plan' },
   'employee-checkins':  { title: 'My Check-ins',  sub: 'Your attendance history' },
+  'employee-barcode':   { title: 'My Gym Pass',   sub: 'Scan this barcode at any partner gym' },
 }
 
 const currentTitle    = computed(() => {
@@ -165,14 +172,9 @@ async function handleLogout() {
   padding: 22px 20px 18px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.logo-circle {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, #e0386a, #f97316);
-  color: #fff; font-weight: 800; font-size: 1.1rem;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
+.logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #e0386a; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* Employee chip */
 .emp-chip {
@@ -185,7 +187,7 @@ async function handleLogout() {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .chip-plan {
-  font-size: 0.72rem; color: #e0386a; font-weight: 600; margin: 0;
+  font-size: 0.72rem; color: #4CD964; font-weight: 600; margin: 0;
   text-transform: uppercase; letter-spacing: 0.05em;
 }
 
@@ -202,7 +204,7 @@ async function handleLogout() {
   transition: color .15s, background .15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #e0386a; background: rgba(224,56,106,0.1); }
+.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.1); }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; }
 
