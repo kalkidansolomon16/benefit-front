@@ -120,7 +120,7 @@ const socials = [
 
 /* CTA Band */
 .footer-cta-band {
-  background: linear-gradient(135deg, #1b3a6b, #2563eb);
+  background: linear-gradient(135deg, #1b3a6b, #4CD964);
   padding: 56px 0;
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }

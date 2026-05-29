@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="dashboard">
 
     <!-- ── Stats row ───────────────────────────────────────────── -->
@@ -38,7 +38,7 @@
     <!-- ── Package Distribution ─────────────────────────────────── -->
     <div class="card">
       <div class="card-header">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CD964" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
         <h3 class="card-title">Package Distribution</h3>
       </div>
       <div class="pkg-grid">
@@ -121,7 +121,7 @@ function tierLabel(t: string) {
   return { basic: 'Basic', basic_plus: 'Basic Plus', platinum: 'Platinum' }[t] ?? t
 }
 
-const COLORS = ['#3b82f6','#7c3aed','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899']
+const COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
 function avatarColor(name: string) {
   let h = 0; for (const c of (name ?? '')) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return COLORS[h % COLORS.length]
@@ -149,8 +149,8 @@ function initials(name: string) {
   width: 48px; height: 48px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.stat-icon.teal   { background: rgba(20,184,166,0.1); color: #14b8a6; }
-.stat-icon.purple { background: rgba(124,58,237,0.1); color: #7c3aed; }
+.stat-icon.teal   { background: rgba(76,217,100,0.1); color: #4CD964; }
+.stat-icon.purple { background: rgba(124,58,237,0.1); color: #2EB84B; }
 .stat-key  { font-size: 0.7rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 4px; }
 .stat-num  { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1; }
 .stat-hint { font-size: 0.72rem; color: #94a3b8; margin: 4px 0 0; }
@@ -161,7 +161,7 @@ function initials(name: string) {
 .card-header.space-between { justify-content: space-between; }
 .card-title { font-size: 1rem; font-weight: 600; color: #0f172a; margin: 0; }
 .card-title.no-margin { margin: 0; }
-.view-all { font-size: 0.82rem; color: #14b8a6; text-decoration: none; font-weight: 500; }
+.view-all { font-size: 0.82rem; color: #4CD964; text-decoration: none; font-weight: 500; }
 .view-all:hover { text-decoration: underline; }
 
 /* Package grid */
@@ -179,8 +179,8 @@ function initials(name: string) {
   font-size: 0.78rem; font-weight: 600; margin-bottom: 12px;
 }
 .pkb-basic      { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.pkb-basic_plus { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
-.pkb-platinum   { background: #ede9fe; color: #7c3aed; border: 1px solid #ddd6fe; }
+.pkb-basic_plus { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
+.pkb-platinum   { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
 .pkg-num { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 4px; }
 .pkg-sub { font-size: 0.75rem; color: #94a3b8; margin: 0; }
 
@@ -206,7 +206,7 @@ function initials(name: string) {
   display: inline-block; padding: 3px 10px; border-radius: 20px;
   font-size: 0.72rem; font-weight: 600;
 }
-.status-badge.active   { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+.status-badge.active   { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
 .status-badge.inactive { background: #fee2e2; color: #dc2626; }
 
 @media (max-width: 700px) {

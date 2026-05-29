@@ -51,6 +51,10 @@
         <div class="cc-body">
           <p class="cc-name">{{ c.name }}</p>
           <p class="cc-joined">Joined {{ c.created_at?.slice(0, 10) ?? '—' }}</p>
+          <p class="cc-email">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            {{ c.contact_email ?? '—' }}
+          </p>
           <div class="cc-badges">
             <span class="badge tier-badge" :class="'tier-' + c.tier">{{ tierLabel(c.tier) }}</span>
             <span class="badge lic-badge"  :class="'lic-'  + c.business_license_status">{{ c.business_license_status ?? 'No License' }}</span>
@@ -71,7 +75,7 @@
       </div>
     </div>
 
-    <!-- ── Company Detail Drawer ──────────────────────────────────── -->
+    <!-- -- Company Detail Drawer ------------------------------------ -->
     <Teleport to="body">
       <Transition name="drawer">
         <div v-if="drawer.open" class="drawer-overlay" @click.self="closeDrawer">
@@ -177,14 +181,14 @@
 
     <!-- Pagination -->
     <div v-if="meta && meta.last_page > 1" class="pagination">
-      <button :disabled="page <= 1"             @click="page--; load()" class="pg-btn">‹ Prev</button>
+      <button :disabled="page <= 1"             @click="page--; load()" class="pg-btn">� Prev</button>
       <span class="pg-info">Page {{ page }} of {{ meta.last_page }} &nbsp;·&nbsp; {{ meta.total }} total</span>
-      <button :disabled="page >= meta.last_page" @click="page++; load()" class="pg-btn">Next ›</button>
+      <button :disabled="page >= meta.last_page" @click="page++; load()" class="pg-btn">Next �</button>
     </div>
 
   </div>
 
-  <!-- ── Toast notification ────────────────────────────────────── -->
+  <!-- -- Toast notification -------------------------------------- -->
   <Teleport to="body">
     <Transition name="toast">
       <div v-if="toast.show" class="toast" :class="'toast-' + toast.type">
@@ -195,7 +199,7 @@
     </Transition>
   </Teleport>
 
-  <!-- ── Register Company Modal ───────────────────────────────── -->
+  <!-- -- Register Company Modal --------------------------------- -->
   <Teleport to="body">
     <Transition name="fade">
       <div v-if="showForm" class="modal-backdrop" @click.self="closeModal">
@@ -367,7 +371,7 @@ const hasFilters = computed(() =>
   search.value || filterTier.value || filterLicense.value || filterActive.value
 )
 
-/* ── Debounce timer ───────────────────────────────────────────── */
+/* -- Debounce timer --------------------------------------------- */
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onSearchInput() {
   if (searchTimer) clearTimeout(searchTimer)
@@ -397,7 +401,7 @@ function clearAll() {
   load()
 }
 
-/* ── Table data ───────────────────────────────────────────────── */
+/* -- Table data ------------------------------------------------- */
 async function load() {
   loading.value = true
   try {
@@ -415,7 +419,7 @@ async function load() {
 }
 onMounted(load)
 
-/* ── Card helpers ─────────────────────────────────────────────── */
+/* -- Card helpers ----------------------------------------------- */
 function tierLabel(t: string) {
   return { basic: 'Basic', basic_plus: 'Basic Plus', platinum: 'Platinum' }[t] ?? t
 }
@@ -432,7 +436,7 @@ async function toggleActive(c: Company) {
   c.is_active = res.is_active
 }
 
-/* ── Toast ────────────────────────────────────────────────────── */
+/* -- Toast ------------------------------------------------------ */
 const toast = reactive({ show: false, type: 'success', message: '' })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -443,7 +447,7 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
   toastTimer    = setTimeout(() => { toast.show = false }, 4000)
 }
 
-/* ── Company Detail Drawer ───────────────────────────────────── */
+/* -- Company Detail Drawer ------------------------------------- */
 interface Employee {
   id: number; name: string; email: string; fan_number: string
   job_title: string; department: string; branch: string
@@ -497,7 +501,7 @@ function packageLabel(pkg: string) {
   return pkg === 'platinum' ? 'Platinum' : pkg === 'basic_plus' ? 'Basic Plus' : 'Basic'
 }
 
-/* ── Register Company modal ───────────────────────────────────── */
+/* -- Register Company modal ------------------------------------- */
 const showForm    = ref(false)
 const formLoading = ref(false)
 const formError   = ref('')
@@ -580,7 +584,7 @@ async function submitForm() {
       }
       return
     }
-    // ✅ Stop loading first, then close so the guard doesn't block it
+    // ? Stop loading first, then close so the guard doesn't block it
     formLoading.value = false
     closeModal()
     await load()
@@ -598,7 +602,7 @@ async function submitForm() {
 .page-actions { display: flex; align-items: center; justify-content: space-between; }
 .count-label  { font-size: 0.85rem; color: #94a3b8; margin: 0; }
 .btn-primary  {
-  padding: 9px 18px; background: #14b8a6; color: white;
+  padding: 9px 18px; background: #4CD964; color: white;
   border: none; border-radius: 10px; font-size: 0.84rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }
@@ -618,7 +622,7 @@ async function submitForm() {
   background: white; border: 1px solid #e2e8f0; border-radius: 10px;
   font-size: 0.875rem; color: #0f172a; outline: none; transition: border-color .15s;
 }
-.search-box:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,.08); }
+.search-box:focus { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(20,184,166,.08); }
 .search-clear {
   position: absolute; right: 10px; background: none; border: none;
   color: #94a3b8; cursor: pointer; font-size: 0.75rem; padding: 2px 4px; line-height: 1;
@@ -650,25 +654,26 @@ async function submitForm() {
 .company-card:hover { background: #f8fafc; }
 .cc-icon {
   width: 44px; height: 44px; background: #f0fdf9; border-radius: 10px;
-  color: #14b8a6; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  color: #4CD964; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .cc-body   { flex: 1; min-width: 0; }
 .cc-name   { font-size: 0.95rem; font-weight: 600; color: #0f172a; margin: 0 0 2px; }
-.cc-joined { font-size: 0.75rem; color: #94a3b8; margin: 0 0 6px; }
+.cc-joined { font-size: 0.75rem; color: #94a3b8; margin: 0 0 4px; }
+.cc-email  { font-size: 0.74rem; color: #64748b; margin: 0 0 6px; display: flex; align-items: center; gap: 5px; }
 .cc-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .tier-basic      { background: #f1f5f9; color: #64748b; }
-.tier-basic_plus { background: #d1fae5; color: #059669; }
-.tier-platinum   { background: #ede9fe; color: #7c3aed; }
+.tier-basic_plus { background: #d1fae5; color: #2EB84B; }
+.tier-platinum   { background: #ede9fe; color: #2EB84B; }
 .lic-pending     { background: #fef9c3; color: #a16207; }
-.lic-approved    { background: #d1fae5; color: #059669; }
+.lic-approved    { background: #d1fae5; color: #2EB84B; }
 .lic-rejected    { background: #fee2e2; color: #dc2626; }
-.status-badge.active   { background: #d1fae5; color: #059669; }
+.status-badge.active   { background: #d1fae5; color: #2EB84B; }
 .status-badge.inactive { background: #fee2e2; color: #dc2626; }
 .cc-stats { display: flex; gap: 20px; flex-shrink: 0; }
 .cc-stat  { text-align: center; }
 .cc-num   { display: block; font-size: 1.1rem; font-weight: 700; color: #0f172a; }
-.cc-num.teal { color: #14b8a6; }
+.cc-num.teal { color: #4CD964; }
 .cc-sub   { display: block; font-size: 0.68rem; color: #94a3b8; }
 .cc-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
 .act-btn {
@@ -676,9 +681,9 @@ async function submitForm() {
   border: none; cursor: pointer; transition: opacity .15s;
 }
 .act-btn:hover { opacity: .8; }
-.approve { background: #d1fae5; color: #059669; }
+.approve { background: #d1fae5; color: #2EB84B; }
 .reject  { background: #fee2e2; color: #dc2626; }
-.toggle  { background: #eff6ff; color: #3b82f6; }
+.toggle  { background: #EBFAEE; color: #3b82f6; }
 .act-link { font-size: 0.72rem; color: #3b82f6; text-decoration: none; align-self: center; }
 .cc-chevron { flex-shrink: 0; }
 
@@ -689,10 +694,10 @@ async function submitForm() {
   border-radius: 8px; color: #64748b; font-size: 0.8rem; cursor: pointer;
 }
 .pg-btn:disabled { opacity: .4; cursor: default; }
-.pg-btn:not(:disabled):hover { border-color: #14b8a6; color: #14b8a6; }
+.pg-btn:not(:disabled):hover { border-color: #4CD964; color: #4CD964; }
 .pg-info { font-size: 0.8rem; color: #94a3b8; }
 
-/* ── Modal ─────────────────────────────────────────────────────── */
+/* -- Modal ------------------------------------------------------- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4);
   display: flex; align-items: center; justify-content: center;
@@ -720,7 +725,7 @@ async function submitForm() {
 .banner-success {
   margin: 16px 24px 0;
   padding: 10px 14px; background: #d1fae5; border: 1px solid #a7f3d0;
-  border-radius: 8px; color: #059669; font-size: 0.84rem;
+  border-radius: 8px; color: #2EB84B; font-size: 0.84rem;
 }
 .banner-error {
   margin: 16px 24px 0;
@@ -746,7 +751,7 @@ async function submitForm() {
   border-radius: 9px; font-size: 0.875rem; color: #0f172a; outline: none;
   transition: border-color .15s;
 }
-.input:focus { border-color: #14b8a6; background: white; }
+.input:focus { border-color: #4CD964; background: white; }
 .input.err   { border-color: #ef4444; }
 .err-msg     { font-size: 0.7rem; color: #ef4444; margin: 0; }
 
@@ -771,7 +776,7 @@ async function submitForm() {
   width: 16px; height: 16px; border-radius: 50%; background: white;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: left .2s;
 }
-.toggle-cb:checked + .toggle-track { background: #14b8a6; }
+.toggle-cb:checked + .toggle-track { background: #4CD964; }
 .toggle-cb:checked + .toggle-track::after { left: 21px; }
 .toggle-text { font-size: 0.84rem; color: #64748b; }
 
@@ -786,14 +791,14 @@ async function submitForm() {
 }
 .btn-cancel:hover { border-color: #94a3b8; }
 .btn-submit {
-  padding: 9px 24px; background: #14b8a6; border: none;
+  padding: 9px 24px; background: #4CD964; border: none;
   border-radius: 9px; color: white; font-size: 0.875rem; font-weight: 600; cursor: pointer;
   transition: opacity .15s;
 }
 .btn-submit:disabled { opacity: .6; cursor: default; }
 .btn-submit:not(:disabled):hover { opacity: .85; }
 
-/* ── Toast ─────────────────────────────────────────────────────── */
+/* -- Toast ------------------------------------------------------- */
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px;
@@ -819,7 +824,7 @@ async function submitForm() {
   .form-row { grid-template-columns: 1fr; }
 }
 
-/* ── Drawer ─────────────────────────────────────────────────────── */
+/* -- Drawer ------------------------------------------------------- */
 .drawer-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.35);
@@ -843,7 +848,7 @@ async function submitForm() {
 .drawer-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .drawer-icon {
   width: 40px; height: 40px; border-radius: 10px;
-  background: #f0fdf9; color: #14b8a6;
+  background: #f0fdf9; color: #4CD964;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .drawer-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -862,7 +867,7 @@ async function submitForm() {
 }
 .ds-stat   { flex: 1; text-align: center; }
 .ds-val    { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 2px; line-height: 1; }
-.ds-val.teal  { color: #14b8a6; }
+.ds-val.teal  { color: #4CD964; }
 .ds-val.amber { color: #d97706; }
 .ds-lbl    { font-size: 0.68rem; color: #94a3b8; margin: 0; }
 .ds-divider { width: 1px; background: #f1f5f9; align-self: stretch; margin: 0 4px; }
@@ -881,7 +886,7 @@ async function submitForm() {
   font-size: 0.875rem; color: #0f172a; outline: none; box-sizing: border-box;
   transition: border-color 0.2s; font-family: inherit;
 }
-.drawer-search:focus { border-color: #14b8a6; background: #fff; }
+.drawer-search:focus { border-color: #4CD964; background: #fff; }
 .drawer-search::placeholder { color: #94a3b8; }
 
 /* Loading / Empty */
@@ -892,7 +897,7 @@ async function submitForm() {
 }
 .drawer-spinner {
   width: 30px; height: 30px;
-  border: 3px solid #e2e8f0; border-top-color: #14b8a6;
+  border: 3px solid #e2e8f0; border-top-color: #4CD964;
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -911,7 +916,7 @@ async function submitForm() {
 
 .emp-avatar {
   width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
-  background: linear-gradient(135deg, #e0f2fe, #bfdbfe);
+  background: linear-gradient(135deg, #e0f2fe, #B8F0C0);
   color: #1e40af; font-size: 0.82rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
@@ -925,8 +930,8 @@ async function submitForm() {
 
 /* Package badge */
 .pkg-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; }
-.pkg-platinum   { background: #ede9fe; color: #7c3aed; }
-.pkg-basic_plus { background: #d1fae5; color: #059669; }
+.pkg-platinum   { background: #ede9fe; color: #2EB84B; }
+.pkg-basic_plus { background: #d1fae5; color: #2EB84B; }
 .pkg-basic      { background: #f1f5f9; color: #64748b; }
 
 /* Registration status badge */

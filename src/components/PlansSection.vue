@@ -4,8 +4,8 @@ const plans = [
     name: 'Basic',
     price: '3,800',
     description: 'Ideal for managers & staff. Access to standard partner gyms across Addis Ababa.',
-    color: '#f0f4ff',
-    accent: '#2563eb',
+    color: '#EBFAEE',
+    accent: '#4CD964',
     badge: '',
     features: [
       'Basic-tier partner gyms in Addis',

@@ -1,15 +1,15 @@
 <template>
   <div class="pd">
 
-    <!-- ── Loading ──────────────────────────────────────────────── -->
+    <!-- -- Loading ------------------------------------------------ -->
     <div v-if="loading" class="pd-loading">
       <div class="spinner"></div>
-      <p>Loading dashboard…</p>
+      <p>Loading dashboard�</p>
     </div>
 
     <template v-else-if="data">
 
-      <!-- ── Gym Info Banner ─────────────────────────────────────── -->
+      <!-- -- Gym Info Banner --------------------------------------- -->
       <div class="gym-banner">
         <div class="gym-avatar">{{ initials(data.gym.name) }}</div>
         <div class="gym-info">
@@ -23,7 +23,7 @@
           <p class="gym-location">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             {{ data.gym.city }}<span v-if="data.gym.sub_city">, {{ data.gym.sub_city }}</span>
-            <span v-if="data.gym.address"> · {{ data.gym.address }}</span>
+            <span v-if="data.gym.address"> � {{ data.gym.address }}</span>
           </p>
           <div class="gym-meta-row">
             <span class="meta-chip">
@@ -42,7 +42,7 @@
         </div>
       </div>
 
-      <!-- ── Stat Cards ──────────────────────────────────────────── -->
+      <!-- -- Stat Cards -------------------------------------------- -->
       <div class="stat-grid">
         <div class="stat-card">
           <p class="stat-label">Today's Visits</p>
@@ -77,14 +77,14 @@
         </div>
         <div class="stat-card">
           <p class="stat-label">Avg Visit Duration</p>
-          <p class="stat-value slate">{{ data.stats.avg_duration_min ?? '—' }}</p>
+          <p class="stat-value slate">{{ data.stats.avg_duration_min ?? '�' }}</p>
           <p class="stat-sub">{{ data.stats.avg_duration_min ? 'minutes per visit' : 'no completed visits yet' }}</p>
         </div>
       </div>
 
-      <!-- ── 7-Day Trend ─────────────────────────────────────────── -->
+      <!-- -- 7-Day Trend ------------------------------------------- -->
       <div class="card trend-card">
-        <h3 class="card-title">Check-in Trend — Last 7 Days</h3>
+        <h3 class="card-title">Check-in Trend � Last 7 Days</h3>
         <div class="trend-chart">
           <div
             v-for="day in data.checkin_trend"
@@ -103,7 +103,7 @@
         </div>
       </div>
 
-      <!-- ── Recent Check-ins ────────────────────────────────────── -->
+      <!-- -- Recent Check-ins -------------------------------------- -->
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">Recent Check-ins</h3>
@@ -135,10 +135,10 @@
                     <span>{{ c.employee_name }}</span>
                   </div>
                 </td>
-                <td class="fan-cell">{{ c.fan_number ?? '—' }}</td>
-                <td class="time-cell">{{ c.checked_in_at ?? '—' }}</td>
-                <td class="time-cell">{{ c.checked_out_at ?? '—' }}</td>
-                <td class="dur-cell">{{ c.duration_min != null ? c.duration_min + ' min' : '—' }}</td>
+                <td class="fan-cell">{{ c.fan_number ?? '�' }}</td>
+                <td class="time-cell">{{ c.checked_in_at ?? '�' }}</td>
+                <td class="time-cell">{{ c.checked_out_at ?? '�' }}</td>
+                <td class="dur-cell">{{ c.duration_min != null ? c.duration_min + ' min' : '�' }}</td>
                 <td>
                   <span class="status-pill" :class="c.status === 'active' ? 'pill--active' : 'pill--done'">
                     {{ c.status === 'active' ? 'Active' : 'Completed' }}
@@ -150,7 +150,7 @@
         </div>
       </div>
 
-      <!-- ── Facilities ──────────────────────────────────────────── -->
+      <!-- -- Facilities -------------------------------------------- -->
       <div v-if="data.gym.facilities?.length" class="card">
         <h3 class="card-title">Facilities & Amenities</h3>
         <div class="facilities-grid">
@@ -160,7 +160,7 @@
 
     </template>
 
-    <!-- ── Error ───────────────────────────────────────────────── -->
+    <!-- -- Error ------------------------------------------------- -->
     <div v-else class="pd-error">
       <p>{{ errorMsg }}</p>
       <button class="retry-btn" @click="load">Retry</button>
@@ -240,7 +240,7 @@ async function load() {
 
 onMounted(load)
 
-// ── Helpers ──────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------
 function initials(name: string): string {
   return name
     .split(' ')
@@ -282,7 +282,7 @@ function barHeight(count: number): string {
   gap: 20px;
 }
 
-/* ── Loading / Error ─────────────────────────────────────────── */
+/* -- Loading / Error ------------------------------------------- */
 .pd-loading {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 12px; padding: 80px 0; color: #64748b;
@@ -290,7 +290,7 @@ function barHeight(count: number): string {
 .spinner {
   width: 32px; height: 32px;
   border: 3px solid #e2e8f0;
-  border-top-color: #10b981;
+  border-top-color: #4CD964;
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
@@ -302,11 +302,11 @@ function barHeight(count: number): string {
 }
 .retry-btn {
   padding: 8px 20px; border-radius: 8px; border: none;
-  background: #10b981; color: #fff; font-weight: 600;
+  background: #4CD964; color: #fff; font-weight: 600;
   cursor: pointer; font-size: 0.9rem;
 }
 
-/* ── Gym Banner ──────────────────────────────────────────────── */
+/* -- Gym Banner ------------------------------------------------ */
 .gym-banner {
   display: flex;
   align-items: flex-start;
@@ -318,7 +318,7 @@ function barHeight(count: number): string {
 }
 .gym-avatar {
   width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #4CD964, #2EB84B);
   color: #fff; font-weight: 800; font-size: 1.2rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -334,8 +334,8 @@ function barHeight(count: number): string {
   letter-spacing: 0.08em; padding: 3px 9px; border-radius: 20px;
 }
 .tier--basic        { background: #f1f5f9; color: #64748b; }
-.tier--basic_plus   { background: #eff6ff; color: #3b82f6; }
-.tier--premium      { background: #f0fdf4; color: #10b981; }
+.tier--basic_plus   { background: #EBFAEE; color: #3b82f6; }
+.tier--premium      { background: #f0fdf4; color: #4CD964; }
 .tier--platinum     { background: #faf5ff; color: #a855f7; }
 
 .status-badge {
@@ -356,7 +356,7 @@ function barHeight(count: number): string {
   background: #f8fafc; padding: 4px 10px; border-radius: 20px;
 }
 
-/* ── Stat Grid ───────────────────────────────────────────────── */
+/* -- Stat Grid ------------------------------------------------- */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -374,9 +374,9 @@ function barHeight(count: number): string {
 .stat-value { font-size: 2rem; font-weight: 800; margin: 0 0 2px; line-height: 1; }
 .stat-sub   { font-size: 0.75rem; color: #94a3b8; margin: 0; }
 
-.stat-value.emerald { color: #10b981; }
+.stat-value.emerald { color: #4CD964; }
 .stat-value.blue    { color: #3b82f6; }
-.stat-value.violet  { color: #8b5cf6; }
+.stat-value.violet  { color: #4CD964; }
 .stat-value.amber   { color: #f59e0b; }
 .stat-value.slate   { color: #475569; }
 .stat-value.red     { color: #ef4444; }
@@ -392,11 +392,11 @@ function barHeight(count: number): string {
   height: 100%; border-radius: 3px;
   transition: width 0.5s ease;
 }
-.cap-bar-fill.emerald { background: #10b981; }
+.cap-bar-fill.emerald { background: #4CD964; }
 .cap-bar-fill.amber   { background: #f59e0b; }
 .cap-bar-fill.red     { background: #ef4444; }
 
-/* ── Card ────────────────────────────────────────────────────── */
+/* -- Card ------------------------------------------------------ */
 .card {
   background: #fff;
   border-radius: 14px;
@@ -409,7 +409,7 @@ function barHeight(count: number): string {
 .card-title { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0; }
 .card-sub   { font-size: 0.78rem; color: #94a3b8; margin: 0; }
 
-/* ── 7-Day Trend Chart ───────────────────────────────────────── */
+/* -- 7-Day Trend Chart ----------------------------------------- */
 .trend-card .card-title { margin-bottom: 20px; }
 .trend-chart {
   display: flex;
@@ -438,14 +438,14 @@ function barHeight(count: number): string {
 }
 .bar-fill {
   width: 100%;
-  background: linear-gradient(180deg, #10b981, #059669);
+  background: linear-gradient(180deg, #4CD964, #2EB84B);
   border-radius: 6px 6px 0 0;
   min-height: 3px;
   transition: height 0.4s ease;
 }
 .bar-label { font-size: 0.7rem; color: #94a3b8; font-weight: 500; }
 
-/* ── Check-ins Table ─────────────────────────────────────────── */
+/* -- Check-ins Table ------------------------------------------- */
 .checkins-table-wrap { overflow-x: auto; }
 .checkins-table {
   width: 100%;
@@ -477,7 +477,7 @@ function barHeight(count: number): string {
 }
 .member-avatar {
   width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #4CD964, #2EB84B);
   color: #fff; font-weight: 700; font-size: 0.72rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -492,7 +492,7 @@ function barHeight(count: number): string {
 .pill--active { background: #fef9c3; color: #a16207; }
 .pill--done   { background: #f0fdf4; color: #16a34a; }
 
-/* ── Facilities ──────────────────────────────────────────────── */
+/* -- Facilities ------------------------------------------------ */
 .facilities-grid {
   display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
 }
@@ -503,14 +503,14 @@ function barHeight(count: number): string {
   border: 1px solid #d1fae5;
 }
 
-/* ── Empty State ─────────────────────────────────────────────── */
+/* -- Empty State ----------------------------------------------- */
 .empty-state {
   display: flex; flex-direction: column; align-items: center;
   gap: 10px; padding: 40px 0; color: #94a3b8;
   font-size: 0.88rem;
 }
 
-/* ── Responsive ──────────────────────────────────────────────── */
+/* -- Responsive ------------------------------------------------ */
 @media (max-width: 800px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .capacity-card { grid-column: span 2; }

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 </script>
 
 <template>
@@ -125,17 +125,17 @@
 }
 .blob-1 {
   width: 600px; height: 600px;
-  background: #2563eb;
+  background: #4CD964;
   top: -200px; right: -100px;
 }
 .blob-2 {
   width: 400px; height: 400px;
-  background: #00c896;
+  background: #4CD964;
   bottom: -100px; left: 20%;
 }
 .blob-3 {
   width: 300px; height: 300px;
-  background: #7c3aed;
+  background: #2EB84B;
   top: 30%; left: -50px;
 }
 
@@ -183,7 +183,7 @@
 }
 .hero-title-accent {
   display: block;
-  background: linear-gradient(135deg, #00c896, #2563eb);
+  background: linear-gradient(135deg, #4CD964, #2EB84B);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

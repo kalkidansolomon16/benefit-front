@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="partner-shell">
 
     <!-- ── Sidebar ──────────────────────────────────────────────── -->
@@ -6,7 +6,7 @@
 
       <!-- Logo -->
       <div class="sidebar-logo">
-        <div class="logo-circle">G</div>
+        <img src="/logo.png" alt="FitAccess" class="logo-img" />
         <div>
           <p class="logo-name">FitAccess</p>
           <p class="logo-sub">PARTNER</p>
@@ -15,7 +15,7 @@
 
       <!-- Gym chip -->
       <div class="gym-chip">
-        <p class="chip-label">GYM PARTNER</p>
+        <p class="chip-label">{{ auth.user?.role === 'gym_staff' ? 'GYM STAFF' : 'GYM PARTNER' }}</p>
         <p class="chip-name" :title="gymName">{{ gymName }}</p>
         <span class="chip-tier" :class="`tier--${gymTier}`">{{ tierLabel }}</span>
       </div>
@@ -110,31 +110,46 @@ const tierLabel = computed(() => {
   return map[gymTier.value] ?? gymTier.value ?? ''
 })
 
-const navItems = [
-  {
-    name: 'dashboard',
-    label: 'Dashboard',
-    to: '/partner/dashboard',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
-  },
-  {
-    name: 'checkins',
-    label: 'Check-ins',
-    to: '/partner/checkins',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
-  },
-  {
-    name: 'facility',
-    label: 'Facility Info',
-    to: '/partner/facility',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  },
-]
+const navItems = computed(() => {
+  const all = [
+    {
+      name: 'dashboard',
+      label: 'Dashboard',
+      to: '/partner/dashboard',
+      permission: 'gym.dashboard.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
+    },
+    {
+      name: 'checkins',
+      label: 'Check-ins',
+      to: '/partner/checkins',
+      permission: 'gym.checkins.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+    },
+    {
+      name: 'facility',
+      label: 'Facility Info',
+      to: '/partner/facility',
+      permission: 'gym.profile.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    },
+    {
+      name: 'team',
+      label: 'Staff',
+      to: '/partner/team',
+      permission: 'gym.team.manage',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    },
+  ]
+
+  return all.filter(item => auth.hasPermission(item.permission))
+})
 
 const pageMeta: Record<string, { title: string; sub?: string }> = {
-  'partner-dashboard': { title: 'Dashboard',     sub: 'Your gym performance overview' },
-  'partner-checkins':  { title: 'Check-ins',     sub: 'All member visits to your gym' },
-  'partner-facility':  { title: 'Facility Info', sub: 'Your gym profile & details' },
+  'partner-dashboard': { title: 'Dashboard',      sub: 'Your gym performance overview' },
+  'partner-checkins':  { title: 'Check-ins',      sub: 'All member visits to your gym' },
+  'partner-facility':  { title: 'Facility Info',  sub: 'Your gym profile & details' },
+  'partner-team':      { title: 'Staff',          sub: 'Manage check-in staff members' },
 }
 
 const currentTitle = computed(() => {
@@ -161,7 +176,7 @@ async function handleLogout() {
 .sidebar {
   width: 240px;
   min-height: 100vh;
-  background: #0b1f15;
+  background:#0d1b2e;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -175,14 +190,9 @@ async function handleLogout() {
   padding: 22px 20px 18px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.logo-circle {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: #fff; font-weight: 800; font-size: 1.1rem;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
+.logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #10b981; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* Gym chip */
 .gym-chip {
@@ -201,7 +211,7 @@ async function handleLogout() {
 }
 .tier--basic        { background: rgba(100,116,139,0.2); color: #94a3b8; }
 .tier--basic_plus   { background: rgba(59,130,246,0.2);  color: #60a5fa; }
-.tier--premium      { background: rgba(16,185,129,0.2);  color: #34d399; }
+.tier--premium      { background: rgba(76,217,100,0.2);  color: #34d399; }
 .tier--platinum     { background: rgba(168,85,247,0.2);  color: #c084fc; }
 
 /* Nav */
@@ -210,14 +220,19 @@ async function handleLogout() {
   display: flex; flex-direction: column; gap: 2px;
 }
 .nav-item {
-  display: flex; align-items: center; gap: 11px;
-  padding: 10px 12px; border-radius: 8px;
-  color: #64748b; text-decoration: none;
-  font-size: 0.84rem; font-weight: 500;
-  transition: color .15s, background .15s;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 500;
+  transition: color 0.15s, background 0.15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #10b981; background: rgba(16,185,129,0.1); }
+.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.08); }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; }
 

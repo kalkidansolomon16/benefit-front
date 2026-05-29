@@ -35,7 +35,7 @@ function handleNavClick(link: { href: string | null; route: string | null }) {
     <div class="nav-inner container">
       <!-- Logo -->
       <a href="/" class="logo">
-        <span class="logo-icon">✦</span>
+        <img src="/logo.png" alt="FitAccess" class="logo-img" />
         <span class="logo-text">FitAccess</span>
       </a>
 
@@ -113,7 +113,7 @@ function handleNavClick(link: { href: string | null; route: string | null }) {
   transition: var(--transition);
 }
 .navbar.scrolled .logo { color: var(--color-primary); }
-.logo-icon { font-size: 1.2rem; color: var(--color-green); }
+.logo-img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
 
 .nav-links {
   display: flex;

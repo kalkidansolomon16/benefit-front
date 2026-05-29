@@ -1,15 +1,15 @@
 <template>
   <div class="dashboard">
 
-    <!-- ── Loading ─────────────────────────────────────────────── -->
+    <!-- -- Loading ----------------------------------------------- -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
-      <p>Loading your dashboard…</p>
+      <p>Loading your dashboard�</p>
     </div>
 
     <template v-else-if="data">
 
-      <!-- ── Row 1: Profile + Pass cards ─────────────────────────── -->
+      <!-- -- Row 1: Profile + Pass cards --------------------------- -->
       <div class="top-row">
 
         <!-- Profile card -->
@@ -26,12 +26,12 @@
             <h2 class="profile-name">{{ data.profile.name }}</h2>
             <p class="profile-meta">
               <span v-if="data.profile.job_title">{{ data.profile.job_title }}</span>
-              <span v-if="data.profile.department" class="dot">·</span>
+              <span v-if="data.profile.department" class="dot">�</span>
               <span v-if="data.profile.department">{{ data.profile.department }}</span>
-              <span v-if="data.profile.branch" class="dot">·</span>
+              <span v-if="data.profile.branch" class="dot">�</span>
               <span v-if="data.profile.branch">{{ data.profile.branch }}</span>
             </p>
-            <p class="profile-company">{{ data.company.name }} · {{ data.company.city }}</p>
+            <p class="profile-company">{{ data.company.name }} � {{ data.company.city }}</p>
 
             <div class="profile-contacts">
               <span v-if="data.profile.email" class="contact-item">
@@ -81,7 +81,7 @@
 
       </div><!-- /top-row -->
 
-      <!-- ── Row 2: Stat cards ─────────────────────────────────── -->
+      <!-- -- Row 2: Stat cards ----------------------------------- -->
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-icon stat-icon--total">
@@ -118,13 +118,13 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
           </div>
           <div class="stat-body">
-            <p class="stat-value">{{ data.stats.last_visit ? formatDate(data.stats.last_visit) : '—' }}</p>
+            <p class="stat-value">{{ data.stats.last_visit ? formatDate(data.stats.last_visit) : '�' }}</p>
             <p class="stat-label">Last Visit</p>
           </div>
         </div>
       </div><!-- /stats-row -->
 
-      <!-- ── Row 3: Recent check-ins + Accessible gyms ─────────── -->
+      <!-- -- Row 3: Recent check-ins + Accessible gyms ----------- -->
       <div class="bottom-row">
 
         <!-- Recent check-ins -->
@@ -187,7 +187,7 @@
 
     </template>
 
-    <!-- ── Error ──────────────────────────────────────────────── -->
+    <!-- -- Error ------------------------------------------------ -->
     <div v-else class="error-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <p>{{ error }}</p>
@@ -274,14 +274,14 @@ async function loadDashboard() {
 
 onMounted(loadDashboard)
 
-/* ── Helpers ──────────────────────────────────────────────────── */
+/* -- Helpers ---------------------------------------------------- */
 function formatDate(d: string | null): string {
-  if (!d) return '—'
+  if (!d) return '�'
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function formatDateTime(d: string | null): string {
-  if (!d) return '—'
+  if (!d) return '�'
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -302,7 +302,7 @@ function tierLabel(t: string): string {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ── Loading / Error ─────────────────────────────────────────── */
+/* -- Loading / Error ------------------------------------------- */
 .loading-state, .error-state {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 16px;
@@ -312,7 +312,7 @@ function tierLabel(t: string): string {
 .loading-state p, .error-state p { font-size: 0.95rem; margin: 0; }
 .spinner {
   width: 36px; height: 36px;
-  border: 3px solid #e2e8f0; border-top-color: #e0386a;
+  border: 3px solid #e2e8f0; border-top-color: #4CD964;
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -322,7 +322,7 @@ function tierLabel(t: string): string {
 }
 .retry-btn:hover { background: #f8fafc; }
 
-/* ── Cards ───────────────────────────────────────────────────── */
+/* -- Cards ----------------------------------------------------- */
 .card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -330,7 +330,7 @@ function tierLabel(t: string): string {
   overflow: hidden;
 }
 
-/* ── Row 1 ───────────────────────────────────────────────────── */
+/* -- Row 1 ----------------------------------------------------- */
 .top-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -349,13 +349,13 @@ function tierLabel(t: string): string {
   width: 72px; height: 72px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, #e0386a22, #f9731622);
+  background: linear-gradient(135deg, #4CD96422, #2EB84B22);
   display: flex; align-items: center; justify-content: center;
 }
 .avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-initials {
   font-size: 1.4rem; font-weight: 700;
-  color: #e0386a; letter-spacing: -0.02em;
+  color: #4CD964; letter-spacing: -0.02em;
 }
 .profile-info { flex: 1; min-width: 0; }
 .profile-name {
@@ -380,8 +380,8 @@ function tierLabel(t: string): string {
   overflow: hidden;
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
 }
-.pass-card--platinum { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); }
-.pass-card--basic_plus { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
+.pass-card--platinum { background: linear-gradient(135deg, #2EB84B 0%, #2EB84B 100%); }
+.pass-card--basic_plus { background: linear-gradient(135deg, #2EB84B 0%, #1A9E38 100%); }
 .pass-card--basic { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
 
 .pass-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
@@ -417,7 +417,7 @@ function tierLabel(t: string): string {
 .pass-deco-1 { width: 160px; height: 160px; top: -60px; right: -40px; }
 .pass-deco-2 { width: 100px; height: 100px; bottom: -30px; right: 60px; }
 
-/* ── Stats row ───────────────────────────────────────────────── */
+/* -- Stats row ------------------------------------------------- */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -433,16 +433,16 @@ function tierLabel(t: string): string {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .stat-icon--total  { background: #f0fdf4; color: #16a34a; }
-.stat-icon--month  { background: #eff6ff; color: #2563eb; }
+.stat-icon--month  { background: #EBFAEE; color: #4CD964; }
 .stat-icon--week   { background: #fef9ec; color: #d97706; }
-.stat-icon--last   { background: #fdf2f8; color: #e0386a; }
+.stat-icon--last   { background: #fdf2f8; color: #4CD964; }
 .stat-value {
   font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 2px;
   line-height: 1; letter-spacing: -0.02em;
 }
 .stat-label { font-size: 0.75rem; color: #94a3b8; margin: 0; }
 
-/* ── Bottom row ──────────────────────────────────────────────── */
+/* -- Bottom row ------------------------------------------------ */
 .bottom-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -495,9 +495,9 @@ function tierLabel(t: string): string {
 .gym-addr { font-size: 0.75rem; color: #94a3b8; margin: 0; }
 
 /* Tier dot colors */
-.dot--platinum   { background: #7c3aed; }
-.dot--premium    { background: #0284c7; }
-.dot--basic_plus { background: #0284c7; }
+.dot--platinum   { background: #2EB84B; }
+.dot--premium    { background: #2EB84B; }
+.dot--basic_plus { background: #2EB84B; }
 .dot--basic      { background: #64748b; }
 
 /* Tier badges (check-ins) */
@@ -505,9 +505,9 @@ function tierLabel(t: string): string {
   display: inline-block; padding: 2px 8px; border-radius: 10px;
   font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em;
 }
-.tier-badge--platinum   { background: #f5f3ff; color: #7c3aed; }
-.tier-badge--premium    { background: #eff6ff; color: #2563eb; }
-.tier-badge--basic_plus { background: #eff6ff; color: #0284c7; }
+.tier-badge--platinum   { background: #EBFAEE; color: #2EB84B; }
+.tier-badge--premium    { background: #EBFAEE; color: #4CD964; }
+.tier-badge--basic_plus { background: #EBFAEE; color: #2EB84B; }
 .tier-badge--basic      { background: #f8fafc; color: #64748b; }
 
 /* Tier tags (gym list) */
@@ -515,12 +515,12 @@ function tierLabel(t: string): string {
   display: inline-block; padding: 3px 10px; border-radius: 10px;
   font-size: 0.7rem; font-weight: 600; white-space: nowrap; flex-shrink: 0;
 }
-.tier-tag--platinum   { background: #f5f3ff; color: #7c3aed; }
-.tier-tag--premium    { background: #eff6ff; color: #2563eb; }
-.tier-tag--basic_plus { background: #e0f2fe; color: #0284c7; }
+.tier-tag--platinum   { background: #EBFAEE; color: #2EB84B; }
+.tier-tag--premium    { background: #EBFAEE; color: #4CD964; }
+.tier-tag--basic_plus { background: #e0f2fe; color: #2EB84B; }
 .tier-tag--basic      { background: #f1f5f9; color: #64748b; }
 
-/* ── Responsive ──────────────────────────────────────────────── */
+/* -- Responsive ------------------------------------------------ */
 @media (max-width: 1100px) {
   .top-row  { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: repeat(2, 1fr); }

@@ -4,7 +4,7 @@
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
-      <p>Loading gyms…</p>
+      <p>Loading gyms�</p>
     </div>
 
     <template v-else-if="data">
@@ -12,7 +12,7 @@
       <!-- Plan badge -->
       <div class="plan-banner">
         <div class="plan-banner-left">
-          <span class="plan-icon">🏋️</span>
+          <span class="plan-icon"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
           <div>
             <p class="plan-banner-label">Your Plan</p>
             <p class="plan-banner-name">{{ data.pass.plan_name }}</p>
@@ -36,7 +36,7 @@
             v-model="search"
             type="text"
             class="search-input"
-            placeholder="Search gyms by name or location…"
+            placeholder="Search gyms by name or location�"
           />
           <button v-if="search" class="clear-btn" @click="search = ''">✕</button>
         </div>
@@ -55,7 +55,7 @@
       <!-- Gyms grid -->
       <div v-else class="gym-grid">
         <div
-          v-for="g in filteredGyms"
+          v-for="g in paginatedGyms"
           :key="g.id"
           class="gym-card"
         >
@@ -87,6 +87,13 @@
         </div>
       </div>
 
+      <AppPagination
+        v-model:page="gymPage"
+        :total-pages="gymTotalPages"
+        :total="filteredGyms.length"
+        :per-page="gymPerPage"
+      />
+
     </template>
 
     <!-- Error -->
@@ -99,8 +106,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 interface Gym {
   id: number
@@ -134,6 +142,11 @@ const accessibleTiers = computed(() =>
   data.value?.pass.accessible_tiers ?? [data.value?.pass.plan_key ?? 'basic']
 )
 
+const gymPage    = ref(1)
+const gymPerPage = 12
+const gymTotalPages  = computed(() => Math.max(1, Math.ceil(filteredGyms.value.length / gymPerPage)))
+const paginatedGyms  = computed(() => filteredGyms.value.slice((gymPage.value - 1) * gymPerPage, gymPage.value * gymPerPage))
+
 const filteredGyms = computed(() => {
   const gyms = data.value?.accessible_gyms ?? []
   return gyms.filter(g => {
@@ -160,6 +173,8 @@ async function load() {
 
 onMounted(load)
 
+watch(filteredGyms, () => { gymPage.value = 1 })
+
 // Map known tiers to CSS suffix; unknown tiers fall back to 'basic' colour
 const TIER_CSS: Record<string, string> = {
   platinum: 'platinum', premium: 'premium', basic_plus: 'basic_plus', basic: 'basic',
@@ -180,11 +195,11 @@ function hoursLabel(raw: string | null): string {
   if (!raw) return ''
   if (typeof raw === 'object') {
     const h = raw as Record<string, string>
-    return h.summary ?? (h.weekdays ? `Weekdays ${h.weekdays}` + (h.weekends ? ` · Weekends ${h.weekends}` : '') : '')
+    return h.summary ?? (h.weekdays ? `Weekdays ${h.weekdays}` + (h.weekends ? ` � Weekends ${h.weekends}` : '') : '')
   }
   try {
     const parsed = JSON.parse(raw) as Record<string, string>
-    return parsed.summary ?? (parsed.weekdays ? `Weekdays ${parsed.weekdays}` + (parsed.weekends ? ` · Weekends ${parsed.weekends}` : '') : raw)
+    return parsed.summary ?? (parsed.weekdays ? `Weekdays ${parsed.weekdays}` + (parsed.weekends ? ` � Weekends ${parsed.weekends}` : '') : raw)
   } catch {
     return raw
   }
@@ -201,7 +216,7 @@ function hoursLabel(raw: string | null): string {
 }
 .spinner {
   width: 34px; height: 34px; border: 3px solid #e2e8f0;
-  border-top-color: #e0386a; border-radius: 50%; animation: spin 0.7s linear infinite;
+  border-top-color: #4CD964; border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .retry-btn {
@@ -223,9 +238,9 @@ function hoursLabel(raw: string | null): string {
 .tier-pill {
   padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
-.tier-pill--platinum   { background: #f5f3ff; color: #7c3aed; }
-.tier-pill--premium    { background: #eff6ff; color: #2563eb; }
-.tier-pill--basic_plus { background: #e0f2fe; color: #0284c7; }
+.tier-pill--platinum   { background: #EBFAEE; color: #2EB84B; }
+.tier-pill--premium    { background: #EBFAEE; color: #4CD964; }
+.tier-pill--basic_plus { background: #e0f2fe; color: #2EB84B; }
 .tier-pill--basic      { background: #f1f5f9; color: #64748b; }
 
 /* Toolbar */
@@ -246,7 +261,7 @@ function hoursLabel(raw: string | null): string {
   outline: none; transition: border-color 0.2s;
   font-family: inherit;
 }
-.search-input:focus { border-color: #e0386a; }
+.search-input:focus { border-color: #4CD964; }
 .search-input::placeholder { color: #94a3b8; }
 .clear-btn {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
@@ -261,7 +276,7 @@ function hoursLabel(raw: string | null): string {
   outline: none; cursor: pointer; font-family: inherit;
   transition: border-color 0.2s;
 }
-.tier-select:focus { border-color: #e0386a; }
+.tier-select:focus { border-color: #4CD964; }
 
 /* Empty */
 .empty-state {
@@ -294,17 +309,17 @@ function hoursLabel(raw: string | null): string {
   display: flex; align-items: center; justify-content: center;
   font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em;
 }
-.gym-avatar--platinum   { background: #f5f3ff; color: #7c3aed; }
-.gym-avatar--premium    { background: #eff6ff; color: #2563eb; }
-.gym-avatar--basic_plus { background: #e0f2fe; color: #0284c7; }
+.gym-avatar--platinum   { background: #EBFAEE; color: #2EB84B; }
+.gym-avatar--premium    { background: #EBFAEE; color: #4CD964; }
+.gym-avatar--basic_plus { background: #e0f2fe; color: #2EB84B; }
 .gym-avatar--basic      { background: #f1f5f9; color: #64748b; }
 
 .tier-tag {
   padding: 3px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600;
 }
-.tier-tag--platinum   { background: #f5f3ff; color: #7c3aed; }
-.tier-tag--premium    { background: #eff6ff; color: #2563eb; }
-.tier-tag--basic_plus { background: #e0f2fe; color: #0284c7; }
+.tier-tag--platinum   { background: #EBFAEE; color: #2EB84B; }
+.tier-tag--premium    { background: #EBFAEE; color: #4CD964; }
+.tier-tag--basic_plus { background: #e0f2fe; color: #2EB84B; }
 .tier-tag--basic      { background: #f1f5f9; color: #64748b; }
 
 .gym-name {

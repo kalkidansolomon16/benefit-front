@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -48,6 +48,12 @@ async function handleSignIn() {
   try {
     await authStore.login(email.value, password.value)
     // Redirect based on role
+    // Force password reset if flagged (router guard also handles this)
+    if (authStore.mustResetPassword) {
+      router.push('/reset-password')
+      return
+    }
+
     const redirectTo = route.query.redirect as string | undefined
     if (redirectTo) {
       router.push(redirectTo)
@@ -161,7 +167,7 @@ async function handleSignIn() {
           </div>
 
           <div class="forgot-row">
-            <a href="#" class="link-forgot">Forgot password?</a>
+            <RouterLink to="/forgot-password" class="link-forgot">Forgot password?</RouterLink>
           </div>
 
           <p v-if="error" class="error-msg">{{ error }}</p>
@@ -231,13 +237,13 @@ async function handleSignIn() {
 }
 .brand-icon {
   font-size: 1.6rem;
-  color: #e0386a;
+  color: #4CD964;
   line-height: 1;
 }
 .brand-name {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #e0386a;
+  color: #4CD964;
   letter-spacing: -0.01em;
 }
 
@@ -313,7 +319,7 @@ async function handleSignIn() {
   background: #fff;
   box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
 }
-.input.input-error { border-color: #e0386a; }
+.input.input-error { border-color: #4CD964; }
 
 /* Password wrap */
 .pass-wrap {
@@ -353,7 +359,7 @@ async function handleSignIn() {
 /* Error */
 .error-msg {
   font-size: 0.85rem;
-  color: #e0386a;
+  color: #4CD964;
   margin-bottom: 12px;
   padding: 10px 14px;
   background: #fff0f3;
@@ -420,7 +426,7 @@ async function handleSignIn() {
   text-underline-offset: 3px;
   transition: color 0.2s;
 }
-.link-signup:hover { color: #e0386a; }
+.link-signup:hover { color: #4CD964; }
 
 /* Loading spinner */
 .spinner {

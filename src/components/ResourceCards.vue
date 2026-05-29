@@ -2,13 +2,13 @@
 const resources = [
   {
     category: 'Report',
-    categoryColor: '#dbeafe',
-    categoryText: '#2563eb',
+    categoryColor: '#EBFAEE',
+    categoryText: '#4CD964',
     title: '2024 Ethiopian Corporate Wellness Report',
     description: 'Discover how Addis Ababa\'s top employers are investing in staff health, reducing absenteeism, and boosting morale with structured wellness benefits.',
     emoji: '📊',
     readTime: '8 min read',
-    bgColor: '#f0f4ff',
+    bgColor: '#EBFAEE',
   },
   {
     category: 'Guide',

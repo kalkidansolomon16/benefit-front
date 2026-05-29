@@ -6,8 +6,8 @@ const steps = [
     title: 'Your Company Subscribes',
     description:
       'Your Ethiopian organisation picks a quarterly plan in ETB that fits your headcount and employee grade — Basic, Basic Plus, or Platinum. HR handles one invoice, we do the rest.',
-    color: '#dbeafe',
-    accent: '#2563eb',
+    color: '#EBFAEE',
+    accent: '#4CD964',
   },
   {
     number: '02',

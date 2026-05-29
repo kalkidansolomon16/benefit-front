@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Header -->
@@ -229,7 +229,7 @@ async function remove(m: Method) {
 .method-bank   { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
 .method-holder { font-size: 0.78rem; color: #64748b; margin: 0; }
 .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot-active   { background: #10b981; }
+.dot-active   { background: #4CD964; }
 .dot-inactive { background: #94a3b8; }
 
 .method-account { display: flex; align-items: center; gap: 10px; background: #f8fafc; border-radius: 8px; padding: 10px 14px; }
@@ -241,7 +241,7 @@ async function remove(m: Method) {
 .act-btn { padding: 6px 14px; border-radius: 7px; font-size: 0.76rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; }
 .act-btn:hover { opacity: .8; }
 .act-edit   { background: #f1f5f9; color: #0f172a; }
-.act-toggle { background: #e0f2fe; color: #0284c7; }
+.act-toggle { background: #e0f2fe; color: #2EB84B; }
 .act-del    { background: #fee2e2; color: #dc2626; }
 
 /* Modal */
@@ -261,10 +261,10 @@ async function remove(m: Method) {
   font-size: 0.88rem; color: #0f172a; background: #fff; font-family: inherit;
   outline: none; transition: border-color .15s;
 }
-.field input:focus, .field textarea:focus { border-color: #14b8a6; }
+.field input:focus, .field textarea:focus { border-color: #4CD964; }
 .field textarea { resize: vertical; min-height: 72px; }
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #374151; cursor: pointer; }
-.check-row input { width: 16px; height: 16px; accent-color: #14b8a6; }
+.check-row input { width: 16px; height: 16px; accent-color: #4CD964; }
 .form-error { font-size: 0.8rem; color: #ef4444; margin: 0; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #f1f5f9; }
 .btn-cancel { padding: 9px 20px; background: white; color: #64748b; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.84rem; font-weight: 500; cursor: pointer; }

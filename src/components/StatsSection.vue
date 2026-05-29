@@ -7,8 +7,8 @@ const stats = [
     suffix: '%',
     label: 'of Ethiopian corporate employees had no gym access before FitAccess',
     icon: '🏅',
-    color: '#dbeafe',
-    accent: '#2563eb',
+    color: '#EBFAEE',
+    accent: '#4CD964',
   },
   {
     value: 40,

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
 
     <!-- Header -->
@@ -19,7 +19,7 @@
     <!-- Search -->
     <div class="search-wrap">
       <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input v-model="search" class="search-input" placeholder="Search name or FAN number…" @input="debouncedLoad" />
+      <input v-model="search" class="search-input" placeholder="Search name, FAN, email or phone…" @input="debouncedLoad" />
       <button v-if="search" class="search-clear" @click="search = ''; load()">✕</button>
     </div>
 
@@ -27,7 +27,7 @@
 
     <!-- Pending tab: approval cards -->
     <div v-else-if="activeTab === 'pending' && employees.length" class="pending-list">
-      <div v-for="e in employees" :key="e.id" class="pending-card">
+      <div v-for="e in paginatedEmployees" :key="e.id" class="pending-card">
         <div class="pending-card-left">
           <div class="emp-avatar" :style="{ background: avatarColor(e.name) }">{{ initials(e.name) }}</div>
           <div class="emp-info">
@@ -40,7 +40,14 @@
             </p>
             <div class="emp-tags">
               <span class="pkg-badge" :class="'pkb-' + e.package">{{ tierLabel(e.package) }}</span>
-              <span v-if="e.email" class="emp-email">{{ e.email }}</span>
+              <span v-if="e.email" class="emp-contact">
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                {{ e.email }}
+              </span>
+              <span v-if="e.phone" class="emp-contact">
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L7.91 9.4a16 16 0 0 0 6.69 6.69l1.27-1.27a2 2 0 0 1 2.11-.45c.9.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/></svg>
+                {{ e.phone }}
+              </span>
             </div>
           </div>
         </div>
@@ -80,6 +87,8 @@
           <tr>
             <th>EMPLOYEE</th>
             <th>FAN NUMBER</th>
+            <th>EMAIL</th>
+            <th>PHONE</th>
             <th>PACKAGE</th>
             <th>DEPARTMENT</th>
             <th>JOINED</th>
@@ -88,7 +97,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="e in employees" :key="e.id">
+          <tr v-for="e in paginatedEmployees" :key="e.id">
             <td class="td-employee">
               <div class="emp-avatar" :style="{ background: avatarColor(e.name) }">{{ initials(e.name) }}</div>
               <div>
@@ -97,6 +106,20 @@
               </div>
             </td>
             <td class="td-fan">{{ e.fan_number }}</td>
+            <td class="td-contact">
+              <span v-if="e.email" class="td-contact-val">
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                {{ e.email }}
+              </span>
+              <span v-else class="td-no-action">—</span>
+            </td>
+            <td class="td-contact">
+              <span v-if="e.phone" class="td-contact-val">
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L7.91 9.4a16 16 0 0 0 6.69 6.69l1.27-1.27a2 2 0 0 1 2.11-.45c.9.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/></svg>
+                {{ e.phone }}
+              </span>
+              <span v-else class="td-no-action">—</span>
+            </td>
             <td><span class="pkg-badge" :class="'pkb-' + e.package">{{ tierLabel(e.package) }}</span></td>
             <td class="td-dept">{{ e.department || '—' }}</td>
             <td class="td-date">{{ e.enrolled_at }}</td>
@@ -106,16 +129,30 @@
               </span>
             </td>
             <td v-if="activeTab === 'all'">
-              <div class="row-actions" v-if="e.registration_status === 'pending'">
-                <button class="act-approve" :disabled="acting === e.id" @click="approve(e)">Approve</button>
-                <button class="act-reject"  :disabled="acting === e.id" @click="reject(e)">Reject</button>
+              <div class="action-cell">
+                <template v-if="e.registration_status === 'pending'">
+                  <button class="act-btn act-approve" :disabled="acting === e.id" @click="approve(e)">Approve</button>
+                  <button class="act-btn act-reject"  :disabled="acting === e.id" @click="reject(e)">Reject</button>
+                </template>
+                <button v-if="!e.is_banned" class="act-btn act-ban" @click="openBan(e)">Ban</button>
+                <button v-else class="act-btn act-release" @click="doUnban(e)">Release</button>
               </div>
-              <span v-else class="td-no-action">—</span>
+              <div v-if="e.is_banned" class="ban-chip">
+                Banned until {{ formatDate(e.banned_until) }}
+                <span v-if="e.ban_reason" class="ban-reason"> — {{ e.ban_reason }}</span>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <AppPagination
+      v-model:page="empPage"
+      :total-pages="empTotalPages"
+      :total="employees.length"
+      :per-page="empPerPage"
+    />
 
     <!-- Plan Selection Modal -->
     <Teleport to="body">
@@ -168,6 +205,57 @@
       </Transition>
     </Teleport>
 
+    <!-- Ban Modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="banModal.open" class="modal-backdrop" @click.self="banModal.open = false">
+          <div class="modal ban-modal">
+            <div class="modal-header">
+              <div>
+                <p class="modal-title">Ban Employee</p>
+                <p class="modal-sub">Banning <strong>{{ banModal.employee?.name }}</strong> will prevent them from checking in to any gym.</p>
+              </div>
+              <button class="modal-close" @click="banModal.open = false">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="field">
+                <label class="field-label">Ban Duration</label>
+                <div class="duration-grid">
+                  <button
+                    v-for="d in durationOptions" :key="d.days"
+                    type="button" class="dur-btn"
+                    :class="{ selected: banModal.days === d.days && !banModal.custom }"
+                    @click="banModal.days = d.days; banModal.custom = false"
+                  >{{ d.label }}</button>
+                  <button
+                    type="button" class="dur-btn"
+                    :class="{ selected: banModal.custom }"
+                    @click="banModal.custom = true"
+                  >Custom</button>
+                </div>
+                <div v-if="banModal.custom" class="custom-days-wrap">
+                  <input v-model.number="banModal.days" type="number" min="1" max="365" class="days-input" placeholder="Number of days" />
+                  <span class="days-label">days</span>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">Reason <span class="optional">(optional)</span></label>
+                <textarea v-model="banModal.reason" class="ban-textarea" rows="3" placeholder="e.g. Misuse of gym access, Policy violation…"></textarea>
+              </div>
+              <div v-if="banModal.error" class="banner-error">{{ banModal.error }}</div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-cancel" @click="banModal.open = false">Cancel</button>
+              <button class="btn-ban-confirm" :disabled="banModal.loading || !banModal.days" @click="confirmBan">
+                <span v-if="banModal.loading" class="spinner-sm"></span>
+                <span v-else>Confirm Ban</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Toast -->
     <Teleport to="body">
       <Transition name="toast">
@@ -183,8 +271,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
 
@@ -193,6 +282,7 @@ interface Emp {
   fan_number: string; package: string; status: string
   job_title: string; department: string; branch: string
   request_note: string; registration_status: string; enrolled_at: string
+  is_banned: boolean; banned_until: string | null; ban_reason: string | null
 }
 
 interface Plan {
@@ -207,6 +297,11 @@ const loading      = ref(true)
 const search       = ref('')
 const activeTab    = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
 const acting       = ref<number | null>(null)
+
+const empPage    = ref(1)
+const empPerPage = 20
+const empTotalPages   = computed(() => Math.max(1, Math.ceil(employees.value.length / empPerPage)))
+const paginatedEmployees = computed(() => employees.value.slice((empPage.value - 1) * empPerPage, empPage.value * empPerPage))
 
 // Plan selection modal state
 const plans       = ref<Plan[]>([])
@@ -262,10 +357,72 @@ async function load() {
 function switchTab(tab: typeof activeTab.value) {
   activeTab.value = tab
   search.value    = ''
+  empPage.value   = 1
   load()
 }
 
+watch(employees, () => { empPage.value = 1 })
+
 onMounted(load)
+
+// ── Ban / Unban ───────────────────────────────────────────────
+const durationOptions = [
+  { days: 1,  label: '1 Day' },
+  { days: 3,  label: '3 Days' },
+  { days: 7,  label: '1 Week' },
+  { days: 30, label: '1 Month' },
+]
+
+const banModal = reactive({
+  open: false, loading: false, error: '',
+  custom: false, days: 7, reason: '',
+  employee: null as Emp | null,
+})
+
+function openBan(e: Emp) {
+  banModal.employee = e
+  banModal.days     = 7
+  banModal.reason   = ''
+  banModal.custom   = false
+  banModal.error    = ''
+  banModal.open     = true
+}
+
+async function confirmBan() {
+  if (!banModal.employee || !banModal.days) return
+  banModal.loading = true
+  banModal.error   = ''
+  try {
+    const res = await api.post<{ employee: Emp }>(
+      `hr/employees/${banModal.employee.id}/ban`,
+      { days: banModal.days, ban_reason: banModal.reason || null }
+    )
+    const idx = employees.value.findIndex(e => e.id === banModal.employee!.id)
+    if (idx !== -1) employees.value[idx] = res.employee
+    banModal.open = false
+    showToast(`${res.employee.name} banned successfully.`)
+  } catch (err: unknown) {
+    banModal.error = err instanceof Error ? err.message : 'Ban failed.'
+  } finally {
+    banModal.loading = false
+  }
+}
+
+async function doUnban(e: Emp) {
+  try {
+    const res = await api.post<{ employee: Emp }>(`hr/employees/${e.id}/unban`)
+    const idx = employees.value.findIndex(emp => emp.id === e.id)
+    if (idx !== -1) employees.value[idx] = res.employee
+    showToast(`${res.employee.name}'s ban lifted.`)
+  } catch (err: unknown) {
+    showToast(err instanceof Error ? err.message : 'Unban failed.', 'error')
+  }
+}
+
+function formatDate(d: string | null): string {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 // ── Approve / Reject ──────────────────────────────────────────
 async function approve(e: Emp) {
@@ -332,7 +489,7 @@ function tierLabel(t: string) {
 function regLabel(s: string) {
   return { pending: 'Pending', approved: 'Active', rejected: 'Rejected' }[s] ?? s
 }
-const COLORS = ['#3b82f6','#7c3aed','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899']
+const COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
 function avatarColor(name: string) {
   let h = 0; for (const c of (name ?? '')) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return COLORS[h % COLORS.length]
@@ -393,7 +550,7 @@ function initials(name: string) {
 .emp-name { font-size: 0.97rem; font-weight: 700; color: #0f172a; margin: 0 0 3px; }
 .emp-meta { font-size: 0.78rem; color: #64748b; margin: 0 0 6px; }
 .emp-tags { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.emp-email { font-size: 0.75rem; color: #64748b; }
+.emp-contact { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #64748b; }
 .emp-sub  { font-size: 0.75rem; color: #94a3b8; margin: 2px 0 0; }
 
 .request-note {
@@ -406,7 +563,7 @@ function initials(name: string) {
 .pending-actions { display: flex; gap: 10px; }
 .btn-approve {
   display: flex; align-items: center; gap: 6px;
-  padding: 9px 20px; background: #14b8a6; color: white;
+  padding: 9px 20px; background: #4CD964; color: white;
   border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }
@@ -452,34 +609,93 @@ function initials(name: string) {
 .td-dept { color: #64748b; font-size: 0.82rem; }
 .td-date { color: #64748b; font-size: 0.82rem; }
 .td-no-action { color: #cbd5e1; }
+.td-contact { font-size: 0.8rem; }
+.td-contact-val { display: flex; align-items: center; gap: 5px; color: #64748b; }
 
 .mono { font-family: monospace; }
 
 /* Package badges */
 .pkg-badge   { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
 .pkb-basic      { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.pkb-basic_plus { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
-.pkb-platinum   { background: #ede9fe; color: #7c3aed; border: 1px solid #ddd6fe; }
+.pkb-basic_plus { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
+.pkb-platinum   { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
 
 /* Registration status badges */
 .reg-badge  { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
 .reg-pending  { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
-.reg-approved { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+.reg-approved { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
 .reg-rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 
-/* Inline table approve/reject */
-.row-actions { display: flex; gap: 6px; }
-.act-approve {
-  padding: 4px 12px; background: #d1fae5; color: #059669;
-  border: none; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+/* Action cell */
+.action-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.act-btn {
+  padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 600;
+  border: none; cursor: pointer; transition: opacity .15s; white-space: nowrap;
 }
-.act-approve:hover:not(:disabled) { background: #059669; color: white; }
-.act-reject {
-  padding: 4px 12px; background: #fee2e2; color: #dc2626;
-  border: none; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+.act-btn:hover:not(:disabled) { opacity: .8; }
+.act-btn:disabled { opacity: .5; cursor: default; }
+.act-approve { background: #d1fae5; color: #2EB84B; }
+.act-approve:hover:not(:disabled) { background: #2EB84B; color: white; }
+.act-reject  { background: #fee2e2; color: #dc2626; }
+.act-reject:hover:not(:disabled)  { background: #dc2626; color: white; }
+.act-ban     { background: #fef3c7; color: #b45309; }
+.act-release { background: #d1fae5; color: #15803d; }
+
+.ban-chip {
+  margin-top: 5px; font-size: 0.72rem; color: #b45309;
+  background: #fef9c3; border: 1px solid #fde68a;
+  padding: 2px 8px; border-radius: 6px; display: inline-block;
 }
-.act-reject:hover:not(:disabled) { background: #dc2626; color: white; }
-.act-approve:disabled, .act-reject:disabled { opacity: .5; cursor: default; }
+.ban-reason { color: #92400e; }
+
+/* ── Ban Modal ───────────────────────────────────────────────── */
+.ban-modal { max-width: 480px; }
+.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 0.78rem; font-weight: 600; color: #334155; }
+.optional    { font-size: 0.72rem; color: #94a3b8; font-weight: 400; }
+.duration-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.dur-btn {
+  padding: 7px 4px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+  background: #f8fafc; font-size: 0.78rem; font-weight: 600; color: #475569;
+  cursor: pointer; transition: all .15s; font-family: inherit; text-align: center;
+}
+.dur-btn:hover    { border-color: #f59e0b; color: #b45309; }
+.dur-btn.selected { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
+.custom-days-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.days-label { font-size: 0.84rem; color: #64748b; }
+.days-input {
+  padding: 9px 12px; background: #f8fafc; border: 1.5px solid #e2e8f0;
+  border-radius: 9px; font-size: 0.875rem; color: #0f172a; outline: none;
+  transition: border-color .15s; width: 100%; box-sizing: border-box;
+}
+.days-input:focus { border-color: #f59e0b; background: white; }
+.ban-textarea {
+  padding: 9px 12px; background: #f8fafc; border: 1.5px solid #e2e8f0;
+  border-radius: 9px; font-size: 0.875rem; color: #0f172a; outline: none;
+  resize: vertical; font-family: inherit; transition: border-color .15s; width: 100%; box-sizing: border-box;
+}
+.ban-textarea:focus { border-color: #f59e0b; background: white; }
+.banner-error {
+  padding: 9px 14px; background: #fee2e2; border: 1px solid #fecaca;
+  border-radius: 8px; color: #dc2626; font-size: 0.82rem;
+}
+.btn-ban-confirm {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 20px; background: #f59e0b; border: none;
+  border-radius: 9px; color: white; font-size: 0.875rem; font-weight: 600;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn-ban-confirm:disabled { opacity: .55; cursor: not-allowed; }
+.btn-ban-confirm:not(:disabled):hover { opacity: .85; }
+.spinner-sm {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: white;
+  border-radius: 50%; animation: spin .7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.fade-enter-active, .fade-leave-active { transition: opacity .2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* ── Plan Selection Modal ────────────────────────────────────── */
 .modal-backdrop {
@@ -519,20 +735,20 @@ function initials(name: string) {
   border-radius: 14px; padding: 16px 14px 14px; text-align: left;
   cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px;
 }
-.plan-card:hover { border-color: #14b8a6; background: #f0fdfa; }
-.plan-card--selected { border-color: #14b8a6; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(20,184,166,.15); }
+.plan-card:hover { border-color: #4CD964; background: #f0fdfa; }
+.plan-card--selected { border-color: #4CD964; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(20,184,166,.15); }
 .plan-check {
   position: absolute; top: 10px; right: 10px;
   width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0;
   display: flex; align-items: center; justify-content: center;
 }
-.plan-card--selected .plan-check { background: #14b8a6; color: white; }
+.plan-card--selected .plan-check { background: #4CD964; color: white; }
 .plan-name  { font-size: 0.92rem; font-weight: 700; color: #0f172a; margin: 0; }
-.plan-price { font-size: 0.82rem; font-weight: 600; color: #14b8a6; margin: 0; }
+.plan-price { font-size: 0.82rem; font-weight: 600; color: #4CD964; margin: 0; }
 .plan-price span { font-size: 0.72rem; color: #94a3b8; font-weight: 400; }
 .plan-features { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 3px; }
 .plan-features li { font-size: 0.73rem; color: #64748b; padding-left: 12px; position: relative; }
-.plan-features li::before { content: '•'; position: absolute; left: 0; color: #14b8a6; }
+.plan-features li::before { content: '•'; position: absolute; left: 0; color: #4CD964; }
 
 .modal-footer {
   display: flex; justify-content: flex-end; gap: 10px;
@@ -546,7 +762,7 @@ function initials(name: string) {
 .btn-cancel:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
 .btn-confirm {
   display: flex; align-items: center; gap: 6px;
-  padding: 9px 22px; background: #14b8a6; color: white;
+  padding: 9px 22px; background: #4CD964; color: white;
   border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }

@@ -4,13 +4,13 @@ import { useRouter, RouterLink } from 'vue-router'
 
 const router = useRouter()
 
-// ── Step state ──────────────────────────────────────────────────────────────
+// -- Step state --------------------------------------------------------------
 const step        = ref(1)
 const TOTAL_STEPS = 4
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 // STEP 1 — Business Identity & Category
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 const facilityName       = ref('')
 const selectedCategories = ref<string[]>([])
 const contactPerson      = ref('')
@@ -22,14 +22,14 @@ const licensePreview     = ref('')
 const licenseError       = ref('')
 
 const serviceCategories = [
-  { id: 'gym',         label: '🏋️ Gym & Fitness Center' },
-  { id: 'swimming',    label: '🏊 Swimming Pool' },
-  { id: 'spa',         label: '💆 Spa & Hydrotherapy' },
-  { id: 'reflexology', label: '🤲 Reflexology & Massage Center' },
-  { id: 'cinema',      label: '🎬 Cinema / Theatre' },
-  { id: 'yoga',        label: '🧘 Yoga & Pilates Studio' },
-  { id: 'sauna',       label: '🧖 Sauna & Steam Room' },
-  { id: 'nutrition',   label: '🥗 Nutrition & Wellness Clinic' },
+  { id: 'gym',         label: '??? Gym & Fitness Center' },
+  { id: 'swimming',    label: '?? Swimming Pool' },
+  { id: 'spa',         label: '?? Spa & Hydrotherapy' },
+  { id: 'reflexology', label: '?? Reflexology & Massage Center' },
+  { id: 'cinema',      label: '?? Cinema / Theatre' },
+  { id: 'yoga',        label: '?? Yoga & Pilates Studio' },
+  { id: 'sauna',       label: '?? Sauna & Steam Room' },
+  { id: 'nutrition',   label: '?? Nutrition & Wellness Clinic' },
 ]
 
 function toggleCategory(id: string) {
@@ -79,9 +79,9 @@ const step1Valid = computed(() => {
   )
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 // STEP 2 — Location Details
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 const city         = ref('')
 const subCity      = ref('')
 const woreda       = ref('')
@@ -110,9 +110,9 @@ const step2Valid = computed(() =>
   city.value.trim() && woreda.value.trim()
 )
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 // STEP 3 — Facility Operations & Capacity
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 const weekdayOpen    = ref('06:00')
 const weekdayClose   = ref('22:00')
 const weekendOpen    = ref('08:00')
@@ -122,14 +122,14 @@ const maxCapacity    = ref('')
 const selectedAmenities = ref<string[]>([])
 
 const amenitiesList = [
-  { id: 'locker',   label: '🔒 Locker Rooms' },
-  { id: 'parking',  label: '🚗 Parking' },
-  { id: 'classes',  label: '🤸 Group Classes' },
-  { id: 'personal', label: '👤 Personal Training' },
-  { id: 'cafe',     label: '☕ Café / Juice Bar' },
-  { id: 'wifi',     label: '📶 Free Wi-Fi' },
-  { id: 'shower',   label: '🚿 Showers' },
-  { id: 'ac',       label: '❄️ Air Conditioning' },
+  { id: 'locker',   label: '?? Locker Rooms' },
+  { id: 'parking',  label: '?? Parking' },
+  { id: 'classes',  label: '?? Group Classes' },
+  { id: 'personal', label: '?? Personal Training' },
+  { id: 'cafe',     label: 'Café / Juice Bar' },
+  { id: 'wifi',     label: '?? Free Wi-Fi' },
+  { id: 'shower',   label: '?? Showers' },
+  { id: 'ac',       label: '?? Air Conditioning' },
 ]
 
 function toggleAmenity(id: string) {
@@ -149,9 +149,9 @@ const step3Valid = computed(() => {
   )
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 // STEP 4 — Account
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 const password        = ref('')
 const confirmPassword = ref('')
 const showPass        = ref(false)
@@ -170,9 +170,9 @@ const passStrength  = computed(() => Object.values(passwordRules.value).filter(B
 const passwordMatch = computed(() => password.value === confirmPassword.value && password.value.length >= 8)
 const step4Valid    = computed(() => passwordMatch.value && agreeTerms.value)
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 // Navigation
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 const canProceed = computed(() => {
   if (step.value === 1) return step1Valid.value
   if (step.value === 2) return step2Valid.value
@@ -190,9 +190,9 @@ function back() {
   step.value--
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 // Submit
-// ══════════════════════════════════════════════════════════════════════════════
+// ------------------------------------------------------------------------------
 async function handleSubmit() {
   if (!step4Valid.value) return
   loading.value = true
@@ -253,7 +253,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 
       <!-- Brand -->
       <div class="brand">
-        <span class="brand-icon">✦</span>
+        <span class="brand-icon">F</span>
         <span class="brand-name">FitAccess</span>
         <span class="brand-tag">Partner Portal</span>
       </div>
@@ -279,7 +279,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
         </div>
       </div>
 
-      <!-- ══ STEP 1: Business Identity & Category ══ -->
+      <!-- -- STEP 1: Business Identity & Category -- -->
       <div v-if="step === 1" class="card-body">
         <h1 class="heading">Business identity</h1>
         <p class="subtext">Tell us about your facility so FitAccess can verify and onboard you.</p>
@@ -360,7 +360,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
             <div v-if="licenseFile" class="license-preview">
               <div class="license-preview-inner">
                 <div v-if="licensePreview === 'pdf'" class="pdf-icon">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e0386a" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4CD964" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
                 </div>
                 <img v-else :src="licensePreview" alt="license" class="license-thumb" />
                 <div class="license-info">
@@ -394,7 +394,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
         <p class="signin-link">Already a partner? <RouterLink to="/login">Sign in</RouterLink></p>
       </div>
 
-      <!-- ══ STEP 2: Location Details ══ -->
+      <!-- -- STEP 2: Location Details -- -->
       <div v-else-if="step === 2" class="card-body">
         <button class="back-btn" @click="back">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
@@ -464,7 +464,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
         </div>
       </div>
 
-      <!-- ══ STEP 3: Facility Operations & Capacity ══ -->
+      <!-- -- STEP 3: Facility Operations & Capacity -- -->
       <div v-else-if="step === 3" class="card-body">
         <button class="back-btn" @click="back">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
@@ -571,7 +571,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
         </div>
       </div>
 
-      <!-- ══ STEP 4: Create Account ══ -->
+      <!-- -- STEP 4: Create Account -- -->
       <div v-else class="card-body">
         <button class="back-btn" @click="back">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
@@ -617,10 +617,10 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
               </span>
             </div>
             <div v-if="password" class="pass-rules">
-              <span :class="passwordRules.length  ? 'rule-ok' : 'rule-fail'">{{ passwordRules.length  ? '✓' : '○' }} 8+ characters</span>
-              <span :class="passwordRules.upper   ? 'rule-ok' : 'rule-fail'">{{ passwordRules.upper   ? '✓' : '○' }} Uppercase</span>
-              <span :class="passwordRules.lower   ? 'rule-ok' : 'rule-fail'">{{ passwordRules.lower   ? '✓' : '○' }} Lowercase</span>
-              <span :class="passwordRules.number  ? 'rule-ok' : 'rule-fail'">{{ passwordRules.number  ? '✓' : '○' }} Number</span>
+              <span :class="passwordRules.length  ? 'rule-ok' : 'rule-fail'">{{ passwordRules.length  ? '✓' : '✗' }} 8+ characters</span>
+              <span :class="passwordRules.upper   ? 'rule-ok' : 'rule-fail'">{{ passwordRules.upper   ? '✓' : '✗' }} Uppercase</span>
+              <span :class="passwordRules.lower   ? 'rule-ok' : 'rule-fail'">{{ passwordRules.lower   ? '✓' : '✗' }} Lowercase</span>
+              <span :class="passwordRules.number  ? 'rule-ok' : 'rule-fail'">{{ passwordRules.number  ? '✓' : '✗' }} Number</span>
             </div>
           </div>
 
@@ -690,7 +690,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 </template>
 
 <style scoped>
-/* ── Page & Card ─────────────────────────────────────────── */
+/* -- Page & Card ------------------------------------------- */
 .signup-page {
   min-height: 100vh;
   background: #f0ede8;
@@ -708,17 +708,17 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   margin-bottom: 24px;
 }
 
-/* ── Brand ───────────────────────────────────────────────── */
+/* -- Brand ------------------------------------------------- */
 .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
-.brand-icon { font-size: 1.6rem; color: #e0386a; line-height: 1; }
-.brand-name { font-size: 1.4rem; font-weight: 800; color: #e0386a; letter-spacing: -0.01em; }
+.brand-icon { font-size: 1.6rem; color: #4CD964; line-height: 1; }
+.brand-name { font-size: 1.4rem; font-weight: 800; color: #4CD964; letter-spacing: -0.01em; }
 .brand-tag {
   margin-left: 4px; padding: 3px 10px;
   background: #e8f5e9; color: #16a34a;
   border-radius: 20px; font-size: 0.75rem; font-weight: 700;
 }
 
-/* ── Progress ────────────────────────────────────────────── */
+/* -- Progress ---------------------------------------------- */
 .progress-wrap  { margin-bottom: 36px; }
 .progress-steps { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .progress-step  { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
@@ -734,9 +734,9 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .progress-step.active .step-label { color: #16a34a; font-weight: 600; }
 .progress-step.done  .step-label  { color: #16a34a; }
 .progress-track { height: 3px; background: #e8e4df; border-radius: 99px; overflow: hidden; margin-top: 4px; }
-.progress-fill  { height: 100%; background: linear-gradient(90deg, #16a34a, #2563eb); border-radius: 99px; transition: width 0.4s ease; }
+.progress-fill  { height: 100%; background: linear-gradient(90deg, #16a34a, #4CD964); border-radius: 99px; transition: width 0.4s ease; }
 
-/* ── Body ────────────────────────────────────────────────── */
+/* -- Body -------------------------------------------------- */
 .card-body { display: flex; flex-direction: column; }
 .back-btn {
   display: flex; align-items: center;
@@ -748,15 +748,15 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .subtext { font-size: 0.95rem; color: #666; margin-bottom: 28px; line-height: 1.5; }
 .subtext strong { color: #333; }
 
-/* ── Fields ──────────────────────────────────────────────── */
+/* -- Fields ------------------------------------------------ */
 .fields    { display: flex; flex-direction: column; gap: 20px; margin-bottom: 28px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .field-group  { display: flex; flex-direction: column; gap: 6px; }
 .field-label  { font-size: 0.85rem; font-weight: 600; color: #333; }
-.req      { color: #e0386a; }
+.req      { color: #4CD964; }
 .optional { color: #aaa; font-weight: 400; font-size: 0.8rem; }
 .field-hint   { font-size: 0.78rem; color: #999; margin-top: 2px; }
-.error-hint   { color: #e0386a; }
+.error-hint   { color: #4CD964; }
 
 .input {
   width: 100%; padding: 13px 16px;
@@ -768,14 +768,14 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 }
 .input::placeholder { color: #aaa; }
 .input:focus { border-color: #16a34a; background: #fff; box-shadow: 0 0 0 3px rgba(22,163,74,0.08); }
-.input.input-error { border-color: #e0386a; }
+.input.input-error { border-color: #4CD964; }
 .input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .select-wrap  { position: relative; }
 .select-input { appearance: none; cursor: pointer; padding-right: 40px; }
 .select-arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #888; }
 
-/* ── Service Category Grid ───────────────────────────────── */
+/* -- Service Category Grid --------------------------------- */
 .category-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
 }
@@ -797,7 +797,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 }
 .cat-btn.selected .cat-check { background: #16a34a; border-color: #16a34a; color: #fff; }
 
-/* ── Phone ───────────────────────────────────────────────── */
+/* -- Phone ------------------------------------------------- */
 .phone-wrap {
   display: flex; border-radius: 10px; overflow: hidden;
   border: 1.5px solid #ddd8d2; background: #f9f7f5;
@@ -814,7 +814,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .flag { font-size: 1.1rem; }
 .phone-input { border: none !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; flex: 1; }
 
-/* ── License Upload ──────────────────────────────────────── */
+/* -- License Upload ---------------------------------------- */
 .upload-zone {
   display: flex; flex-direction: column; align-items: center;
   gap: 8px; padding: 28px 20px;
@@ -843,9 +843,9 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 6px;
   display: flex; align-items: center; transition: color 0.2s;
 }
-.license-remove:hover { color: #e0386a; }
+.license-remove:hover { color: #4CD964; }
 
-/* ── Operating Hours ─────────────────────────────────────── */
+/* -- Operating Hours --------------------------------------- */
 .hours-block {
   background: #f9f7f5; border: 1.5px solid #ddd8d2;
   border-radius: 12px; padding: 16px 18px;
@@ -873,7 +873,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   padding: 8px 0 2px;
 }
 
-/* ── Capacity ────────────────────────────────────────────── */
+/* -- Capacity ---------------------------------------------- */
 .capacity-wrap {
   display: flex; align-items: center; gap: 0;
   border: 1.5px solid #ddd8d2; border-radius: 10px; overflow: hidden;
@@ -887,7 +887,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   white-space: nowrap; align-self: stretch; display: flex; align-items: center;
 }
 
-/* ── Amenities ───────────────────────────────────────────── */
+/* -- Amenities --------------------------------------------- */
 .amenities-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
 }
@@ -900,7 +900,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .amenity-btn:hover   { border-color: #16a34a; color: #16a34a; }
 .amenity-btn.selected { border-color: #16a34a; background: #f0fdf4; color: #16a34a; font-weight: 600; }
 
-/* ── Password ────────────────────────────────────────────── */
+/* -- Password ---------------------------------------------- */
 .pass-wrap { position: relative; }
 .pass-wrap .input { padding-right: 48px; }
 .toggle-pass {
@@ -919,12 +919,12 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   background: #e2e8f0; transition: background 0.3s;
 }
 .bar-1 { background: #ef4444; }
-.bar-2 { background: #f97316; }
+.bar-2 { background: #2EB84B; }
 .bar-3 { background: #eab308; }
 .bar-4 { background: #16a34a; }
 .strength-label { font-size: 0.75rem; font-weight: 600; min-width: 44px; text-align: right; }
 .label-1 { color: #ef4444; }
-.label-2 { color: #f97316; }
+.label-2 { color: #2EB84B; }
 .label-3 { color: #eab308; }
 .label-4 { color: #16a34a; }
 
@@ -935,7 +935,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .rule-ok   { color: #16a34a; }
 .rule-fail { color: #94a3b8; }
 
-/* ── Checkbox ────────────────────────────────────────────── */
+/* -- Checkbox ---------------------------------------------- */
 .checkbox-row {
   display: flex; align-items: flex-start; gap: 10px;
   font-size: 0.88rem; color: #555; line-height: 1.5; cursor: pointer;
@@ -943,7 +943,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .checkbox { width: 16px; height: 16px; margin-top: 2px; accent-color: #16a34a; flex-shrink: 0; }
 .link { color: #16a34a; text-decoration: underline; }
 
-/* ── Summary chip ────────────────────────────────────────── */
+/* -- Summary chip ------------------------------------------ */
 .summary-chip {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 18px; background: #f0fdf4;
@@ -951,7 +951,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 }
 .summary-avatar {
   width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
-  background: linear-gradient(135deg, #16a34a, #2563eb);
+  background: linear-gradient(135deg, #16a34a, #4CD964);
   color: #fff; font-weight: 800; font-size: 0.95rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -959,7 +959,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .summary-name { font-weight: 700; color: #166534; font-size: 0.95rem; }
 .summary-location { font-size: 0.8rem; color: #16a34a; }
 
-/* ── Actions ─────────────────────────────────────────────── */
+/* -- Actions ----------------------------------------------- */
 .actions { margin-bottom: 16px; }
 .btn-next {
   width: 100%; padding: 15px; border-radius: 50px;
@@ -983,7 +983,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 .signin-link a:hover { text-decoration: underline; }
 
 .error-msg {
-  font-size: 0.88rem; color: #e0386a;
+  font-size: 0.88rem; color: #4CD964;
   background: #fff0f4; border: 1px solid #fad0db;
   border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
 }
@@ -995,12 +995,12 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Footer ──────────────────────────────────────────────── */
+/* -- Footer ------------------------------------------------ */
 .signup-footer { padding: 20px 0 32px; text-align: center; }
 .footer-notice { font-size: 0.8rem; color: #aaa; }
 .footer-notice a { color: #888; text-decoration: underline; }
 
-/* ── Responsive ──────────────────────────────────────────── */
+/* -- Responsive -------------------------------------------- */
 @media (max-width: 620px) {
   .signup-card    { padding: 28px 20px 36px; }
   .field-row      { grid-template-columns: 1fr; }
