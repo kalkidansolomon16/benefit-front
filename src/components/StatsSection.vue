@@ -46,8 +46,9 @@ const animateCounter = (target: number, index: number) => {
 
 onMounted(() => {
   const observer = new IntersectionObserver(
-    ([entry]) => {
-      if (entry.isIntersecting && !hasAnimated.value) {
+    (entries) => {
+      const entry = entries[0]
+      if (entry?.isIntersecting && !hasAnimated.value) {
         hasAnimated.value = true
         stats.forEach((s, i) => animateCounter(s.value, i))
         observer.disconnect()

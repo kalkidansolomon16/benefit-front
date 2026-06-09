@@ -550,7 +550,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useRoute } from 'vue-router'
 import AppPagination from '@/components/AppPagination.vue'
+
+const route = useRoute()
 
 interface InvoiceItem { plan_tier: string; plan_name: string; employee_count: number; unit_price: number; subtotal: number }
 interface LatestPayment { status: string; submitted_at: string; payment_method_bank: string; admin_notes: string | null }
@@ -665,7 +668,26 @@ async function loadNegotiations() {
   finally { negLoading.value = false }
 }
 
-onMounted(() => { loadInvoices(); loadPendingPayments(); loadNegotiations(); loadCompanies() })
+onMounted(async () => {
+  loadInvoices(); loadPendingPayments(); loadNegotiations()
+  await loadCompanies()
+  // If navigated here from a Pay Now notification, auto-open generate modal
+  // with that company pre-selected
+  const qCompany = route.query.company_id
+  if (qCompany) {
+    Object.assign(genForm, {
+      company_id:    Number(qCompany),
+      billing_month: '',
+      due_date:      '',
+      notes:         '',
+    })
+    genPreview.value = null
+    genError.value   = ''
+    genModal.show    = true
+    // Trigger preview load now that company is set
+    await previewInvoice()
+  }
+})
 
 watch(filteredInvoices, () => { invPage.value = 1 })
 

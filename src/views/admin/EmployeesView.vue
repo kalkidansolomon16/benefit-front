@@ -17,8 +17,9 @@
       </select>
       <select v-model="filterStatus" class="select-box">
         <option value="">All status</option>
-        <option value="enrolled">Active</option>
-        <option value="not_enrolled">Inactive</option>
+        <option value="active">Account Active</option>
+        <option value="inactive">Account Inactive</option>
+        <option value="pending_admin">Pending Admin</option>
       </select>
       <select v-model="filterPayment" class="select-box">
         <option value="">All payments</option>
@@ -39,9 +40,8 @@
             <th>COMPANY</th>
             <th>FAN NUMBER</th>
             <th>EMAIL</th>
-            <th>PHONE</th>
             <th>PACKAGE</th>
-            <th>STATUS</th>
+            <th>ACCOUNT</th>
             <th>PAYMENT</th>
             <th>ACTION</th>
           </tr>
@@ -52,15 +52,15 @@
             <td class="td-muted">{{ e.company?.name ?? '—' }}</td>
             <td class="td-fan">{{ e.fan_number ?? '—' }}</td>
             <td class="td-email">{{ e.user?.email ?? '—' }}</td>
-            <td class="td-phone">{{ e.user?.phone ?? '—' }}</td>
             <td>
               <span class="pkg-badge" :class="'pkg-' + (e.company?.tier ?? 'basic')">
                 {{ tierLabel(e.company?.tier) }}
               </span>
             </td>
+            <!-- Account / approval status -->
             <td>
-              <span class="status-badge" :class="e.is_enrolled ? 'enrolled' : 'not'">
-                {{ e.is_enrolled ? 'Active' : 'Inactive' }}
+              <span class="status-badge" :class="accountStatusClass(e)">
+                {{ accountStatusLabel(e) }}
               </span>
             </td>
             <td>
@@ -70,6 +70,16 @@
             </td>
             <td>
               <div class="action-cell">
+                <!-- Activate / Deactivate toggle -->
+                <button
+                  class="act-btn"
+                  :class="e.user_is_active ? 'act-deactivate' : 'act-activate'"
+                  :disabled="toggling === e.id"
+                  @click="toggleActive(e)"
+                >
+                  <span v-if="toggling === e.id">…</span>
+                  <span v-else>{{ e.user_is_active ? 'Deactivate' : 'Activate' }}</span>
+                </button>
                 <button
                   v-if="e.is_enrolled && e.active_membership_id"
                   class="act-btn act-suspend"
@@ -187,6 +197,10 @@ interface Employee {
   fan_number: string | null
   is_enrolled: boolean
   payment_status: 'paid' | 'unpaid'
+  registration_status: string | null
+  admin_approval_status: string | null
+  payment_preference: string | null
+  user_is_active: boolean
   active_membership_id: number | null
   is_banned: boolean
   banned_until: string | null
@@ -198,6 +212,7 @@ interface Meta { current_page: number; last_page: number; total: number }
 
 const employees   = ref<Employee[]>([])
 const loading     = ref(true)
+const toggling    = ref<number | null>(null)
 const search      = ref('')
 const filterTier  = ref('')
 const filterStatus  = ref('')
@@ -229,8 +244,9 @@ const filtered = computed(() =>
       if (!name.includes(q) && !fan.includes(q) && !email.includes(q) && !phone.includes(q)) return false
     }
     if (filterTier.value && e.company?.tier !== filterTier.value) return false
-    if (filterStatus.value === 'enrolled'     && !e.is_enrolled) return false
-    if (filterStatus.value === 'not_enrolled' &&  e.is_enrolled) return false
+    if (filterStatus.value === 'active'        &&  !e.user_is_active) return false
+    if (filterStatus.value === 'inactive'      &&   e.user_is_active) return false
+    if (filterStatus.value === 'pending_admin' && e.admin_approval_status !== 'pending') return false
     if (filterPayment.value && e.payment_status !== filterPayment.value) return false
     return true
   })
@@ -311,6 +327,36 @@ async function doUnban(e: Employee) {
   }
 }
 
+async function toggleActive(e: Employee) {
+  const action = e.user_is_active ? 'deactivate' : 'activate'
+  if (!confirm(`${e.user_is_active ? 'Deactivate' : 'Activate'} account for ${e.user?.name ?? 'this employee'}?`)) return
+  toggling.value = e.id
+  try {
+    const res = await api.post<{ employee: Employee }>(`employees/${e.id}/toggle-active`)
+    const idx = employees.value.findIndex(emp => emp.id === e.id)
+    if (idx !== -1) employees.value[idx] = res.employee
+  } catch (err: unknown) {
+    alert(err instanceof Error ? err.message : `Failed to ${action} account.`)
+  } finally {
+    toggling.value = null
+  }
+}
+
+// ── Account status helpers ────────────────────────────────────
+function accountStatusLabel(e: Employee): string {
+  if (e.admin_approval_status === 'pending') return 'Pending Admin'
+  if (e.admin_approval_status === 'rejected') return 'Admin Rejected'
+  if (!e.user_is_active) return 'Inactive'
+  return 'Active'
+}
+
+function accountStatusClass(e: Employee): string {
+  if (e.admin_approval_status === 'pending')  return 'status-pending'
+  if (e.admin_approval_status === 'rejected') return 'status-rejected'
+  if (!e.user_is_active) return 'not'
+  return 'enrolled'
+}
+
 function exportCsv() {
   const rows = [
     ['Name', 'Email', 'Phone', 'Company', 'FAN Number', 'Package', 'Status', 'Payment'],
@@ -385,8 +431,10 @@ function exportCsv() {
 .status-badge {
   display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
 }
-.status-badge.enrolled { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
-.status-badge.not      { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.status-badge.enrolled        { background: #d1fae5; color: #2EB84B;  border: 1px solid #a7f3d0; }
+.status-badge.not             { background: #fee2e2; color: #dc2626;  border: 1px solid #fecaca; }
+.status-badge.status-pending  { background: #fef3c7; color: #d97706;  border: 1px solid #fde68a; }
+.status-badge.status-rejected { background: #fee2e2; color: #dc2626;  border: 1px solid #fecaca; }
 
 .pay-badge   { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
 .pay-paid    { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
@@ -398,9 +446,12 @@ function exportCsv() {
   border: none; cursor: pointer; transition: opacity .15s; white-space: nowrap;
 }
 .act-btn:hover { opacity: .8; }
-.act-suspend { background: #fee2e2; color: #dc2626; }
-.act-ban     { background: #fef3c7; color: #b45309; }
-.act-release { background: #d1fae5; color: #15803d; }
+.act-activate   { background: #d1fae5; color: #15803d; }
+.act-deactivate { background: #fef3c7; color: #b45309; }
+.act-suspend    { background: #fee2e2; color: #dc2626; }
+.act-ban        { background: #fee2e2; color: #dc2626; }
+.act-release    { background: #d1fae5; color: #15803d; }
+.act-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 .ban-chip {
   margin-top: 5px; font-size: 0.72rem; color: #b45309;

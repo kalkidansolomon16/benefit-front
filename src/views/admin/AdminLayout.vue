@@ -31,6 +31,7 @@
         >
           <span class="nav-icon" v-html="item.icon"></span>
           <span class="nav-label">{{ item.label }}</span>
+          <span v-if="item.badge && item.badge > 0" class="nav-badge">{{ item.badge }}</span>
         </RouterLink>
       </nav>
 
@@ -52,8 +53,59 @@
         <button class="hamburger" @click="mobileOpen = !mobileOpen">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
-        <h1 class="page-title">{{ currentTitle }}</h1>
-        <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
+        <div class="top-bar-text">
+          <h1 class="page-title">{{ currentTitle }}</h1>
+          <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
+        </div>
+
+        <!-- Notification bell -->
+        <div class="notif-wrap" v-click-outside="() => notifOpen = false">
+          <button class="notif-btn" @click="toggleNotif" :class="{ active: notifOpen }">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </button>
+
+          <!-- Dropdown -->
+          <Transition name="notif-drop">
+            <div v-if="notifOpen" class="notif-dropdown">
+              <div class="notif-header">
+                <span class="notif-title">Notifications</span>
+                <button v-if="unreadCount > 0" class="notif-read-all" @click="markAllRead">Mark all read</button>
+              </div>
+
+              <div v-if="notifsLoading" class="notif-loading">Loading…</div>
+
+              <div v-else-if="!notifications.length" class="notif-empty">
+                <svg width="28" height="28" fill="none" stroke="#cbd5e1" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <p>No notifications</p>
+              </div>
+
+              <div v-else class="notif-list">
+                <div
+                  v-for="n in notifications"
+                  :key="n.id"
+                  class="notif-item"
+                  :class="{ unread: n.is_unread }"
+                  @click="handleNotifClick(n)"
+                >
+                  <div class="notif-icon" :class="'notif-icon--' + n.type">
+                    <svg v-if="n.type === 'invoice_request'" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
+                  <div class="notif-body">
+                    <p class="notif-item-title">{{ n.title }}</p>
+                    <p class="notif-item-msg">{{ n.message }}</p>
+                    <p class="notif-item-time">{{ timeAgo(n.created_at) }}</p>
+                  </div>
+                  <div v-if="n.is_unread" class="notif-dot"></div>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
       </header>
 
       <main class="page-content">
@@ -65,14 +117,113 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useApi } from '@/composables/useApi'
 
 const auth   = useAuthStore()
 const router = useRouter()
 const route  = useRoute()
+const api    = useApi()
 const mobileOpen = ref(false)
+const pendingApprovals = ref(0)
+
+// ── Notifications ────────────────────────────────────────────
+interface Notif {
+  id: number; type: string; title: string; message: string
+  data: Record<string, unknown> | null; is_unread: boolean; created_at: string
+}
+
+const notifOpen     = ref(false)
+const notifsLoading = ref(false)
+const notifications = ref<Notif[]>([])
+const unreadCount   = ref(0)
+let   pollTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchNotifications() {
+  notifsLoading.value = true
+  try {
+    const res = await api.get<{ data: Notif[]; unread_count: number }>('notifications')
+    notifications.value = res.data
+    unreadCount.value   = res.unread_count
+  } catch { /* non-critical */ } finally {
+    notifsLoading.value = false
+  }
+}
+
+async function fetchUnreadCount() {
+  try {
+    const res = await api.get<{ unread_count: number }>('notifications/unread-count')
+    unreadCount.value = res.unread_count
+  } catch { /* non-critical */ }
+}
+
+async function toggleNotif() {
+  notifOpen.value = !notifOpen.value
+  if (notifOpen.value) await fetchNotifications()
+}
+
+async function markAllRead() {
+  await api.post('notifications/read-all')
+  notifications.value.forEach(n => n.is_unread = false)
+  unreadCount.value = 0
+}
+
+async function handleNotifClick(n: Notif) {
+  if (n.is_unread) {
+    await api.post(`notifications/${n.id}/read`)
+    n.is_unread = false
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+  }
+  notifOpen.value = false
+  // Navigate based on type
+  if (n.type === 'invoice_request') {
+    const companyId = (n.data as Record<string, unknown>)?.company_id
+    router.push(companyId
+      ? `/admin/billing/invoices?company_id=${companyId}`
+      : '/admin/billing/invoices'
+    )
+  }
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1)  return 'Just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
+// Click-outside directive
+const vClickOutside = {
+  mounted(el: HTMLElement, binding: { value: () => void }) {
+    (el as HTMLElement & { _clickOutside: (e: Event) => void })._clickOutside = (e: Event) => {
+      if (!el.contains(e.target as Node)) binding.value()
+    }
+    document.addEventListener('click', (el as HTMLElement & { _clickOutside: (e: Event) => void })._clickOutside)
+  },
+  unmounted(el: HTMLElement) {
+    document.removeEventListener('click', (el as HTMLElement & { _clickOutside: (e: Event) => void })._clickOutside)
+  },
+}
+
+onMounted(async () => {
+  try {
+    const res = await api.get<{ total: number }>('employees/pending-admin-approval')
+    pendingApprovals.value = res.total ?? 0
+  } catch { /* non-critical */ }
+
+  // Fetch initial unread count, then poll every 60s
+  await fetchUnreadCount()
+  pollTimer = setInterval(fetchUnreadCount, 60000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 
 const navItems = computed(() => {
   const all = [
@@ -94,7 +245,14 @@ const navItems = computed(() => {
     {
       name: 'employees', label: 'All Employees', to: '/admin/employees',
       permission: 'employees.view',
+      badge: 0,
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    },
+    {
+      name: 'employee-approvals', label: 'Employee Approvals', to: '/admin/employee-approvals',
+      permission: 'employees.view',
+      get badge() { return pendingApprovals.value },
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`,
     },
     {
       name: 'plans', label: 'Plans', to: '/admin/plans',
@@ -155,6 +313,7 @@ const pageMeta: Record<string, { title: string; sub?: string }> = {
   'admin-payment-methods':    { title: 'Payment Methods', sub: 'Manage bank accounts for company payments' },
   'admin-team':               { title: 'Team Management', sub: 'Manage Finance and Support sub-users' },
   'admin-permissions':        { title: 'Permissions', sub: 'Grant or revoke permissions for admin roles' },
+  'admin-employee-approvals': { title: 'Employee Approvals', sub: 'Final approval for HR-approved employees' },
 }
 
 const currentTitle    = computed(() => pageMeta[route.name as string]?.title ?? 'Admin')
@@ -241,8 +400,14 @@ async function handleLogout() {
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
 .nav-item--active { color: #4CD964; background: rgba(76,217,100,0.08); }
-.nav-icon { flex-shrink: 0; display: flex; align-items: center; }
-.nav-label { white-space: nowrap; }
+.nav-icon  { flex-shrink: 0; display: flex; align-items: center; }
+.nav-label { white-space: nowrap; flex: 1; }
+.nav-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: #ef4444; color: #fff; border-radius: 99px;
+  font-size: 0.68rem; font-weight: 700; line-height: 1;
+}
 
 /* Footer / sign out */
 .sidebar-footer {
@@ -284,14 +449,15 @@ async function handleLogout() {
 }
 
 .top-bar {
+  display: flex; align-items: flex-start; gap: 12px;
   padding: 28px 32px 0;
   background: #f0f2f5;
 }
+.top-bar-text { flex: 1; }
 .hamburger {
   display: none;
   background: none; border: none;
-  color: #475569; cursor: pointer;
-  margin-bottom: 8px;
+  color: #475569; cursor: pointer; padding: 4px; border-radius: 6px; flex-shrink: 0;
 }
 .page-title {
   font-size: 1.6rem;
@@ -310,6 +476,95 @@ async function handleLogout() {
   padding: 20px 32px 32px;
 }
 
+/* ── Notification bell ─────────────────────────────────────────── */
+.notif-wrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.notif-btn {
+  position: relative;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: white; border: 1.5px solid #e2e8f0; border-radius: 10px;
+  color: #64748b; cursor: pointer;
+  transition: border-color .15s, color .15s, box-shadow .15s;
+}
+.notif-btn:hover, .notif-btn.active {
+  border-color: #4CD964; color: #2EB84B;
+  box-shadow: 0 0 0 3px rgba(76,217,100,0.12);
+}
+.notif-badge {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  background: #ef4444; color: #fff;
+  border-radius: 99px; font-size: 0.65rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #f0f2f5;
+  line-height: 1;
+}
+
+/* Dropdown */
+.notif-dropdown {
+  position: absolute; top: calc(100% + 10px); right: 0;
+  width: 360px; max-height: 480px;
+  background: white; border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.14);
+  display: flex; flex-direction: column;
+  z-index: 200; overflow: hidden;
+}
+.notif-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.notif-title    { font-size: 0.9rem; font-weight: 700; color: #0f172a; }
+.notif-read-all {
+  font-size: 0.78rem; color: #4CD964; font-weight: 600;
+  background: none; border: none; cursor: pointer; padding: 0;
+}
+.notif-read-all:hover { color: #2EB84B; }
+
+.notif-loading, .notif-empty {
+  padding: 32px 16px; text-align: center;
+  color: #94a3b8; font-size: 0.85rem;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+
+.notif-list { overflow-y: auto; flex: 1; }
+.notif-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 16px; cursor: pointer;
+  border-bottom: 1px solid #f8fafc;
+  transition: background .12s;
+}
+.notif-item:hover { background: #f8fafc; }
+.notif-item.unread { background: #f0fdf4; }
+.notif-item.unread:hover { background: #dcfce7; }
+
+.notif-icon {
+  width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.notif-icon--invoice_request { background: #EBFAEE; color: #2EB84B; }
+.notif-icon--default          { background: #f1f5f9; color: #64748b; }
+
+.notif-body { flex: 1; min-width: 0; }
+.notif-item-title { font-size: 0.84rem; font-weight: 700; color: #0f172a; margin: 0 0 3px; }
+.notif-item-msg   { font-size: 0.78rem; color: #475569; margin: 0 0 5px; line-height: 1.5; }
+.notif-item-time  { font-size: 0.72rem; color: #94a3b8; margin: 0; }
+
+.notif-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #4CD964; flex-shrink: 0; margin-top: 4px;
+}
+
+/* Dropdown animation */
+.notif-drop-enter-active { transition: all .2s cubic-bezier(.34,1.56,.64,1); }
+.notif-drop-leave-active { transition: all .15s ease; }
+.notif-drop-enter-from, .notif-drop-leave-to { opacity: 0; transform: translateY(-8px) scale(0.97); }
+
 /* ── Responsive ────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .sidebar { transform: translateX(-100%); transition: transform 0.25s; }
@@ -317,5 +572,6 @@ async function handleLogout() {
   .mobile-overlay { display: block; }
   .main-wrap { margin-left: 0; }
   .hamburger { display: block; }
+  .notif-dropdown { width: calc(100vw - 32px); right: -16px; }
 }
 </style>

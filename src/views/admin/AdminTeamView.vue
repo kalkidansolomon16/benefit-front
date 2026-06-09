@@ -7,7 +7,10 @@
         <p class="page-sub">Manage admin sub-users and roles.</p>
       </div>
       <button class="btn-primary" @click="openCreate">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         Add Team Member
       </button>
     </div>
@@ -25,15 +28,21 @@
       <table class="tbl">
         <thead>
           <tr>
-            <th>Name</th><th>Email</th><th>Role</th>
-            <th>Status</th><th>Created</th><th>Actions</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="m in paginatedMembers" :key="m.id">
             <td class="td-name">{{ m.name }}</td>
             <td class="td-email">{{ m.email }}</td>
-            <td><span class="role-badge">{{ roleLabel(m.role) }}</span></td>
+            <td>
+              <span class="role-badge">{{ roleLabel(m.role) }}</span>
+            </td>
             <td>
               <span class="status-badge" :class="m.is_active ? 'active' : 'inactive'">
                 {{ m.is_active ? 'Active' : 'Inactive' }}
@@ -42,15 +51,45 @@
             <td class="td-date">{{ m.created_at }}</td>
             <td>
               <div class="action-row">
-                <button class="btn-icon" :title="m.is_active ? 'Deactivate' : 'Activate'" @click="toggleActive(m)">
-                  <svg v-if="m.is_active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="16" cy="12" r="3" fill="currentColor"/></svg>
-                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="8" cy="12" r="3" fill="currentColor"/></svg>
+                <button
+                  class="btn-icon"
+                  :title="m.is_active ? 'Deactivate' : 'Activate'"
+                  @click="toggleActive(m)"
+                >
+                  <svg
+                    v-if="m.is_active"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="1" y="5" width="22" height="14" rx="7" />
+                    <circle cx="16" cy="12" r="3" fill="currentColor" />
+                  </svg>
+                  <svg
+                    v-else
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="1" y="5" width="22" height="14" rx="7" />
+                    <circle cx="8" cy="12" r="3" fill="currentColor" />
+                  </svg>
                 </button>
                 <button class="btn-icon" title="Reset Password" @click="confirmResetTemp(m)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
                 </button>
                 <button class="btn-icon btn-danger" title="Remove" @click="confirmRemove(m)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4h6v2" />
+                  </svg>
                 </button>
               </div>
             </td>
@@ -77,7 +116,10 @@
         <p class="page-sub">Create custom roles that can be assigned to team members.</p>
       </div>
       <button class="btn-secondary" @click="openAddRole">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         New Role
       </button>
     </div>
@@ -85,15 +127,27 @@
     <div class="roles-grid">
       <div v-for="r in roles" :key="r.id" class="role-card">
         <div class="role-card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
         </div>
         <div class="role-card-body">
           <p class="role-card-label">{{ r.label }}</p>
           <p class="role-card-slug">{{ r.name }}</p>
         </div>
         <span v-if="r.is_system" class="system-badge">System</span>
-        <button v-else class="btn-icon btn-danger role-del" title="Delete role" @click="confirmDeleteRole(r)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+        <button
+          v-else
+          class="btn-icon btn-danger role-del"
+          title="Delete role"
+          @click="confirmDeleteRole(r)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M9 6V4h6v2" />
+          </svg>
         </button>
       </div>
     </div>
@@ -112,13 +166,20 @@
           </div>
           <div class="field">
             <label>Email Address</label>
-            <input type="email" v-model="createForm.email" required placeholder="john@example.com" />
+            <input
+              type="email"
+              v-model="createForm.email"
+              required
+              placeholder="john@example.com"
+            />
           </div>
           <div class="field">
             <label>Role</label>
             <select v-model="createForm.role" required>
               <option value="">Select a role…</option>
-              <option v-for="r in assignableRoles" :key="r.id" :value="r.name">{{ r.label }}</option>
+              <option v-for="r in assignableRoles" :key="r.id" :value="r.name">
+                {{ r.label }}
+              </option>
             </select>
           </div>
           <p v-if="createError" class="err-msg">{{ createError }}</p>
@@ -161,18 +222,29 @@
     </div>
 
     <!-- ── Delete role confirm ────────────────────────────── -->
-    <div v-if="deleteRoleModal.show" class="modal-overlay" @click.self="deleteRoleModal.show = false">
+    <div
+      v-if="deleteRoleModal.show"
+      class="modal-overlay"
+      @click.self="deleteRoleModal.show = false"
+    >
       <div class="modal modal-sm">
         <div class="modal-header">
           <h3>Delete Role</h3>
           <button class="close-btn" @click="deleteRoleModal.show = false">✕</button>
         </div>
         <div class="modal-body">
-          <p class="confirm-text">Delete the <strong>{{ deleteRoleModal.label }}</strong> role? Members with this role will need to be reassigned.</p>
+          <p class="confirm-text">
+            Delete the <strong>{{ deleteRoleModal.label }}</strong> role? Members with this role
+            will need to be reassigned.
+          </p>
         </div>
         <div class="modal-footer">
           <button class="btn-ghost" @click="deleteRoleModal.show = false">Cancel</button>
-          <button class="btn-danger-solid" @click="submitDeleteRole" :disabled="deleteRoleModal.loading">
+          <button
+            class="btn-danger-solid"
+            @click="submitDeleteRole"
+            :disabled="deleteRoleModal.loading"
+          >
             <span v-if="deleteRoleModal.loading" class="spinner"></span>
             {{ deleteRoleModal.loading ? 'Deleting…' : 'Delete' }}
           </button>
@@ -188,16 +260,25 @@
         </div>
         <div class="modal-body">
           <div class="alert-info">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Share this temporary password with <strong>{{ tempPasswordModal.name }}</strong>. It will not be shown again.
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            Share this temporary password with <strong>{{ tempPasswordModal.name }}</strong
+            >. It will not be shown again.
           </div>
 
           <div class="pw-reveal">
             <span class="pw-text">{{ tempPasswordModal.password }}</span>
-            <button class="copy-btn" @click="copyTempPw">{{ copiedPw ? '✓ Copied!' : 'Copy' }}</button>
+            <button class="copy-btn" @click="copyTempPw">
+              {{ copiedPw ? '✓ Copied!' : 'Copy' }}
+            </button>
           </div>
 
-          <p class="pw-note">The user must activate their account and reset their password on first login.</p>
+          <p class="pw-note">
+            The user must activate their account and reset their password on first login.
+          </p>
         </div>
         <div class="modal-footer">
           <button class="btn-primary" @click="tempPasswordModal.show = false">I've Saved It</button>
@@ -213,7 +294,10 @@
           <button class="close-btn" @click="removeModal.show = false">✕</button>
         </div>
         <div class="modal-body">
-          <p class="confirm-text">Are you sure you want to remove <strong>{{ removeModal.name }}</strong>? This cannot be undone.</p>
+          <p class="confirm-text">
+            Are you sure you want to remove <strong>{{ removeModal.name }}</strong
+            >? This cannot be undone.
+          </p>
         </div>
         <div class="modal-footer">
           <button class="btn-ghost" @click="removeModal.show = false">Cancel</button>
@@ -233,7 +317,10 @@
           <button class="close-btn" @click="resetModal.show = false">✕</button>
         </div>
         <div class="modal-body">
-          <p class="confirm-text">Generate a new temporary password for <strong>{{ resetModal.name }}</strong>?</p>
+          <p class="confirm-text">
+            Generate a new temporary password for <strong>{{ resetModal.name }}</strong
+            >?
+          </p>
         </div>
         <div class="modal-footer">
           <button class="btn-ghost" @click="resetModal.show = false">Cancel</button>
@@ -255,28 +342,39 @@ import AppPagination from '@/components/AppPagination.vue'
 const auth = useAuthStore()
 
 interface Member {
-  id: number; name: string; email: string; role: string
-  is_active: boolean; must_reset_password: boolean; created_at: string
+  id: number
+  name: string
+  email: string
+  role: string
+  is_active: boolean
+  must_reset_password: boolean
+  created_at: string
 }
 
 interface Role {
-  id: number; name: string; label: string; scope: string; is_system: boolean
+  id: number
+  name: string
+  label: string
+  scope: string
+  is_system: boolean
 }
 
 const members = ref<Member[]>([])
-const roles   = ref<Role[]>([])
+const roles = ref<Role[]>([])
 const loading = ref(false)
 
-const teamPage    = ref(1)
+const teamPage = ref(1)
 const teamPerPage = 15
-const teamTotalPages   = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
-const paginatedMembers = computed(() => members.value.slice((teamPage.value - 1) * teamPerPage, teamPage.value * teamPerPage))
+const teamTotalPages = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
+const paginatedMembers = computed(() =>
+  members.value.slice((teamPage.value - 1) * teamPerPage, teamPage.value * teamPerPage)
+)
 
 /* ── Fetch all ──────────────────────────────────────────── */
 async function fetchMembers() {
   loading.value = true
   try {
-    const res = await fetch('http://localhost:8000/api/v1/admin/team', {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team`, {
       headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
     })
     members.value = await res.json()
@@ -286,45 +384,50 @@ async function fetchMembers() {
 }
 
 async function fetchRoles() {
-  const res = await fetch('http://localhost:8000/api/v1/admin/roles', {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/roles`, {
     headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
   })
   roles.value = await res.json()
 }
 
-onMounted(() => { fetchMembers(); fetchRoles() })
+onMounted(() => {
+  fetchMembers()
+  fetchRoles()
+})
 
 // Roles available to assign (exclude the primary admin role)
-const assignableRoles = computed(() =>
-  roles.value.filter(r => r.name !== 'fitaccess_admin')
-)
+const assignableRoles = computed(() => roles.value.filter((r) => r.name !== 'fitaccess_admin'))
 
 function roleLabel(roleName: string): string {
-  return roles.value.find(r => r.name === roleName)?.label ?? roleName
+  return roles.value.find((r) => r.name === roleName)?.label ?? roleName
 }
 
 /* ── Create member ──────────────────────────────────────── */
-const showCreate    = ref(false)
-const createForm    = ref({ name: '', email: '', role: '' })
-const createError   = ref('')
+const showCreate = ref(false)
+const createForm = ref({ name: '', email: '', role: '' })
+const createError = ref('')
 const createLoading = ref(false)
 const tempPasswordModal = ref({ show: false, name: '', password: '' })
 const copiedPw = ref(false)
 
 function openCreate() {
-  createForm.value  = { name: '', email: '', role: '' }
+  createForm.value = { name: '', email: '', role: '' }
   createError.value = ''
-  showCreate.value  = true
+  showCreate.value = true
 }
 
 async function submitCreate() {
-  createError.value   = ''
+  createError.value = ''
   createLoading.value = true
   try {
-    const res = await fetch('http://localhost:8000/api/v1/admin/team', {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body:   JSON.stringify(createForm.value),
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(createForm.value),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.message || 'Failed to create member.')
@@ -341,12 +444,14 @@ async function submitCreate() {
 function copyTempPw() {
   navigator.clipboard.writeText(tempPasswordModal.value.password).catch(() => {})
   copiedPw.value = true
-  setTimeout(() => { copiedPw.value = false }, 2000)
+  setTimeout(() => {
+    copiedPw.value = false
+  }, 2000)
 }
 
 /* ── Toggle active ──────────────────────────────────────── */
 async function toggleActive(m: Member) {
-  await fetch(`http://localhost:8000/api/v1/admin/team/${m.id}/toggle-active`, {
+  await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${m.id}/toggle-active`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
   })
@@ -355,56 +460,84 @@ async function toggleActive(m: Member) {
 
 /* ── Remove member ──────────────────────────────────────── */
 const removeModal = ref({ show: false, id: 0, name: '', loading: false })
-function confirmRemove(m: Member) { removeModal.value = { show: true, id: m.id, name: m.name, loading: false } }
+function confirmRemove(m: Member) {
+  removeModal.value = { show: true, id: m.id, name: m.name, loading: false }
+}
 async function submitRemove() {
   removeModal.value.loading = true
   try {
-    await fetch(`http://localhost:8000/api/v1/admin/team/${removeModal.value.id}`, {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${removeModal.value.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
     })
     removeModal.value.show = false
     fetchMembers()
-  } finally { removeModal.value.loading = false }
+  } finally {
+    removeModal.value.loading = false
+  }
 }
 
 /* ── Reset temp password ────────────────────────────────── */
 const resetModal = ref({ show: false, id: 0, name: '', loading: false })
-function confirmResetTemp(m: Member) { resetModal.value = { show: true, id: m.id, name: m.name, loading: false } }
+function confirmResetTemp(m: Member) {
+  resetModal.value = { show: true, id: m.id, name: m.name, loading: false }
+}
 async function submitResetTemp() {
   resetModal.value.loading = true
   try {
-    const res  = await fetch(`http://localhost:8000/api/v1/admin/team/${resetModal.value.id}/reset-temp`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-    })
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/admin/team/${resetModal.value.id}/reset-temp`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
+      }
+    )
     const data = await res.json()
-    resetModal.value.show   = false
-    tempPasswordModal.value = { show: true, name: resetModal.value.name, password: data.temp_password }
+    resetModal.value.show = false
+    tempPasswordModal.value = {
+      show: true,
+      name: resetModal.value.name,
+      password: data.temp_password,
+    }
     fetchMembers()
-  } finally { resetModal.value.loading = false }
+  } finally {
+    resetModal.value.loading = false
+  }
 }
 
 /* ── Add role ───────────────────────────────────────────── */
-const showAddRole    = ref(false)
-const newRoleLabel   = ref('')
-const addRoleError   = ref('')
+const showAddRole = ref(false)
+const newRoleLabel = ref('')
+const addRoleError = ref('')
 const addRoleLoading = ref(false)
 
-const previewSlug = computed(() =>
-  'admin_' + newRoleLabel.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+const previewSlug = computed(
+  () =>
+    'admin_' +
+    newRoleLabel.value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
 )
 
-function openAddRole() { newRoleLabel.value = ''; addRoleError.value = ''; showAddRole.value = true }
+function openAddRole() {
+  newRoleLabel.value = ''
+  addRoleError.value = ''
+  showAddRole.value = true
+}
 
 async function submitAddRole() {
-  addRoleError.value   = ''
+  addRoleError.value = ''
   addRoleLoading.value = true
   try {
-    const res  = await fetch('http://localhost:8000/api/v1/admin/roles', {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/roles`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body:   JSON.stringify({ label: newRoleLabel.value }),
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ label: newRoleLabel.value }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.message || 'Failed to create role.')
@@ -419,46 +552,97 @@ async function submitAddRole() {
 
 /* ── Delete role ────────────────────────────────────────── */
 const deleteRoleModal = ref({ show: false, id: 0, label: '', loading: false })
-function confirmDeleteRole(r: Role) { deleteRoleModal.value = { show: true, id: r.id, label: r.label, loading: false } }
+function confirmDeleteRole(r: Role) {
+  deleteRoleModal.value = { show: true, id: r.id, label: r.label, loading: false }
+}
 async function submitDeleteRole() {
   deleteRoleModal.value.loading = true
   try {
-    await fetch(`http://localhost:8000/api/v1/admin/roles/${deleteRoleModal.value.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-    })
+    await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/admin/roles/${deleteRoleModal.value.id}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
+      }
+    )
     deleteRoleModal.value.show = false
     fetchRoles()
-  } finally { deleteRoleModal.value.loading = false }
+  } finally {
+    deleteRoleModal.value.loading = false
+  }
 }
 </script>
 
 <style scoped>
 /* ── Page ───────────────────────────────────────────────── */
-.page { padding: 28px 32px; max-width: 1100px; margin: 0 auto; font-family: 'Inter', system-ui, sans-serif; }
+.page {
+  padding: 28px 32px;
+  max-width: 1100px;
+  margin: 0 auto;
+  font-family: 'Inter', system-ui, sans-serif;
+}
 
 .page-header {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; margin-bottom: 28px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
 }
-.page-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
-.page-sub   { font-size: 0.875rem; color: #64748b; margin: 0; }
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+.page-sub {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
 
 /* ── Add button ─────────────────────────────────────────── */
 .btn-primary {
-  display: flex; align-items: center; gap: 7px;
-  padding: 10px 20px; background: #4CD964; color: #fff;
-  border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600;
-  cursor: pointer; transition: all 0.2s; white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(76,217,100,0.28);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  background: #4cd964;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(76, 217, 100, 0.28);
 }
-.btn-primary svg { width: 16px; height: 16px; }
-.btn-primary:hover:not(:disabled) { background: #2EB84B; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(76,217,100,0.38); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary svg {
+  width: 16px;
+  height: 16px;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #2eb84b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(76, 217, 100, 0.38);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ── States ─────────────────────────────────────────────── */
-.state-loading { display: flex; justify-content: center; padding: 80px 0; }
-.state-empty   { text-align: center; padding: 80px 0; color: #94a3b8; font-size: 0.9rem; }
+.state-loading {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
+}
+.state-empty {
+  text-align: center;
+  padding: 80px 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
 
 /* ── Table card ─────────────────────────────────────────── */
 .card {
@@ -466,64 +650,154 @@ async function submitDeleteRole() {
   border: 1.5px solid #e2e8f0;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
 }
 
-.tbl { width: 100%; border-collapse: collapse; }
-.tbl thead { background: #f8fafc; }
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tbl thead {
+  background: #f8fafc;
+}
 .tbl th {
-  padding: 13px 18px; text-align: left;
-  font-size: 0.72rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8;
+  padding: 13px 18px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
   border-bottom: 1.5px solid #e2e8f0;
 }
-.tbl td { padding: 15px 18px; font-size: 0.875rem; color: #475569; border-top: 1px solid #f1f5f9; }
-.tbl tbody tr { background: #fff; transition: background 0.1s; }
-.tbl tbody tr:hover { background: #fafbff; }
+.tbl td {
+  padding: 15px 18px;
+  font-size: 0.875rem;
+  color: #475569;
+  border-top: 1px solid #f1f5f9;
+}
+.tbl tbody tr {
+  background: #fff;
+  transition: background 0.1s;
+}
+.tbl tbody tr:hover {
+  background: #fafbff;
+}
 
-.td-name  { font-weight: 600; color: #0f172a; }
-.td-email { color: #64748b; }
-.td-date  { color: #94a3b8; font-size: 0.82rem; }
+.td-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+.td-email {
+  color: #64748b;
+}
+.td-date {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
 
 /* ── Badges ─────────────────────────────────────────────── */
 .role-badge {
-  display: inline-block; padding: 3px 11px; border-radius: 99px;
-  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
-.role-badge.admin_finance { background: #EBFAEE; color: #1A9E38; }
-.role-badge.admin_support { background: #EBFAEE; color: #1A9E38; }
+.role-badge.admin_finance {
+  background: #ebfaee;
+  color: #1a9e38;
+}
+.role-badge.admin_support {
+  background: #ebfaee;
+  color: #1a9e38;
+}
 
-.status-badge { display: inline-block; padding: 3px 11px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
-.status-badge.active   { background: #f0fdf4; color: #15803d; }
-.status-badge.inactive { background: #f1f5f9; color: #64748b; }
+.status-badge {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.status-badge.active {
+  background: #f0fdf4;
+  color: #15803d;
+}
+.status-badge.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
 
 /* ── Action icons ───────────────────────────────────────── */
-.action-row { display: flex; gap: 6px; }
-.btn-icon {
-  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-  background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 7px;
-  color: #94a3b8; cursor: pointer; transition: all 0.15s;
+.action-row {
+  display: flex;
+  gap: 6px;
 }
-.btn-icon svg { width: 14px; height: 14px; }
-.btn-icon:hover { border-color: #4CD964; color: #4CD964; background: #EBFAEE; }
-.btn-icon.btn-danger:hover { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 7px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.btn-icon:hover {
+  border-color: #4cd964;
+  color: #4cd964;
+  background: #ebfaee;
+}
+.btn-icon.btn-danger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fef2f2;
+}
 
 /* ── Spinners ───────────────────────────────────────────── */
 .spinner-lg {
-  width: 40px; height: 40px; border: 3px solid #e2e8f0;
-  border-top-color: #4CD964; border-radius: 50%; animation: spin 0.7s linear infinite;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #4cd964;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 .spinner {
-  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35);
-  border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ── Modal overlay ──────────────────────────────────────── */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(15,23,42,0.45);
-  backdrop-filter: blur(3px); display: flex; align-items: center;
-  justify-content: center; z-index: 9999; padding: 16px;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
 }
 
 /* ── Modal card ─────────────────────────────────────────── */
@@ -531,137 +805,276 @@ async function submitDeleteRole() {
   background: #fff;
   border: 1.5px solid #e2e8f0;
   border-radius: 18px;
-  width: 100%; max-width: 480px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   animation: modalIn 0.2s ease;
 }
-.modal-sm { max-width: 400px; }
+.modal-sm {
+  max-width: 400px;
+}
 
 @keyframes modalIn {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 20px 22px 0;
 }
-.modal-header h3 { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0; }
+.modal-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
 
 .close-btn {
-  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
-  background: #f1f5f9; border: none; border-radius: 7px;
-  color: #64748b; font-size: 0.9rem; cursor: pointer; transition: all 0.15s;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 7px;
+  color: #64748b;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s;
 }
-.close-btn:hover { background: #e2e8f0; color: #0f172a; }
+.close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
 
-.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+.modal-body {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 .modal-footer {
-  padding: 16px 22px; border-top: 1.5px solid #f1f5f9;
-  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 16px 22px;
+  border-top: 1.5px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 /* ── Form fields ────────────────────────────────────────── */
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .field label {
-  font-size: 0.75rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em; color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
 }
 .field input,
 .field select {
-  background: #f8fafc; border: 1.5px solid #e2e8f0;
-  border-radius: 10px; color: #0f172a;
-  padding: 11px 14px; font-size: 0.9rem;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  color: #0f172a;
+  padding: 11px 14px;
+  font-size: 0.9rem;
   transition: border-color 0.15s, box-shadow 0.15s;
-  width: 100%; box-sizing: border-box;
+  width: 100%;
+  box-sizing: border-box;
 }
 .field input:focus,
 .field select:focus {
-  outline: none; border-color: #4CD964;
-  box-shadow: 0 0 0 3px rgba(76,217,100,0.12);
+  outline: none;
+  border-color: #4cd964;
+  box-shadow: 0 0 0 3px rgba(76, 217, 100, 0.12);
   background: #fff;
 }
-.field select { cursor: pointer; }
+.field select {
+  cursor: pointer;
+}
 
 /* ── Error msg ──────────────────────────────────────────── */
 .err-msg {
-  background: #fef2f2; border: 1.5px solid #fca5a5;
-  border-radius: 10px; color: #b91c1c; font-size: 0.875rem; padding: 11px 14px;
+  background: #fef2f2;
+  border: 1.5px solid #fca5a5;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  padding: 11px 14px;
 }
 
 /* ── Ghost / danger buttons ─────────────────────────────── */
 .btn-ghost {
-  padding: 10px 20px; background: #fff; border: 1.5px solid #e2e8f0;
-  border-radius: 10px; color: #64748b; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  padding: 10px 20px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
   transition: all 0.15s;
 }
-.btn-ghost:hover { border-color: #94a3b8; color: #0f172a; background: #f8fafc; }
+.btn-ghost:hover {
+  border-color: #94a3b8;
+  color: #0f172a;
+  background: #f8fafc;
+}
 
 .btn-danger-solid {
-  display: flex; align-items: center; gap: 7px;
-  padding: 10px 20px; background: #ef4444; color: #fff;
-  border: none; border-radius: 10px; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s;
 }
-.btn-danger-solid:hover:not(:disabled) { background: #dc2626; }
-.btn-danger-solid:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-danger-solid:hover:not(:disabled) {
+  background: #dc2626;
+}
+.btn-danger-solid:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-.confirm-text { color: #475569; font-size: 0.9rem; line-height: 1.65; margin: 0; }
-.confirm-text strong { color: #0f172a; }
+.confirm-text {
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin: 0;
+}
+.confirm-text strong {
+  color: #0f172a;
+}
 
 /* ── Info alert ─────────────────────────────────────────── */
 .alert-info {
-  display: flex; align-items: flex-start; gap: 10px;
-  background: #EBFAEE; border: 1.5px solid #B8F0C0;
-  border-radius: 10px; padding: 13px 15px; color: #1A9E38; font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #ebfaee;
+  border: 1.5px solid #b8f0c0;
+  border-radius: 10px;
+  padding: 13px 15px;
+  color: #1a9e38;
+  font-size: 0.875rem;
 }
-.alert-info svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
-.alert-info strong { color: #1A9E38; }
+.alert-info svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.alert-info strong {
+  color: #1a9e38;
+}
 
 /* ── Password reveal box ────────────────────────────────── */
 .pw-reveal {
-  display: flex; align-items: center; gap: 12px;
-  background: #f8fafc; border: 1.5px solid #e2e8f0;
-  border-radius: 12px; padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
 }
 .pw-text {
-  flex: 1; font-family: monospace;
-  font-size: 1.15rem; font-weight: 800;
-  letter-spacing: 0.1em; color: #1A9E38;
+  flex: 1;
+  font-family: monospace;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #1a9e38;
 }
 .copy-btn {
-  background: #EBFAEE; border: 1.5px solid #B8F0C0;
-  color: #1A9E38; padding: 6px 14px; border-radius: 8px;
-  font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  background: #ebfaee;
+  border: 1.5px solid #b8f0c0;
+  color: #1a9e38;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
   transition: all 0.15s;
 }
-.copy-btn:hover { background: #4CD964; border-color: #4CD964; color: #fff; }
+.copy-btn:hover {
+  background: #4cd964;
+  border-color: #4cd964;
+  color: #fff;
+}
 
-.pw-note { font-size: 0.8rem; color: #94a3b8; margin: 0; }
+.pw-note {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0;
+}
 
 /* ── Roles section ──────────────────────────────────────── */
 .section-divider {
-  border: none; border-top: 1.5px solid #f1f5f9;
+  border: none;
+  border-top: 1.5px solid #f1f5f9;
   margin: 36px 0 28px;
 }
 
 .section-header {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 .section-title {
-  font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0 0 4px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
 }
 
 .btn-secondary {
-  display: flex; align-items: center; gap: 7px;
-  padding: 9px 18px; background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  background: #fff;
   border: 1.5px solid #e2e8f0;
-  border-radius: 10px; font-size: 0.875rem; font-weight: 600;
-  color: #475569; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
-.btn-secondary svg { width: 16px; height: 16px; }
-.btn-secondary:hover { border-color: #4CD964; color: #4CD964; background: #EBFAEE; }
+.btn-secondary svg {
+  width: 16px;
+  height: 16px;
+}
+.btn-secondary:hover {
+  border-color: #4cd964;
+  color: #4cd964;
+  background: #ebfaee;
+}
 
 .roles-grid {
   display: grid;
@@ -670,48 +1083,88 @@ async function submitDeleteRole() {
 }
 
 .role-card {
-  display: flex; align-items: center; gap: 12px;
-  background: #fff; border: 1.5px solid #e2e8f0;
-  border-radius: 14px; padding: 14px 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   transition: box-shadow 0.15s, border-color 0.15s;
 }
-.role-card:hover { border-color: #B8F0C0; box-shadow: 0 4px 12px rgba(99,102,241,0.08); }
+.role-card:hover {
+  border-color: #b8f0c0;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
 
 .role-card-icon {
-  width: 36px; height: 36px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: #EBFAEE; border-radius: 9px; color: #4CD964;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ebfaee;
+  border-radius: 9px;
+  color: #4cd964;
 }
-.role-card-icon svg { width: 18px; height: 18px; }
+.role-card-icon svg {
+  width: 18px;
+  height: 18px;
+}
 
-.role-card-body { flex: 1; min-width: 0; }
+.role-card-body {
+  flex: 1;
+  min-width: 0;
+}
 .role-card-label {
-  font-size: 0.875rem; font-weight: 600; color: #0f172a;
-  margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .role-card-slug {
-  font-size: 0.72rem; color: #94a3b8;
-  font-family: monospace; margin: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-family: monospace;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .system-badge {
   flex-shrink: 0;
-  display: inline-block; padding: 3px 10px;
-  background: #f1f5f9; border-radius: 99px;
-  font-size: 0.68rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;
+  display: inline-block;
+  padding: 3px 10px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
 }
 
-.role-del { flex-shrink: 0; }
+.role-del {
+  flex-shrink: 0;
+}
 
 /* ── Field hint (slug preview) ──────────────────────────── */
 .field-hint {
-  font-size: 0.78rem; color: #94a3b8; margin-top: 2px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 .field-hint code {
-  background: #f1f5f9; border-radius: 5px;
-  padding: 1px 6px; font-size: 0.78rem; color: #475569;
+  background: #f1f5f9;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.78rem;
+  color: #475569;
 }
 </style>

@@ -62,17 +62,17 @@ const next = () => { active.value = (active.value + 1) % testimonials.length }
       </div>
 
       <!-- Featured testimonial -->
-      <div class="featured-testimonial" :style="{ background: testimonials[active].color }">
+      <div class="featured-testimonial" :style="{ background: testimonials[active]?.color }">
         <div class="quote-icon">"</div>
-        <p class="featured-quote">{{ testimonials[active].quote }}</p>
+        <p class="featured-quote">{{ testimonials[active]?.quote }}</p>
         <div class="featured-author">
-          <div class="author-avatar">{{ testimonials[active].avatar }}</div>
+          <div class="author-avatar">{{ testimonials[active]?.avatar }}</div>
           <div>
-            <div class="author-name">{{ testimonials[active].name }}</div>
-            <div class="author-role">{{ testimonials[active].role }}, {{ testimonials[active].company }}</div>
+            <div class="author-name">{{ testimonials[active]?.name }}</div>
+            <div class="author-role">{{ testimonials[active]?.role }}, {{ testimonials[active]?.company }}</div>
           </div>
           <div class="author-stars">
-            <span v-for="n in testimonials[active].rating" :key="n">★</span>
+            <span v-for="n in testimonials[active]?.rating" :key="n">★</span>
           </div>
         </div>
         <div class="testimonial-nav">

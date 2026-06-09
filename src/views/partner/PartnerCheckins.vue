@@ -315,7 +315,9 @@ const monthOptions = computed(() => {
     if (c.checked_in_at) months.add(c.checked_in_at.slice(0, 7))
   })
   return [...months].sort().reverse().map(m => {
-    const [y, mo] = m.split('-')
+    const parts = m.split('-')
+    const y = parts[0] ?? '2024'
+    const mo = parts[1] ?? '01'
     const label = new Date(+y, +mo - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' })
     return { value: m, label }
   })
@@ -352,7 +354,7 @@ const avgDur = computed(() => {
 })
 
 function initials(name: string): string {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('')
 }
 </script>
 

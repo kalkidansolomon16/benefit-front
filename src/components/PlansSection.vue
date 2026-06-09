@@ -1,60 +1,98 @@
 <script setup lang="ts">
-const plans = [
-  {
-    name: 'Basic',
-    price: '3,800',
-    description: 'Ideal for managers & staff. Access to standard partner gyms across Addis Ababa.',
-    color: '#EBFAEE',
-    accent: '#4CD964',
-    badge: '',
-    features: [
-      'Basic-tier partner gyms in Addis',
-      'FAN number gym check-in',
-      'Monthly wellness report',
-      'Employee mobile app access',
-      'Standard equipment & facilities',
-    ],
-    partnerEmojis: ['🏋️', '🧘', '🏃', '💪'],
-    level: 'Manager / Staff',
-  },
-  {
-    name: 'Basic Plus',
-    price: '7,200',
-    description: 'Designed for directors. Mid-tier gyms with group classes & clinics.',
-    color: '#1b3a6b',
-    accent: '#ffffff',
-    badge: 'Most Popular',
-    features: [
-      'Mid-tier partner gyms in Addis',
-      'Group fitness classes',
-      'Nutrition & wellness clinics',
-      'Priority check-in support',
-      'Monthly analytics for HR',
-      'Dedicated account manager',
-    ],
-    partnerEmojis: ['🏊', '🤸', '⚡', '🥗', '🧘'],
-    level: 'Director Level',
-  },
-  {
-    name: 'Platinum',
-    price: '19,600',
-    description: 'The premium experience for chiefs. Top-tier gyms, spa & personal coaches.',
-    color: '#fef9ec',
-    accent: '#d97706',
-    badge: 'Premium',
-    features: [
-      'All premium gyms & hotel facilities',
-      'Spa, sauna & pool access',
-      'Private & group classes',
-      'Personal wellness coach',
-      'Medical & dental clinic access',
-      'Custom wellness challenges',
-      'Full HR analytics dashboard',
-    ],
-    partnerEmojis: ['🥇', '🏆', '💆', '🏅', '⭐'],
-    level: 'Chief Level',
-  },
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+interface Plan {
+  id: number
+  name: string
+  tier: string
+  monthly_fee_etb: string | number
+  features: string[] | null
+  target_level: string | null
+  is_active: boolean
+}
+
+const plans   = ref<Plan[]>([])
+const loading = ref(true)
+const error   = ref(false)
+
+onMounted(async () => {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/public/plans`)
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    // Only active plans, sorted by price ascending
+    plans.value = (Array.isArray(data) ? data : data.data ?? [])
+      .filter((p: Plan) => p.is_active)
+      .sort((a: Plan, b: Plan) => Number(a.monthly_fee_etb) - Number(b.monthly_fee_etb))
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+})
+
+// Palette: index-based card styles
+const PALETTE = [
+  { bg: '#EBFAEE', nameColor: 'var(--color-primary)', textColor: 'var(--color-text)',        mutedColor: 'var(--color-text-muted)', checkColor: 'var(--color-accent)', btnBg: 'var(--color-primary)', featured: false },
+  { bg: '#1b3a6b', nameColor: '#ffffff',               textColor: 'rgba(255,255,255,0.9)',    mutedColor: 'rgba(255,255,255,0.65)',  checkColor: '#4CD964',             btnBg: '#4CD964',              featured: true  },
+  { bg: '#fef9ec', nameColor: 'var(--color-primary)', textColor: 'var(--color-text)',        mutedColor: 'var(--color-text-muted)', checkColor: '#d97706',             btnBg: 'var(--color-primary)', featured: false },
+  { bg: '#f5f3ff', nameColor: 'var(--color-primary)', textColor: 'var(--color-text)',        mutedColor: 'var(--color-text-muted)', checkColor: '#7c3aed',             btnBg: '#7c3aed',              featured: false },
+  { bg: '#fff1f2', nameColor: 'var(--color-primary)', textColor: 'var(--color-text)',        mutedColor: 'var(--color-text-muted)', checkColor: '#e11d48',             btnBg: '#e11d48',              featured: false },
 ]
+
+function palette(idx: number) {
+  // For an odd number of plans: middle plan is featured (dark)
+  const midIdx = Math.floor(plans.value.length / 2)
+  if (idx === midIdx && plans.value.length > 1) {
+    return PALETTE[1]!  // always dark/featured for the middle
+  }
+  if (idx < midIdx) return PALETTE[idx === 0 ? 0 : (idx % (PALETTE.length - 1)) + 1 < 1 ? 0 : idx % 2 === 0 ? 0 : 2]!
+  // after mid
+  const afterIdx = idx - midIdx
+  return PALETTE[afterIdx === 1 ? 2 : afterIdx % 3 === 0 ? 0 : afterIdx % 3 === 1 ? 2 : 3]!
+}
+
+// Emoji sets per tier keyword
+const TIER_EMOJIS: Record<string, string[]> = {
+  basic:    ['🏋️', '🧘', '🏃', '💪'],
+  plus:     ['🏊', '🤸', '⚡', '🥗', '🧘'],
+  platinum: ['🥇', '🏆', '💆', '🏅', '⭐'],
+  premium:  ['🥇', '🏆', '💆', '🏅', '⭐'],
+  default:  ['🏋️', '💪', '🧘', '🏃'],
+}
+
+function emojis(tier: string): string[] {
+  const t = tier.toLowerCase()
+  if (t.includes('platinum') || t.includes('premium')) return TIER_EMOJIS.platinum!
+  if (t.includes('plus'))    return TIER_EMOJIS.plus!
+  if (t.includes('basic'))   return TIER_EMOJIS.basic!
+  return TIER_EMOJIS.default!
+}
+
+function levelDesc(targetLevel: string | null, tier: string): string {
+  if (targetLevel === 'chief')    return 'Top-tier access for executives. Premium gyms, spa & personal coaches.'
+  if (targetLevel === 'director') return 'Designed for directors. Mid-tier gyms with group classes & clinics.'
+  if (targetLevel === 'manager' || targetLevel === 'staff') return 'Ideal for managers & staff. Access to standard partner gyms.'
+  // Fallback based on tier name
+  const t = tier.toLowerCase()
+  if (t.includes('platinum') || t.includes('premium')) return 'Premium wellness experience with top-tier facilities.'
+  if (t.includes('plus'))   return 'Enhanced gym access with group classes and wellness clinics.'
+  return 'Essential gym access to keep your team healthy and active.'
+}
+
+function badgeLabel(idx: number): string {
+  const mid = Math.floor(plans.value.length / 2)
+  if (plans.value.length >= 3 && idx === mid) return 'Most Popular'
+  if (idx === plans.value.length - 1 && plans.value.length > 1) return 'Premium'
+  return ''
+}
+
+function formatPrice(fee: string | number): string {
+  return Number(fee).toLocaleString('en-ET')
+}
 </script>
 
 <template>
@@ -69,62 +107,81 @@ const plans = [
         </p>
       </div>
 
-      <div class="plans-grid">
+      <!-- Loading skeleton -->
+      <div v-if="loading" class="plans-grid">
+        <div v-for="n in 3" :key="n" class="plan-card plan-skeleton">
+          <div class="sk-line sk-name"></div>
+          <div class="sk-line sk-price"></div>
+          <div class="sk-line sk-feat"></div>
+          <div class="sk-line sk-feat"></div>
+          <div class="sk-line sk-feat"></div>
+          <div class="sk-btn"></div>
+        </div>
+      </div>
+
+      <!-- Error fallback -->
+      <div v-else-if="error" class="plans-error">
+        <p>Unable to load plans. Please refresh or contact us directly.</p>
+      </div>
+
+      <!-- Dynamic plan cards -->
+      <div v-else class="plans-grid">
         <div
-          v-for="plan in plans"
-          :key="plan.name"
+          v-for="(plan, idx) in plans"
+          :key="plan.id"
           class="plan-card"
-          :class="{ featured: plan.name === 'Basic Plus' }"
-          :style="{ background: plan.color }"
+          :class="{ featured: palette(idx).featured, 'has-badge': !!badgeLabel(idx) }"
+          :style="{ background: palette(idx).bg }"
         >
-          <div v-if="plan.badge" class="plan-badge" :style="{ background: plan.name === 'Basic Plus' ? 'var(--color-green)' : '#fef3c7', color: plan.name === 'Basic Plus' ? '#fff' : '#d97706' }">
-            {{ plan.badge }}
-          </div>
+          <!-- Badge (Most Popular / Premium) -->
+          <div
+            v-if="badgeLabel(idx)"
+            class="plan-badge"
+            :style="{
+              background: palette(idx).featured ? 'var(--color-green)' : '#fef3c7',
+              color: palette(idx).featured ? '#fff' : '#d97706'
+            }"
+          >{{ badgeLabel(idx) }}</div>
 
           <div class="plan-header">
-            <h3 class="plan-name" :style="{ color: plan.name === 'Basic Plus' ? '#fff' : 'var(--color-primary)' }">
-              {{ plan.name }}
-            </h3>
+            <h3 class="plan-name" :style="{ color: palette(idx).nameColor }">{{ plan.name }}</h3>
             <div class="plan-price-row">
-              <span class="plan-currency" :style="{ color: plan.name === 'Basic Plus' ? 'rgba(255,255,255,0.7)' : 'var(--color-text-muted)' }">ETB</span>
-              <span class="plan-price" :style="{ color: plan.name === 'Basic Plus' ? '#fff' : 'var(--color-primary)' }">{{ plan.price }}</span>
-              <span class="plan-period" :style="{ color: plan.name === 'Basic Plus' ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }">/employee/mo</span>
+              <span class="plan-currency" :style="{ color: palette(idx).mutedColor }">ETB</span>
+              <span class="plan-price"    :style="{ color: palette(idx).nameColor }">{{ formatPrice(plan.monthly_fee_etb) }}</span>
+              <span class="plan-period"   :style="{ color: palette(idx).mutedColor }">/employee / month</span>
             </div>
-            <p class="plan-desc" :style="{ color: plan.name === 'Basic Plus' ? 'rgba(255,255,255,0.75)' : 'var(--color-text-muted)' }">
-              {{ plan.description }}
+            <p class="plan-desc" :style="{ color: palette(idx).mutedColor }">
+              {{ levelDesc(plan.target_level, plan.tier) }}
             </p>
           </div>
 
           <div class="plan-partners">
-            <span v-for="emoji in plan.partnerEmojis" :key="emoji" class="partner-emoji">{{ emoji }}</span>
+            <span v-for="emoji in emojis(plan.tier)" :key="emoji" class="partner-emoji">{{ emoji }}</span>
           </div>
 
           <ul class="plan-features">
             <li
-              v-for="feature in plan.features"
+              v-for="feature in (plan.features ?? []).slice(0, 7)"
               :key="feature"
               class="plan-feature"
-              :style="{ color: plan.name === 'Basic Plus' ? 'rgba(255,255,255,0.9)' : 'var(--color-text)' }"
+              :style="{ color: palette(idx).textColor }"
             >
-              <span class="check-icon" :style="{ color: plan.name === 'Basic Plus' ? 'var(--color-green)' : 'var(--color-accent)' }">✓</span>
+              <span class="check-icon" :style="{ color: palette(idx).checkColor }">✓</span>
               {{ feature }}
             </li>
           </ul>
 
-          <a
-            href="#"
+          <RouterLink
+            to="/signup/company"
             class="btn plan-btn"
-            :style="{
-              background: plan.name === 'Basic Plus' ? 'var(--color-green)' : 'var(--color-primary)',
-              color: '#fff'
-            }"
+            :style="{ background: palette(idx).btnBg, color: '#fff' }"
           >
             Get Started
-          </a>
+          </RouterLink>
         </div>
       </div>
 
-      <div class="plans-note">
+      <div v-if="!loading && !error && plans.length" class="plans-note">
         <span>💡</span>
         All plans are billed in Ethiopian Birr (ETB) on a quarterly cycle. No hidden fees.
       </div>
@@ -168,18 +225,25 @@ const plans = [
 
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 24px;
   align-items: start;
   margin-bottom: 32px;
+  padding-top: 20px; /* room for top-positioned badges */
 }
 
+/* Plan card */
 .plan-card {
   border-radius: var(--radius-xl);
-  padding: 36px 28px;
+  padding: 36px 24px;
   border: 1.5px solid var(--color-border);
   position: relative;
   transition: var(--transition);
+  min-width: 0;
+}
+/* Give cards with a badge enough top clearance so the badge isn't clipped */
+.plan-card.has-badge {
+  margin-top: 16px;
 }
 .plan-card:hover {
   transform: translateY(-6px);
@@ -191,6 +255,20 @@ const plans = [
   transform: scale(1.03);
 }
 .plan-card.featured:hover { transform: scale(1.03) translateY(-6px); }
+
+/* Skeleton */
+.plan-skeleton { pointer-events: none; }
+.sk-line, .sk-btn {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.sk-name  { height: 28px; width: 60%; margin-bottom: 14px; }
+.sk-price { height: 48px; width: 45%; margin-bottom: 16px; }
+.sk-feat  { height: 14px; width: 85%; margin-bottom: 10px; }
+.sk-btn   { height: 46px; width: 100%; margin-top: 20px; border-radius: 8px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
 
 .plan-badge {
   position: absolute;
@@ -205,35 +283,33 @@ const plans = [
   white-space: nowrap;
 }
 
-.plan-header { margin-bottom: 24px; }
-.plan-name {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
+.plan-header  { margin-bottom: 20px; }
+.plan-name    { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; word-break: break-word; }
 .plan-price-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
-.plan-currency { font-size: 1.2rem; font-weight: 600; }
-.plan-price { font-size: 3rem; font-weight: 900; line-height: 1; }
-.plan-period { font-size: 0.82rem; }
-.plan-desc { font-size: 0.88rem; line-height: 1.6; }
+.plan-currency { font-size: 1.1rem; font-weight: 600; }
+.plan-price    { font-size: 2.6rem; font-weight: 900; line-height: 1; }
+.plan-period   { font-size: 0.8rem; width: 100%; margin-top: 2px; }
+.plan-desc     { font-size: 0.86rem; line-height: 1.6; margin-top: 8px; }
 
 .plan-partners {
   display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
+  gap: 6px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 .partner-emoji {
-  font-size: 1.4rem;
-  width: 40px; height: 40px;
+  font-size: 1.2rem;
+  width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.15);
   border-radius: var(--radius-sm);
+  flex-shrink: 0;
 }
 
 .plan-features {
@@ -252,11 +328,13 @@ const plans = [
 .check-icon { font-weight: 700; flex-shrink: 0; margin-top: 1px; }
 
 .plan-btn {
+  display: block;
   width: 100%;
   padding: 14px;
   border-radius: var(--radius-md);
   font-size: 0.95rem;
   font-weight: 700;
+  text-align: center;
   transition: var(--transition);
 }
 .plan-btn:hover {
@@ -275,7 +353,19 @@ const plans = [
   text-align: center;
 }
 
-@media (max-width: 900px) {
+.plans-error {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-lg);
+  margin-bottom: 32px;
+}
+
+@media (max-width: 1100px) {
+  .plans-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
+@media (max-width: 700px) {
   .plans-grid { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto 32px; }
   .plan-card.featured { transform: none; }
   .plan-card.featured:hover { transform: translateY(-6px); }
