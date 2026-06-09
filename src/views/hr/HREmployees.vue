@@ -124,8 +124,8 @@
             <td class="td-dept">{{ e.department || '—' }}</td>
             <td class="td-date">{{ e.enrolled_at }}</td>
             <td>
-              <span class="reg-badge" :class="'reg-' + (e.registration_status ?? 'approved')">
-                {{ regLabel(e.registration_status) }}
+              <span class="reg-badge" :class="e.registration_status === 'approved' && e.admin_approval_status === 'pending' ? 'reg-admin-pending' : 'reg-' + (e.registration_status ?? 'approved')">
+                {{ regLabel(e.registration_status, e.admin_approval_status) }}
               </span>
             </td>
             <td v-if="activeTab === 'all'">
@@ -154,50 +154,113 @@
       :per-page="empPerPage"
     />
 
-    <!-- Plan Selection Modal -->
+    <!-- Plan + Payment Preference Approval Modal -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="approvalModal.show" class="modal-backdrop" @click.self="approvalModal.show = false">
-          <div class="modal">
+          <div class="modal modal-wide">
             <div class="modal-header">
               <div>
                 <p class="modal-title">Approve Employee</p>
-                <p class="modal-sub">Select a membership plan for <strong>{{ approvalModal.employee?.name }}</strong></p>
+                <p class="modal-sub">Approving <strong>{{ approvalModal.employee?.name }}</strong> — pending admin final confirmation</p>
               </div>
               <button class="modal-close" @click="approvalModal.show = false">✕</button>
             </div>
 
-            <div v-if="plansLoading" class="plans-loading">Loading plans…</div>
-
-            <div v-else-if="plans.length" class="plan-grid">
-              <button
-                v-for="p in plans" :key="p.tier"
-                class="plan-card"
-                :class="{ 'plan-card--selected': approvalModal.selectedPlan === p.tier }"
-                @click="approvalModal.selectedPlan = p.tier"
-              >
-                <div class="plan-check">
-                  <svg v-if="approvalModal.selectedPlan === p.tier" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <p class="plan-name">{{ p.name }}</p>
-                <p class="plan-price">ETB {{ Number(p.monthly_fee_etb).toLocaleString() }}<span>/mo</span></p>
-                <ul class="plan-features">
-                  <li v-for="f in (p.features ?? []).slice(0, 3)" :key="f">{{ f }}</li>
-                </ul>
-              </button>
+            <!-- Step indicator -->
+            <div class="modal-steps">
+              <div class="modal-step" :class="{ active: approvalModal.step === 1, done: approvalModal.step > 1 }">
+                <span class="step-num">1</span> Select Plan
+              </div>
+              <div class="step-line"></div>
+              <div class="modal-step" :class="{ active: approvalModal.step === 2 }">
+                <span class="step-num">2</span> Payment Option
+              </div>
             </div>
 
-            <div v-else class="plans-empty">No active plans found. Please add plans from the Admin panel first.</div>
+            <!-- Step 1: Plan selection -->
+            <div v-if="approvalModal.step === 1">
+              <div v-if="plansLoading" class="plans-loading">Loading plans…</div>
+              <div v-else-if="plans.length" class="plan-grid">
+                <button
+                  v-for="p in plans" :key="p.tier"
+                  class="plan-card"
+                  :class="{ 'plan-card--selected': approvalModal.selectedPlan === p.tier }"
+                  @click="approvalModal.selectedPlan = p.tier"
+                >
+                  <div class="plan-check">
+                    <svg v-if="approvalModal.selectedPlan === p.tier" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <p class="plan-name">{{ p.name }}</p>
+                  <p class="plan-price">ETB {{ Number(p.monthly_fee_etb).toLocaleString() }}<span>/mo</span></p>
+                  <ul class="plan-features">
+                    <li v-for="f in (p.features ?? []).slice(0, 3)" :key="f">{{ f }}</li>
+                  </ul>
+                </button>
+              </div>
+              <div v-else class="plans-empty">No active plans found. Please add plans from the Admin panel first.</div>
+            </div>
+
+            <!-- Step 2: Payment preference -->
+            <div v-else-if="approvalModal.step === 2" class="payment-step">
+              <p class="payment-step-label">How will the invoice for <strong>{{ approvalModal.employee?.name }}</strong> be handled?</p>
+              <div class="payment-options">
+                <button
+                  class="payment-option"
+                  :class="{ selected: approvalModal.paymentPreference === 'pay_now' }"
+                  @click="approvalModal.paymentPreference = 'pay_now'"
+                >
+                  <div class="pay-option-icon pay-now">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  </div>
+                  <div class="pay-option-body">
+                    <p class="pay-option-title">Pay Now</p>
+                    <p class="pay-option-desc">Notify admin to generate an invoice immediately. Employee activates after payment is confirmed.</p>
+                  </div>
+                  <div class="pay-option-check" v-if="approvalModal.paymentPreference === 'pay_now'">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </button>
+
+                <button
+                  class="payment-option"
+                  :class="{ selected: approvalModal.paymentPreference === 'pay_later' }"
+                  @click="approvalModal.paymentPreference = 'pay_later'"
+                >
+                  <div class="pay-option-icon pay-later">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div class="pay-option-body">
+                    <p class="pay-option-title">Pay Later</p>
+                    <p class="pay-option-desc">Invoice will be settled in the next billing cycle. Employee activates after admin confirms.</p>
+                  </div>
+                  <div class="pay-option-check" v-if="approvalModal.paymentPreference === 'pay_later'">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </button>
+              </div>
+            </div>
 
             <div class="modal-footer">
-              <button class="btn-cancel" @click="approvalModal.show = false">Cancel</button>
+              <button class="btn-cancel" @click="approvalModal.step === 1 ? approvalModal.show = false : approvalModal.step--">
+                {{ approvalModal.step === 1 ? 'Cancel' : '← Back' }}
+              </button>
               <button
+                v-if="approvalModal.step === 1"
                 class="btn-confirm"
-                :disabled="!approvalModal.selectedPlan || acting === approvalModal.employee?.id"
+                :disabled="!approvalModal.selectedPlan"
+                @click="approvalModal.step = 2"
+              >
+                Next: Payment Option →
+              </button>
+              <button
+                v-else
+                class="btn-confirm"
+                :disabled="!approvalModal.paymentPreference || acting === approvalModal.employee?.id"
                 @click="confirmApprove"
               >
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                {{ acting === approvalModal.employee?.id ? 'Approving…' : 'Approve & Activate' }}
+                {{ acting === approvalModal.employee?.id ? 'Submitting…' : approvalModal.paymentPreference === 'pay_now' ? 'Approve & Notify Admin' : 'Approve & Pay Later' }}
               </button>
             </div>
           </div>
@@ -282,6 +345,7 @@ interface Emp {
   fan_number: string; package: string; status: string
   job_title: string; department: string; branch: string
   request_note: string; registration_status: string; enrolled_at: string
+  admin_approval_status: string | null; payment_preference: string | null
   is_banned: boolean; banned_until: string | null; ban_reason: string | null
 }
 
@@ -308,9 +372,11 @@ const plans       = ref<Plan[]>([])
 const plansLoading = ref(false)
 const approvalModal = reactive<{
   show: boolean
+  step: number
   employee: Emp | null
   selectedPlan: string
-}>({ show: false, employee: null, selectedPlan: '' })
+  paymentPreference: 'pay_now' | 'pay_later' | ''
+}>({ show: false, step: 1, employee: null, selectedPlan: '', paymentPreference: '' })
 
 const tabs = [
   { key: 'all',      label: 'All' },
@@ -426,11 +492,13 @@ function formatDate(d: string | null): string {
 
 // ── Approve / Reject ──────────────────────────────────────────
 async function approve(e: Emp) {
-  // Fetch plans and open modal
+  // Fetch plans and open modal (step 1)
   plansLoading.value = true
-  approvalModal.employee     = e
-  approvalModal.selectedPlan = ''
-  approvalModal.show         = true
+  approvalModal.employee          = e
+  approvalModal.selectedPlan      = ''
+  approvalModal.paymentPreference = ''
+  approvalModal.step              = 1
+  approvalModal.show              = true
 
   try {
     const res = await api.get<Plan[]>('membership-plans')
@@ -449,13 +517,19 @@ async function approve(e: Emp) {
 
 async function confirmApprove() {
   const e = approvalModal.employee
-  if (!e || !approvalModal.selectedPlan) return
+  if (!e || !approvalModal.selectedPlan || !approvalModal.paymentPreference) return
 
   acting.value = e.id
   try {
-    await api.post(`hr/employees/${e.id}/approve`, { plan: approvalModal.selectedPlan })
+    await api.post(`hr/employees/${e.id}/approve`, {
+      plan:               approvalModal.selectedPlan,
+      payment_preference: approvalModal.paymentPreference,
+    })
     approvalModal.show = false
-    showToast(`${e.name} approved and activated.`)
+    const msg = approvalModal.paymentPreference === 'pay_now'
+      ? `${e.name} approved — admin notified to generate invoice.`
+      : `${e.name} approved — pending admin confirmation before activation.`
+    showToast(msg)
     await load()
   } catch {
     showToast('Failed to approve. Please try again.', 'error')
@@ -486,8 +560,11 @@ function tierLabel(t: string) {
   return { basic: 'Basic', basic_plus: 'Basic Plus', platinum: 'Platinum' }[t]
     ?? t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
-function regLabel(s: string) {
-  return { pending: 'Pending', approved: 'Active', rejected: 'Rejected' }[s] ?? s
+function regLabel(s: string, adminStatus?: string | null) {
+  if (s === 'approved' && adminStatus === 'pending') return 'Pending Admin'
+  if (s === 'approved' && adminStatus === 'approved') return 'Active'
+  if (s === 'approved' && adminStatus === 'rejected') return 'Admin Rejected'
+  return { pending: 'Pending HR', approved: 'Active', rejected: 'Rejected' }[s] ?? s
 }
 const COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
 function avatarColor(name: string) {
@@ -788,4 +865,50 @@ function initials(name: string) {
 .toast-enter-active { transition: all .3s cubic-bezier(.34,1.56,.64,1); }
 .toast-leave-active { transition: all .25s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
+
+/* ── Approval modal extras ─────────────────────────────────── */
+.modal-wide { max-width: 620px; }
+.modal-steps {
+  display: flex; align-items: center; gap: 0;
+  padding: 0 24px 20px; margin-bottom: 4px;
+}
+.modal-step {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.82rem; font-weight: 500; color: #94a3b8;
+}
+.modal-step.active { color: #4CD964; font-weight: 700; }
+.modal-step.done   { color: #2EB84B; }
+.step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #f1f5f9; color: #64748b;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700;
+}
+.modal-step.active .step-num { background: #4CD964; color: #fff; }
+.modal-step.done   .step-num { background: #2EB84B; color: #fff; }
+.step-line { flex: 1; height: 2px; background: #e2e8f0; margin: 0 12px; }
+
+.payment-step { padding: 0 24px 8px; }
+.payment-step-label { font-size: 0.88rem; color: #475569; margin: 0 0 16px; }
+.payment-options { display: flex; flex-direction: column; gap: 12px; }
+.payment-option {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px;
+  background: white; cursor: pointer; text-align: left;
+  transition: border-color .15s, box-shadow .15s;
+}
+.payment-option:hover { border-color: #b8f0c0; }
+.payment-option.selected { border-color: #4CD964; background: #EBFAEE; }
+.pay-option-icon {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.pay-option-icon.pay-now    { background: #EBFAEE; color: #2EB84B; }
+.pay-option-icon.pay-later  { background: #fef3c7; color: #d97706; }
+.pay-option-body { flex: 1; }
+.pay-option-title { font-size: 0.92rem; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+.pay-option-desc  { font-size: 0.8rem; color: #64748b; margin: 0; line-height: 1.5; }
+.pay-option-check { color: #4CD964; flex-shrink: 0; margin-top: 2px; }
+
+.reg-admin-pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
 </style>

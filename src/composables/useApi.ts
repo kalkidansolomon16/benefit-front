@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/auth'
 
-const BASE = 'http://localhost:8000/api/v1'
+const BASE: string = import.meta.env.VITE_API_BASE_URL
 
 function headers(extra: Record<string, string> = {}): Record<string, string> {
   const auth = useAuthStore()
@@ -26,11 +26,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export function useApi() {
   return {
-    get:    <T>(path: string)                 => request<T>('GET',    path),
-    post:   <T>(path: string, body?: unknown) => request<T>('POST',   path, body),
-    put:    <T>(path: string, body?: unknown) => request<T>('PUT',    path, body),
-    patch:  <T>(path: string, body?: unknown) => request<T>('PATCH',  path, body),
-    del:    <T>(path: string)                 => request<T>('DELETE', path),
-    delete: <T>(path: string)                 => request<T>('DELETE', path),
+    get: <T>(path: string) => request<T>('GET', path),
+    post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+    put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
+    patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+    del: <T>(path: string) => request<T>('DELETE', path),
+    delete: <T>(path: string) => request<T>('DELETE', path),
   }
 }

@@ -4,7 +4,7 @@
     <!-- -- Loading ------------------------------------------------ -->
     <div v-if="loading" class="pd-loading">
       <div class="spinner"></div>
-      <p>Loading dashboard…</p>
+      <p>Loading dashboardï¿½</p>
     </div>
 
     <template v-else-if="data">
@@ -23,7 +23,7 @@
           <p class="gym-location">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             {{ data.gym.city }}<span v-if="data.gym.sub_city">, {{ data.gym.sub_city }}</span>
-            <span v-if="data.gym.address"> · {{ data.gym.address }}</span>
+            <span v-if="data.gym.address"> ï¿½ {{ data.gym.address }}</span>
           </p>
           <div class="gym-meta-row">
             <span class="meta-chip">
@@ -77,14 +77,14 @@
         </div>
         <div class="stat-card">
           <p class="stat-label">Avg Visit Duration</p>
-          <p class="stat-value slate">{{ data.stats.avg_duration_min ?? '—' }}</p>
+          <p class="stat-value slate">{{ data.stats.avg_duration_min ?? 'ï¿½' }}</p>
           <p class="stat-sub">{{ data.stats.avg_duration_min ? 'minutes per visit' : 'no completed visits yet' }}</p>
         </div>
       </div>
 
       <!-- -- 7-Day Trend ------------------------------------------- -->
       <div class="card trend-card">
-        <h3 class="card-title">Check-in Trend — Last 7 Days</h3>
+        <h3 class="card-title">Check-in Trend ï¿½ Last 7 Days</h3>
         <div class="trend-chart">
           <div
             v-for="day in data.checkin_trend"
@@ -135,10 +135,10 @@
                     <span>{{ c.employee_name }}</span>
                   </div>
                 </td>
-                <td class="fan-cell">{{ c.fan_number ?? '—' }}</td>
-                <td class="time-cell">{{ c.checked_in_at ?? '—' }}</td>
-                <td class="time-cell">{{ c.checked_out_at ?? '—' }}</td>
-                <td class="dur-cell">{{ c.duration_min != null ? c.duration_min + ' min' : '—' }}</td>
+                <td class="fan-cell">{{ c.fan_number ?? 'ï¿½' }}</td>
+                <td class="time-cell">{{ c.checked_in_at ?? 'ï¿½' }}</td>
+                <td class="time-cell">{{ c.checked_out_at ?? 'ï¿½' }}</td>
+                <td class="dur-cell">{{ c.duration_min != null ? c.duration_min + ' min' : 'ï¿½' }}</td>
                 <td>
                   <span class="status-pill" :class="c.status === 'active' ? 'pill--active' : 'pill--done'">
                     {{ c.status === 'active' ? 'Active' : 'Completed' }}
@@ -246,7 +246,7 @@ function initials(name: string): string {
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
-    .map(w => w[0].toUpperCase())
+    .map(w => w.charAt(0).toUpperCase())
     .join('')
 }
 

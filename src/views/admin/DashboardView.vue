@@ -95,15 +95,16 @@
             <text :x="Y_LABEL_W - 6" :y="ly(tick) + 4" text-anchor="end" fill="#94a3b8" font-size="10">{{ tick }}</text>
           </template>
           <!-- X-axis labels (every 5 days) -->
-          <text
-            v-for="(d, i) in trendData" :key="'xl'+i"
-            v-if="i % 5 === 0 || i === trendData.length - 1"
-            :x="lx(i)"
-            :y="LH + 34"
-            text-anchor="middle"
-            fill="#94a3b8"
-            font-size="10"
-          >{{ d.date.slice(5) }}</text>
+          <template v-for="(d, i) in trendData" :key="'xl'+i">
+            <text
+              v-if="i % 5 === 0 || i === trendData.length - 1"
+              :x="lx(i)"
+              :y="LH + 34"
+              text-anchor="middle"
+              fill="#94a3b8"
+              font-size="10"
+            >{{ d.date.slice(5) }}</text>
+          </template>
           <!-- Area fill -->
           <polygon v-if="trendData.length" :points="areaPoints" fill="#2EB84B" fill-opacity="0.07"/>
           <!-- Line -->
@@ -111,11 +112,11 @@
           <!-- Hover -->
           <template v-if="hoverIdx >= 0">
             <line :x1="lx(hoverIdx)" y1="0" :x2="lx(hoverIdx)" :y2="LH" stroke="#2EB84B" stroke-width="1" stroke-dasharray="4,3"/>
-            <circle :cx="lx(hoverIdx)" :cy="ly(trendData[hoverIdx].count)" r="5" fill="#2EB84B" stroke="white" stroke-width="2"/>
+            <circle :cx="lx(hoverIdx)" :cy="ly(trendData[hoverIdx]?.count ?? 0)" r="5" fill="#2EB84B" stroke="white" stroke-width="2"/>
             <!-- Tooltip box -->
             <rect :x="tooltipX" :y="tooltipY" width="110" height="38" rx="6" fill="white" filter="url(#shadow)"/>
-            <text :x="tooltipX + 8" :y="tooltipY + 15" fill="#0f172a" font-size="11" font-weight="600">{{ trendData[hoverIdx].date }}</text>
-            <text :x="tooltipX + 8" :y="tooltipY + 29" fill="#2EB84B" font-size="11">Check-ins: {{ trendData[hoverIdx].count }}</text>
+            <text :x="tooltipX + 8" :y="tooltipY + 15" fill="#0f172a" font-size="11" font-weight="600">{{ trendData[hoverIdx]?.date }}</text>
+            <text :x="tooltipX + 8" :y="tooltipY + 29" fill="#2EB84B" font-size="11">Check-ins: {{ trendData[hoverIdx]?.count }}</text>
           </template>
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">

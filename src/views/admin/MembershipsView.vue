@@ -5,15 +5,21 @@
     <div class="filters-row">
       <div class="search-wrap">
         <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="search" class="search-input" placeholder="Search member name or FAN…" @input="onSearch" />
+        <input v-model="search" class="search-input" placeholder="Search member name or email…" @input="onSearch" />
         <button v-if="search" class="search-clear" @click="search = ''; loadMemberships()">✕</button>
       </div>
-      <select v-model="filterStatus" class="filter-select" @change="loadMemberships">
+      <select v-model="filterStatus" class="filter-select" @change="() => loadMemberships()">
         <option value="">All statuses</option>
         <option value="active">Active</option>
         <option value="suspended">Suspended</option>
       </select>
-      <select v-model="filterGym" class="filter-select" @change="loadMemberships">
+      <select v-model="filterTier" class="filter-select" @change="() => loadMemberships()">
+        <option value="">All plans</option>
+        <option value="basic">Fit Basic</option>
+        <option value="basic_plus">Fit Basic Plus</option>
+        <option value="platinum">Fit Platinum</option>
+      </select>
+      <select v-model="filterGym" class="filter-select" @change="() => loadMemberships()">
         <option value="">All gyms</option>
         <option v-for="g in gyms" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>
@@ -212,6 +218,7 @@ const loading     = ref(true)
 
 const search       = ref('')
 const filterStatus = ref('')
+const filterTier   = ref('')
 const filterGym    = ref<number | ''>('')
 const currentPage  = ref(1)
 const totalPages   = ref(1)
@@ -239,8 +246,10 @@ async function loadMemberships(page = 1) {
   currentPage.value = page
   try {
     const params = new URLSearchParams({ page: String(page) })
-    if (filterStatus.value) params.set('status', filterStatus.value)
-    if (filterGym.value)    params.set('gym_id', String(filterGym.value))
+    if (filterStatus.value) params.set('status',   filterStatus.value)
+    if (filterTier.value)   params.set('gym_tier',  filterTier.value)
+    if (filterGym.value)    params.set('gym_id',    String(filterGym.value))
+    if (search.value)       params.set('search',    search.value)
 
     const res = await api.get<{ data: any[]; meta?: { last_page: number }; last_page?: number }>(
       `memberships?${params}`
@@ -313,8 +322,8 @@ async function submitSuspend() {
     await api.post(`memberships/${suspendModal.membership.id}/suspend`, { reason: suspendModal.reason })
     const idx = memberships.value.findIndex(m => m.id === suspendModal.membership!.id)
     if (idx !== -1) {
-      memberships.value[idx].status = 'suspended'
-      memberships.value[idx].suspension_reason = suspendModal.reason
+      memberships.value[idx]!.status = 'suspended'
+      memberships.value[idx]!.suspension_reason = suspendModal.reason
     }
     suspendModal.open = false
     showToast(`${suspendModal.membership.employee_name}'s membership suspended.`)
@@ -367,7 +376,7 @@ function avatarColor(name: string) {
   return COLORS[h % COLORS.length]
 }
 function initials(name: string) {
-  return (name ?? '').split(' ').filter(Boolean).map(w => w[0].toUpperCase()).slice(0, 2).join('')
+  return (name ?? '').split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase()).slice(0, 2).join('')
 }
 </script>
 

@@ -32,8 +32,8 @@
       <template v-else>
         <h2 class="auth-title">Reset Token Sent</h2>
         <p class="auth-sub">
-          A reset token has been generated. In production, this would arrive in your email.
-          For now, use the token below.
+          A reset token has been generated. In production, this would arrive in your email. For now,
+          use the token below.
         </p>
 
         <div class="token-box">
@@ -61,29 +61,29 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const email      = ref('')
-const loading    = ref(false)
-const error      = ref('')
-const tokenSent  = ref(false)
+const email = ref('')
+const loading = ref(false)
+const error = ref('')
+const tokenSent = ref(false)
 const resetToken = ref('')
-const copied     = ref(false)
+const copied = ref(false)
 
 async function requestReset() {
   error.value = ''
   loading.value = true
 
   try {
-    const res = await fetch('http://localhost:8000/api/v1/auth/forgot-password', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body:    JSON.stringify({ email: email.value }),
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ email: email.value }),
     })
 
     const data = await res.json()
     if (!res.ok) throw new Error(data.message || 'Failed to send reset token.')
 
     resetToken.value = data.token ?? ''
-    tokenSent.value  = true
+    tokenSent.value = true
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -95,7 +95,9 @@ async function copyToken() {
   try {
     await navigator.clipboard.writeText(resetToken.value)
     copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
   } catch {}
 }
 </script>
@@ -130,8 +132,14 @@ async function copyToken() {
   margin-bottom: 28px;
 }
 
-.logo-icon { font-size: 1.6rem; }
-.logo-text  { font-size: 1.4rem; font-weight: 700; color: #f1f5f9; }
+.logo-icon {
+  font-size: 1.6rem;
+}
+.logo-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
 
 .auth-title {
   font-size: 1.4rem;
@@ -148,9 +156,17 @@ async function copyToken() {
   margin: 0 0 28px;
 }
 
-.auth-form { display: flex; flex-direction: column; gap: 18px; }
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .field label {
   font-size: 0.82rem;
@@ -174,13 +190,13 @@ async function copyToken() {
 
 .field input:focus {
   outline: none;
-  border-color: #4CD964;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  border-color: #4cd964;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .err-msg {
-  background: rgba(239,68,68,0.12);
-  border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 8px;
   color: #f87171;
   font-size: 0.875rem;
@@ -191,7 +207,7 @@ async function copyToken() {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #4CD964;
+  background: #4cd964;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -206,31 +222,44 @@ async function copyToken() {
   text-decoration: none;
 }
 
-.btn-primary:hover:not(:disabled) { background: #2EB84B; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-link { margin-top: 4px; }
+.btn-primary:hover:not(:disabled) {
+  background: #2eb84b;
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-link {
+  margin-top: 4px;
+}
 
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .back-link {
   text-align: center;
-  color: #4CD964;
+  color: #4cd964;
   font-size: 0.875rem;
   text-decoration: none;
   display: block;
   margin-top: 12px;
 }
 
-.back-link:hover { color: #4CD964; }
+.back-link:hover {
+  color: #4cd964;
+}
 
 /* Token display */
 .token-box {
@@ -270,7 +299,10 @@ async function copyToken() {
   transition: all 0.2s;
 }
 
-.copy-btn:hover { border-color: #4CD964; color: #4CD964; }
+.copy-btn:hover {
+  border-color: #4cd964;
+  color: #4cd964;
+}
 
 .info-note {
   font-size: 0.82rem;
@@ -279,5 +311,7 @@ async function copyToken() {
   margin-bottom: 20px;
 }
 
-.info-note strong { color: #94a3b8; }
+.info-note strong {
+  color: #94a3b8;
+}
 </style>

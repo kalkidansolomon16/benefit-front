@@ -10,9 +10,7 @@
       <!-- First-login forced reset -->
       <template v-if="isFirstLogin">
         <h2 class="auth-title">Set Your Password</h2>
-        <p class="auth-sub">
-          For your security, please set a new password before continuing.
-        </p>
+        <p class="auth-sub">For your security, please set a new password before continuing.</p>
 
         <form @submit.prevent="submitFirstLogin" class="auth-form">
           <div class="field">
@@ -25,8 +23,22 @@
                 required
               />
               <button type="button" class="pw-toggle" @click="showPw = !showPw">
-                <svg v-if="!showPw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg
+                  v-if="!showPw"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                  />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
               </button>
             </div>
           </div>
@@ -41,8 +53,22 @@
                 required
               />
               <button type="button" class="pw-toggle" @click="showPw2 = !showPw2">
-                <svg v-if="!showPw2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg
+                  v-if="!showPw2"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                  />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
               </button>
             </div>
           </div>
@@ -78,8 +104,22 @@
                 required
               />
               <button type="button" class="pw-toggle" @click="showPw = !showPw">
-                <svg v-if="!showPw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg
+                  v-if="!showPw"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                  />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
               </button>
             </div>
           </div>
@@ -94,8 +134,22 @@
                 required
               />
               <button type="button" class="pw-toggle" @click="showPw2 = !showPw2">
-                <svg v-if="!showPw2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg
+                  v-if="!showPw2"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                  />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
               </button>
             </div>
           </div>
@@ -120,22 +174,22 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const auth   = useAuthStore()
+const auth = useAuthStore()
 const router = useRouter()
 
 // If the user is logged in AND must reset → first-login forced reset
 const isFirstLogin = computed(() => auth.isLoggedIn && auth.mustResetPassword)
 
 const form = ref({ token: '', password: '', password_confirmation: '' })
-const showPw  = ref(false)
+const showPw = ref(false)
 const showPw2 = ref(false)
 const loading = ref(false)
-const error   = ref('')
+const error = ref('')
 const success = ref('')
 
 /* ── First-login reset (authenticated) ─────────────────── */
 async function submitFirstLogin() {
-  error.value   = ''
+  error.value = ''
   success.value = ''
 
   if (form.value.password.length < 8) {
@@ -149,15 +203,15 @@ async function submitFirstLogin() {
 
   loading.value = true
   try {
-    const res = await fetch('http://localhost:8000/api/v1/auth/first-login-reset', {
-      method:  'POST',
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/first-login-reset`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept':        'application/json',
-        'Authorization': `Bearer ${auth.token}`,
+        Accept: 'application/json',
+        Authorization: `Bearer ${auth.token}`,
       },
       body: JSON.stringify({
-        password:              form.value.password,
+        password: form.value.password,
         password_confirmation: form.value.password_confirmation,
       }),
     })
@@ -179,7 +233,7 @@ async function submitFirstLogin() {
 
 /* ── Token-based reset (unauthenticated) ─────────────────── */
 async function submitTokenReset() {
-  error.value   = ''
+  error.value = ''
   success.value = ''
 
   if (form.value.password.length < 8) {
@@ -197,12 +251,12 @@ async function submitTokenReset() {
 
   loading.value = true
   try {
-    const res = await fetch('http://localhost:8000/api/v1/auth/reset-password', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        token:                 form.value.token,
-        password:              form.value.password,
+        token: form.value.token,
+        password: form.value.password,
         password_confirmation: form.value.password_confirmation,
       }),
     })
@@ -262,8 +316,14 @@ function redirectToDashboard() {
   margin-bottom: 28px;
 }
 
-.logo-icon { font-size: 1.6rem; }
-.logo-text  { font-size: 1.4rem; font-weight: 700; color: #f1f5f9; }
+.logo-icon {
+  font-size: 1.6rem;
+}
+.logo-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
 
 .auth-title {
   font-size: 1.4rem;
@@ -280,9 +340,17 @@ function redirectToDashboard() {
   margin: 0 0 28px;
 }
 
-.auth-form { display: flex; flex-direction: column; gap: 18px; }
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .field label {
   font-size: 0.82rem;
@@ -306,12 +374,16 @@ function redirectToDashboard() {
 
 .field input:focus {
   outline: none;
-  border-color: #4CD964;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  border-color: #4cd964;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-.pw-wrap { position: relative; }
-.pw-wrap input { padding-right: 44px; }
+.pw-wrap {
+  position: relative;
+}
+.pw-wrap input {
+  padding-right: 44px;
+}
 
 .pw-toggle {
   position: absolute;
@@ -327,12 +399,17 @@ function redirectToDashboard() {
   align-items: center;
 }
 
-.pw-toggle svg { width: 18px; height: 18px; }
-.pw-toggle:hover { color: #94a3b8; }
+.pw-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+.pw-toggle:hover {
+  color: #94a3b8;
+}
 
 .err-msg {
-  background: rgba(239,68,68,0.12);
-  border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 8px;
   color: #f87171;
   font-size: 0.875rem;
@@ -341,8 +418,8 @@ function redirectToDashboard() {
 }
 
 .ok-msg {
-  background: rgba(34,197,94,0.12);
-  border: 1px solid rgba(34,197,94,0.3);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
   border-radius: 8px;
   color: #4ade80;
   font-size: 0.875rem;
@@ -353,7 +430,7 @@ function redirectToDashboard() {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #4CD964;
+  background: #4cd964;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -367,27 +444,38 @@ function redirectToDashboard() {
   gap: 8px;
 }
 
-.btn-primary:hover:not(:disabled) { background: #2EB84B; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary:hover:not(:disabled) {
+  background: #2eb84b;
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .back-link {
   text-align: center;
-  color: #4CD964;
+  color: #4cd964;
   font-size: 0.875rem;
   text-decoration: none;
   display: block;
 }
 
-.back-link:hover { color: #4CD964; }
+.back-link:hover {
+  color: #4cd964;
+}
 </style>

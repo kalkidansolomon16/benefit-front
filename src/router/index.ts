@@ -236,6 +236,12 @@ const router = createRouter({
           component: () => import('../views/admin/AdminPermissionsView.vue'),
           meta: { requiresPermission: 'permissions.manage' },
         },
+        {
+          path: 'employee-approvals',
+          name: 'admin-employee-approvals',
+          component: () => import('../views/admin/AdminEmployeeApprovals.vue'),
+          meta: { requiresPermission: 'employees.view' },
+        },
       ],
     },
 
@@ -257,8 +263,15 @@ router.beforeEach((to) => {
     return { name: 'reset-password' }
   }
 
-  // Redirect logged-in users away from guest-only pages
-  if (to.meta.guestOnly && auth.isLoggedIn) return { name: 'home' }
+  // Redirect logged-in users away from guest-only pages (login, signup)
+  // → send them directly to their portal dashboard so a new tab skips login
+  if (to.meta.guestOnly && auth.isLoggedIn) {
+    if (auth.isAdmin)    return { name: 'admin-dashboard' }
+    if (auth.isHR)       return { name: 'hr-dashboard' }
+    if (auth.isPartner)  return { name: 'partner-dashboard' }
+    if (auth.isEmployee) return { name: 'employee-dashboard' }
+    return { name: 'home' }
+  }
 
   // Protect admin routes
   if (to.meta.requiresAdmin) {

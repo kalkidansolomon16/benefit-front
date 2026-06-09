@@ -3,7 +3,7 @@
 
     <div v-if="loading" class="pf-loading">
       <div class="spinner"></div>
-      <p>Loading facility info…</p>
+      <p>Loading facility infoï¿½</p>
     </div>
 
     <template v-else-if="gym">
@@ -19,7 +19,7 @@
               {{ gym.is_active ? 'Active' : 'Inactive' }}
             </span>
           </div>
-          <p class="profile-sub">Partner Gym · {{ gym.city }}</p>
+          <p class="profile-sub">Partner Gym ï¿½ {{ gym.city }}</p>
           <p v-if="gym.partnership_start" class="profile-since">
             Partner since <strong>{{ gym.partnership_start }}</strong>
           </p>
@@ -206,7 +206,7 @@ const parsedHours = computed<OpeningHours | null>(() => {
 })
 
 function initials(name: string): string {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('')
 }
 
 function tierLabel(tier: string): string {
