@@ -160,6 +160,17 @@ import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
 
+interface Plan { id: number; name: string; tier: string }
+const plansByCanonical = ref<Record<string, string>>({})  // canonical → plan name
+
+function normalizeTier(t: string): string {
+  const s = t.toLowerCase().replace(/^[a-z]+_(?=basic|premium|platinum|gold|silver)/i, '')
+  if (s.includes('platinum') || s.includes('gold')) return 'platinum'
+  if (s.includes('premium')) return 'premium'
+  if (s.includes('basic_plus') || s.includes('plus')) return 'basic_plus'
+  return 'basic'
+}
+
 interface GymSummary {
   id: number; name: string; tier: string; total_checkins: number
   unique_members: number; active_days: number; first_checkin: string; last_checkin: string
@@ -203,6 +214,18 @@ onMounted(async () => {
     const res = await api.get<{ data: GymBasic[] } | GymBasic[]>('gyms')
     allGyms.value = Array.isArray(res) ? res : (res as { data: GymBasic[] }).data
   } catch {}
+  // Load plans for dynamic tier labels
+  try {
+    const plans = await api.get<Plan[]>('membership-plans?all=true')
+    const map: Record<string, string> = {}
+    if (Array.isArray(plans)) {
+      for (const p of plans) {
+        const c = normalizeTier(p.tier)
+        if (!map[c]) map[c] = p.name
+      }
+    }
+    plansByCanonical.value = map
+  } catch {}
   await generate()
 })
 
@@ -239,16 +262,16 @@ function gymPeriodVal(gymId: number, p: string) {
 
 /* ── Tier helpers ─────────────────────────────────────────────── */
 function gymTierKey(t: string) {
-  if (!t) return 'basic'
-  if (t.includes('platinum')) return 'platinum'
-  if (t.includes('plus'))     return 'plus'
+  const c = normalizeTier(t || 'basic')
+  if (c === 'platinum') return 'platinum'
+  if (c === 'premium')  return 'premium'
+  if (c === 'basic_plus') return 'plus'
   return 'basic'
 }
 function gymTierLabel(t: string) {
-  if (!t) return 'Basic Gym'
-  if (t.includes('platinum')) return 'Platinum Gym'
-  if (t.includes('plus'))     return 'Basic Plus Gym'
-  return 'Basic Gym'
+  if (!t) return plansByCanonical.value['basic'] ?? 'Basic'
+  const c = normalizeTier(t)
+  return plansByCanonical.value[c] ?? c.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
 }
 
 /* ── Export CSV ───────────────────────────────────────────────── */

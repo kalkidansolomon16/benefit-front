@@ -102,123 +102,6 @@
       :per-page="teamPerPage"
     />
 
-    <!-- ═══════════════════════════════════════════════════
-         ROLES SECTION
-    ════════════════════════════════════════════════════ -->
-    <div class="section-divider"></div>
-
-    <div class="section-header">
-      <div>
-        <h2 class="section-title">Roles</h2>
-        <p class="page-sub">Create custom roles for your company team members.</p>
-      </div>
-      <button class="btn-secondary" @click="openAddRole">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        New Role
-      </button>
-    </div>
-
-    <div class="roles-grid">
-      <div v-for="r in roles" :key="r.id" class="role-card">
-        <div class="role-card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
-        </div>
-        <div class="role-card-body">
-          <p class="role-card-label">{{ r.label }}</p>
-          <p class="role-card-slug">{{ r.name }}</p>
-        </div>
-        <span v-if="r.is_system" class="system-badge">System</span>
-        <button
-          v-else
-          class="btn-icon btn-danger role-del"
-          title="Delete role"
-          @click="confirmDeleteRole(r)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M9 6V4h6v2" />
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Permissions section (only for primary HR) -->
-    <template v-if="auth.isPrimaryHR">
-      <div class="section-divider"></div>
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Role Permissions</h2>
-          <p class="page-sub">Control what each role can access.</p>
-        </div>
-        <button class="btn-primary" @click="savePermissions" :disabled="saving">
-          <span v-if="saving" class="spinner"></span>
-          {{ saving ? 'Saving…' : 'Save Permissions' }}
-        </button>
-      </div>
-
-      <div v-if="permsLoading" class="state-loading"><div class="spinner-lg"></div></div>
-
-      <template v-else>
-        <div v-for="group in groupedPermissions" :key="group.name" class="group-card">
-          <div class="group-header">{{ group.name }}</div>
-          <table class="perm-table">
-            <thead>
-              <tr>
-                <th class="perm-col">Permission</th>
-                <th v-for="role in editableRoles" :key="role.key" class="role-col">
-                  {{ role.label }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="perm in group.perms" :key="perm.name">
-                <td class="perm-info">
-                  <span class="perm-label">{{ perm.label }}</span>
-                  <span v-if="perm.description" class="perm-desc">{{ perm.description }}</span>
-                </td>
-                <td v-for="role in editableRoles" :key="role.key" class="check-cell">
-                  <button
-                    class="check-btn"
-                    :class="{ granted: hasRolePerm(role.key, perm.name) }"
-                    @click="toggleRolePerm(role.key, perm.name)"
-                  >
-                    <svg
-                      v-if="hasRolePerm(role.key, perm.name)"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    <svg
-                      v-else
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p v-if="saveMsg" class="save-msg" :class="saveOk ? 'ok' : 'err'">{{ saveMsg }}</p>
-      </template>
-    </template>
-
     <!-- ── Create member modal ──────────────────────────────── -->
     <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
       <div class="modal">
@@ -244,7 +127,7 @@
             <label>Role</label>
             <select v-model="createForm.role" required>
               <option value="">Select a role…</option>
-              <option v-for="r in assignableRoles" :key="r.id" :value="r.name">
+              <option v-for="r in COMPANY_ROLES" :key="r.name" :value="r.name">
                 {{ r.label }}
               </option>
             </select>
@@ -258,64 +141,6 @@
             </button>
           </div>
         </form>
-      </div>
-    </div>
-
-    <!-- ── Add role modal ────────────────────────────────────── -->
-    <div v-if="showAddRole" class="modal-overlay" @click.self="showAddRole = false">
-      <div class="modal modal-sm">
-        <div class="modal-header">
-          <h3>New Role</h3>
-          <button class="close-btn" @click="showAddRole = false">✕</button>
-        </div>
-        <form @submit.prevent="submitAddRole" class="modal-body">
-          <div class="field">
-            <label>Role Name</label>
-            <input v-model="newRoleLabel" required placeholder="e.g. Operations Manager" />
-            <span class="field-hint" v-if="newRoleLabel">
-              Slug: <code>{{ previewSlug }}</code>
-            </span>
-          </div>
-          <p v-if="addRoleError" class="err-msg">{{ addRoleError }}</p>
-          <div class="modal-footer">
-            <button type="button" class="btn-ghost" @click="showAddRole = false">Cancel</button>
-            <button type="submit" class="btn-primary" :disabled="addRoleLoading">
-              <span v-if="addRoleLoading" class="spinner"></span>
-              {{ addRoleLoading ? 'Creating…' : 'Create Role' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- ── Delete role confirm ────────────────────────────────── -->
-    <div
-      v-if="deleteRoleModal.show"
-      class="modal-overlay"
-      @click.self="deleteRoleModal.show = false"
-    >
-      <div class="modal modal-sm">
-        <div class="modal-header">
-          <h3>Delete Role</h3>
-          <button class="close-btn" @click="deleteRoleModal.show = false">✕</button>
-        </div>
-        <div class="modal-body">
-          <p class="confirm-text">
-            Delete the <strong>{{ deleteRoleModal.label }}</strong> role? Members with this role
-            will need to be reassigned.
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-ghost" @click="deleteRoleModal.show = false">Cancel</button>
-          <button
-            class="btn-danger-solid"
-            @click="submitDeleteRole"
-            :disabled="deleteRoleModal.loading"
-          >
-            <span v-if="deleteRoleModal.loading" class="spinner"></span>
-            {{ deleteRoleModal.loading ? 'Deleting…' : 'Delete' }}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -412,38 +237,22 @@ interface Member {
   created_at: string
 }
 
-interface Role {
-  id: number
-  name: string
-  label: string
-  scope: string
-  is_system: boolean
-}
-
-interface Permission {
-  name: string
-  label: string
-  group_name: string
-  description?: string
-}
+/* Static company roles — permissions are managed by the admin */
+const COMPANY_ROLES = [
+  { name: 'co_hr',        label: 'HR' },
+  { name: 'co_executive', label: 'Executive' },
+  { name: 'co_finance',   label: 'Finance' },
+] as const
 
 const members = ref<Member[]>([])
+const loading = ref(false)
 
-const teamPage = ref(1)
-const teamPerPage = 15
-const teamTotalPages = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
+const teamPage     = ref(1)
+const teamPerPage  = 15
+const teamTotalPages  = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
 const paginatedMembers = computed(() =>
   members.value.slice((teamPage.value - 1) * teamPerPage, teamPage.value * teamPerPage)
 )
-const roles = ref<Role[]>([])
-const loading = ref(false)
-const permsLoading = ref(false)
-const saving = ref(false)
-const saveMsg = ref('')
-const saveOk = ref(true)
-
-const allPermissions = ref<Permission[]>([])
-const localGrants = ref<Record<string, Set<string>>>({})
 
 /* ── Fetch team ─────────────────────────────────────────── */
 async function fetchMembers() {
@@ -458,100 +267,10 @@ async function fetchMembers() {
   }
 }
 
-/* ── Fetch roles ────────────────────────────────────────── */
-async function fetchRoles() {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/roles`, {
-    headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-  })
-  roles.value = await res.json()
-}
-
-/* ── Fetch permissions ──────────────────────────────────── */
-async function fetchPermissions() {
-  permsLoading.value = true
-  try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/team/permissions`, {
-      headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-    })
-    const data = await res.json()
-    allPermissions.value = data.permissions
-
-    // Build grants map for all editable roles
-    for (const role of editableRoles.value) {
-      const perms = (data.role_permissions[role.key] || []).map((p: any) => p.permission_name)
-      localGrants.value[role.key] = new Set(perms)
-    }
-  } finally {
-    permsLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchMembers()
-  fetchRoles()
-  if (auth.isPrimaryHR) fetchPermissions()
-})
-
-// Roles that can be assigned (exclude primary company_hr)
-const assignableRoles = computed(() => roles.value.filter((r) => r.name !== 'company_hr'))
-
-// Roles that can have permissions edited (all non-primary roles)
-const editableRoles = computed(() =>
-  roles.value.filter((r) => r.name !== 'company_hr').map((r) => ({ key: r.name, label: r.label }))
-)
+onMounted(() => { fetchMembers() })
 
 function roleLabel(roleName: string): string {
-  return roles.value.find((r) => r.name === roleName)?.label ?? roleName
-}
-
-const groupedPermissions = computed(() => {
-  const groups: Record<string, { name: string; perms: Permission[] }> = {}
-  for (const p of allPermissions.value) {
-    if (!groups[p.group_name]) groups[p.group_name] = { name: p.group_name, perms: [] }
-    groups[p.group_name]!.perms.push(p)
-  }
-  return Object.values(groups)
-})
-
-function hasRolePerm(role: string, permName: string) {
-  return localGrants.value[role]?.has(permName) ?? false
-}
-
-function toggleRolePerm(role: string, permName: string) {
-  if (!localGrants.value[role]) localGrants.value[role] = new Set()
-  const set = localGrants.value[role]
-  set.has(permName) ? set.delete(permName) : set.add(permName)
-}
-
-async function savePermissions() {
-  saving.value = true
-  saveMsg.value = ''
-  try {
-    for (const role of editableRoles.value) {
-      await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/hr/team/permissions/roles/${role.key}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({ permissions: [...(localGrants.value[role.key] ?? [])] }),
-        }
-      )
-    }
-    saveOk.value = true
-    saveMsg.value = 'Permissions saved.'
-  } catch {
-    saveOk.value = false
-    saveMsg.value = 'Failed to save.'
-  } finally {
-    saving.value = false
-    setTimeout(() => {
-      saveMsg.value = ''
-    }, 3000)
-  }
+  return COMPANY_ROLES.find((r) => r.name === roleName)?.label ?? roleName
 }
 
 /* ── Create member ──────────────────────────────────────── */
@@ -653,69 +372,6 @@ async function submitResetTemp() {
   }
 }
 
-/* ── Add role ───────────────────────────────────────────── */
-const showAddRole = ref(false)
-const newRoleLabel = ref('')
-const addRoleError = ref('')
-const addRoleLoading = ref(false)
-
-const previewSlug = computed(
-  () =>
-    'co_' +
-    newRoleLabel.value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_|_$/g, '')
-)
-
-function openAddRole() {
-  newRoleLabel.value = ''
-  addRoleError.value = ''
-  showAddRole.value = true
-}
-
-async function submitAddRole() {
-  addRoleError.value = ''
-  addRoleLoading.value = true
-  try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/roles`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ label: newRoleLabel.value }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Failed to create role.')
-    showAddRole.value = false
-    fetchRoles()
-  } catch (e: any) {
-    addRoleError.value = e.message
-  } finally {
-    addRoleLoading.value = false
-  }
-}
-
-/* ── Delete role ────────────────────────────────────────── */
-const deleteRoleModal = ref({ show: false, id: 0, label: '', loading: false })
-function confirmDeleteRole(r: Role) {
-  deleteRoleModal.value = { show: true, id: r.id, label: r.label, loading: false }
-}
-async function submitDeleteRole() {
-  deleteRoleModal.value.loading = true
-  try {
-    await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/roles/${deleteRoleModal.value.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-    })
-    deleteRoleModal.value.show = false
-    fetchRoles()
-  } finally {
-    deleteRoleModal.value.loading = false
-  }
-}
 </script>
 
 <style scoped>

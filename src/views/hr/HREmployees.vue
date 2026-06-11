@@ -319,6 +319,36 @@
       </Transition>
     </Teleport>
 
+    <!-- Reject Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="hrRejectModal.show" class="modal-backdrop" @click.self="hrRejectModal.show = false">
+          <div class="modal">
+            <div class="modal-header">
+              <div>
+                <p class="modal-title">Reject Employee Application</p>
+                <p class="modal-sub">Rejecting <strong>{{ hrRejectModal.employee?.name }}</strong> — they will be notified.</p>
+              </div>
+              <button class="modal-close" @click="hrRejectModal.show = false">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="field">
+                <label>Rejection Reason <span class="req">*</span></label>
+                <textarea v-model="hrRejectModal.reason" rows="3" placeholder="e.g. Not eligible for this membership tier, duplicate registration…" />
+              </div>
+              <p v-if="hrRejectModal.error" class="form-error">{{ hrRejectModal.error }}</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-cancel" @click="hrRejectModal.show = false">Cancel</button>
+              <button class="btn-reject-confirm" :disabled="hrRejectModal.loading" @click="confirmHrReject">
+                {{ hrRejectModal.loading ? 'Rejecting…' : 'Confirm Reject' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Toast -->
     <Teleport to="body">
       <Transition name="toast">
@@ -361,6 +391,7 @@ const loading      = ref(true)
 const search       = ref('')
 const activeTab    = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
 const acting       = ref<number | null>(null)
+const hrRejectModal = reactive({ show: false, employee: null as Emp | null, reason: '', error: '', loading: false })
 
 const empPage    = ref(1)
 const empPerPage = 20
@@ -538,16 +569,28 @@ async function confirmApprove() {
   }
 }
 
-async function reject(e: Emp) {
-  if (!confirm(`Reject ${e.name}'s application?`)) return
+function reject(e: Emp) {
+  hrRejectModal.employee = e
+  hrRejectModal.reason   = ''
+  hrRejectModal.error    = ''
+  hrRejectModal.loading  = false
+  hrRejectModal.show     = true
+}
+
+async function confirmHrReject() {
+  if (!hrRejectModal.reason.trim()) { hrRejectModal.error = 'Please provide a rejection reason.'; return }
+  const e = hrRejectModal.employee!
+  hrRejectModal.loading = true
   acting.value = e.id
   try {
-    await api.post(`hr/employees/${e.id}/reject`)
+    await api.post(`hr/employees/${e.id}/reject`, { reason: hrRejectModal.reason })
+    hrRejectModal.show = false
     showToast(`${e.name}'s application rejected.`)
     await load()
   } catch {
-    showToast('Failed to reject. Please try again.', 'error')
+    hrRejectModal.error = 'Failed to reject. Please try again.'
   } finally {
+    hrRejectModal.loading = false
     acting.value = null
   }
 }
@@ -724,6 +767,49 @@ function initials(name: string) {
   padding: 2px 8px; border-radius: 6px; display: inline-block;
 }
 .ban-reason { color: #92400e; }
+
+/* ── Reject Modal ────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,.45);
+  display: flex; align-items: center; justify-content: center; z-index: 600; padding: 16px;
+}
+.modal {
+  background: white; border-radius: 16px; width: 100%; max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.modal-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px 0; gap: 12px;
+}
+.modal-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; }
+.modal-sub   { font-size: 0.84rem; color: #64748b; margin: 4px 0 0; }
+.modal-close { flex-shrink: 0; background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0; }
+.modal-body  { padding: 16px 24px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 0 24px 20px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 0.8rem; font-weight: 600; color: #374151; }
+.field textarea {
+  padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  font-size: 0.87rem; font-family: inherit; resize: vertical; outline: none;
+  transition: border-color .15s;
+}
+.field textarea:focus { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.08); }
+.req { color: #ef4444; margin-left: 2px; }
+.form-error { font-size: 0.8rem; color: #ef4444; margin: 6px 0 0; }
+.btn-cancel {
+  padding: 9px 18px; background: white; border: 1.5px solid #e2e8f0;
+  border-radius: 8px; font-size: 0.84rem; font-weight: 600; color: #64748b; cursor: pointer;
+}
+.btn-cancel:hover { background: #f8fafc; }
+.btn-reject-confirm {
+  padding: 9px 18px; background: #ef4444; color: white;
+  border: none; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+}
+.btn-reject-confirm:hover:not(:disabled) { background: #dc2626; }
+.btn-reject-confirm:disabled { opacity: .55; cursor: not-allowed; }
+.modal-enter-active { transition: all .2s cubic-bezier(.34,1.56,.64,1); }
+.modal-leave-active { transition: all .15s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(.95); }
 
 /* ── Ban Modal ───────────────────────────────────────────────── */
 .ban-modal { max-width: 480px; }

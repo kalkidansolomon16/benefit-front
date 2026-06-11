@@ -316,6 +316,10 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
       <!-- -- STEP 1: Business Identity & Category -- -->
       <div v-if="step === 1" class="card-body">
         <h1 class="heading">Business identity</h1>
+        <div class="authority-notice">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Only the person who has authority to represent this facility should register here.
+        </div>
         <p class="subtext">Tell us about your facility so FitAccess can verify and onboard you.</p>
 
         <div class="fields">
@@ -1127,6 +1131,22 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   transition: width 0.4s ease;
 }
 
+/* -- Authority notice -------------------------------------- */
+.authority-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  color: #92400e;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+.authority-notice svg { flex-shrink: 0; color: #d97706; }
+
 /* -- Body -------------------------------------------------- */
 .card-body {
   display: flex;
@@ -1188,7 +1208,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   color: #333;
 }
 .req {
-  color: #4cd964;
+  color: #ef4444;
 }
 .optional {
   color: #aaa;
@@ -1201,7 +1221,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   margin-top: 2px;
 }
 .error-hint {
-  color: #4cd964;
+  color: #ef4444;
 }
 
 .input {
@@ -1226,7 +1246,8 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08);
 }
 .input.input-error {
-  border-color: #4cd964;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
 }
 .input:disabled {
   opacity: 0.5;
@@ -1777,9 +1798,9 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 
 .error-msg {
   font-size: 0.88rem;
-  color: #4cd964;
-  background: #fff0f4;
-  border: 1px solid #fad0db;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;

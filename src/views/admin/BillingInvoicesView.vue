@@ -199,6 +199,11 @@
             </div>
 
             <div class="modal-body">
+              <!-- Single-employee scope banner -->
+              <div v-if="genForm.employee_id" class="single-emp-banner">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>This invoice is scoped to <strong>{{ genForm.employee_name || 'one employee' }}</strong> (Pay Now request).</span>
+              </div>
               <div class="field-row">
                 <div class="field">
                   <label>Company <span class="req">*</span></label>
@@ -254,12 +259,27 @@
                 </table>
               </div>
               <div v-if="previewLoading" class="preview-loading">Calculating…</div>
+              <div v-if="genPreview && genPreview.total < 100 && !previewLoading" class="preview-zero-warn">
+                <strong>Invoice total is ETB {{ Number(genPreview.total).toLocaleString() }}</strong> — must be at least ETB 100.
+                <template v-if="genPreview.zeroTiers.length">
+                  No active plan found for tier{{ genPreview.zeroTiers.length > 1 ? 's' : '' }}:
+                  <em>{{ genPreview.zeroTiers.join(', ') }}</em>.
+                  Create an active membership plan whose <strong>Tier key</strong> matches or ends with
+                  <em>_{{ genPreview.zeroTiers.join(', _') }}</em>
+                  (e.g. <em>fit_{{ genPreview.zeroTiers[0] }}</em>).
+                </template>
+                <template v-else>
+                  No unpaid enrolled employees found for this company.
+                </template>
+              </div>
               <p v-if="genError" class="form-error">{{ genError }}</p>
             </div>
 
             <div class="modal-footer">
               <button class="btn-cancel" @click="genModal.show = false">Cancel</button>
-              <button class="btn-save" :disabled="genSaving || !genForm.company_id || !genForm.billing_month" @click="generateInvoice">
+              <button class="btn-save"
+                :disabled="genSaving || !genForm.company_id || !genForm.billing_month || (genPreview !== null && genPreview.total < 100)"
+                @click="generateInvoice">
                 {{ genSaving ? 'Generating…' : 'Generate Invoice' }}
               </button>
             </div>
@@ -355,6 +375,10 @@
               Confirm payment from <strong>{{ verifyModal.payment?.company?.name }}</strong> and mark
               all their enrolled employees as <strong>Paid</strong>?
             </p>
+            <div class="field" style="width:100%;text-align:left;">
+              <label>Verification Note <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+              <textarea v-model="verifyModal.notes" rows="2" placeholder="e.g. Receipt confirmed, reference #12345…" />
+            </div>
             <div class="confirm-actions">
               <button class="btn-cancel" @click="verifyModal.show = false">Cancel</button>
               <button class="btn-verify-confirm" :disabled="verifyModal.loading" @click="confirmVerify">
@@ -594,8 +618,15 @@ const invSearch        = ref('')
 const invStatusFilter  = ref('')
 
 const genModal   = reactive({ show: false })
-const genForm    = reactive({ company_id: '' as string | number, billing_month: '', due_date: '', notes: '' })
-const genPreview = ref<{ items: InvoiceItem[]; total: number } | null>(null)
+const genForm    = reactive({
+  company_id:  '' as string | number,
+  employee_id: null as number | null,   // set when opened from a Pay Now notification
+  employee_name: '',                     // display only
+  billing_month: '',
+  due_date:    '',
+  notes:       '',
+})
+const genPreview = ref<{ items: InvoiceItem[]; total: number; zeroTiers: string[] } | null>(null)
 const previewLoading = ref(false)
 const genSaving  = ref(false)
 const genError   = ref('')
@@ -604,7 +635,7 @@ const detailModal = reactive({ show: false, inv: null as Invoice | null })
 const detailSending = ref(false)
 
 const rejectModal  = reactive({ show: false, payment: null as Payment | null, notes: '', saving: false, error: '' })
-const verifyModal  = reactive({ show: false, payment: null as Payment | null, loading: false })
+const verifyModal  = reactive({ show: false, payment: null as Payment | null, loading: false, notes: '' })
 
 const approveNegModal    = reactive({ show: false, neg: null as Negotiation | null, notes: '', loading: false })
 const rejectNegModal     = reactive({ show: false, neg: null as Negotiation | null, notes: '', saving: false, error: '' })
@@ -672,11 +703,21 @@ onMounted(async () => {
   loadInvoices(); loadPendingPayments(); loadNegotiations()
   await loadCompanies()
   // If navigated here from a Pay Now notification, auto-open generate modal
-  // with that company pre-selected
-  const qCompany = route.query.company_id
+  const qCompany  = route.query.company_id
+  const qEmployee = route.query.employee_id
   if (qCompany) {
+    // Look up employee name from the notification data if employee_id is present
+    let empName = ''
+    if (qEmployee) {
+      try {
+        const emp = await api.get<any>(`employees/${Number(qEmployee)}`)
+        empName = emp?.user?.name ?? emp?.name ?? ''
+      } catch { /* ignore */ }
+    }
     Object.assign(genForm, {
       company_id:    Number(qCompany),
+      employee_id:   qEmployee ? Number(qEmployee) : null,
+      employee_name: empName,
       billing_month: '',
       due_date:      '',
       notes:         '',
@@ -684,7 +725,6 @@ onMounted(async () => {
     genPreview.value = null
     genError.value   = ''
     genModal.show    = true
-    // Trigger preview load now that company is set
     await previewInvoice()
   }
 })
@@ -693,7 +733,7 @@ watch(filteredInvoices, () => { invPage.value = 1 })
 
 // -- Generate invoice -------------------------------------------
 function openGenerate() {
-  Object.assign(genForm, { company_id: '', billing_month: '', due_date: '', notes: '' })
+  Object.assign(genForm, { company_id: '', employee_id: null, employee_name: '', billing_month: '', due_date: '', notes: '' })
   genPreview.value = null
   genError.value   = ''
   genModal.show    = true
@@ -711,15 +751,45 @@ async function previewInvoice() {
   previewLoading.value = true
   genPreview.value = null
   try {
-    // Quick preview: generate with dry_run flag (we'll actually generate on submit)
-    // Instead: just fetch the company's employees to show the breakdown
-    const res = await api.get<{ data: any[] }>(`employees?company_id=${genForm.company_id}&status=approved`)
-    const employees: any[] = Array.isArray(res) ? res : (res as any).data ?? []
+    // Fetch employees for this company
+    const res = await api.get<{ data: any[] }>(`employees?company_id=${genForm.company_id}&per_page=500`)
+    let employees: any[] = Array.isArray(res) ? res : (res as any).data ?? []
+
+    if (genForm.employee_id) {
+      // Pay Now: only the specific employee
+      employees = employees.filter((e: any) => e.id === genForm.employee_id)
+    } else {
+      // Batch: only unpaid enrolled+approved employees
+      employees = employees.filter((e: any) =>
+        e.payment_status === 'unpaid' &&
+        e.registration_status === 'approved' &&
+        e.is_enrolled
+      )
+    }
+
     const plans = await api.get<any[]>('membership-plans?all=true')
+    // Only use active plans (same as backend findPlanByTier which filters is_active=true)
+    const allPlans: any[] = (Array.isArray(plans) ? plans : []).filter((x: any) => x.is_active)
 
     const levelTier: Record<string, string> = { chief: 'platinum', director: 'basic_plus', manager: 'basic', staff: 'basic' }
-    const planMap: Record<string, any> = {}
-    for (const p of (Array.isArray(plans) ? plans : [])) planMap[p.tier] = p
+
+    // Flexible plan finder: exact → suffix match → synonym → cheapest active plan fallback
+    function findPlan(tier: string): any | undefined {
+      // 1. Exact tier match
+      let p = allPlans.find(x => x.tier === tier)
+      if (p) return p
+      // 2. Suffix match: plan tier ends with '_' + tier (e.g. 'fit_basic' matches 'basic')
+      p = allPlans.find(x => x.tier.endsWith('_' + tier))
+      if (p) return p
+      // 3. Synonym: platinum ↔ premium
+      const synonym = tier === 'platinum' ? 'premium' : tier === 'premium' ? 'platinum' : null
+      if (synonym) {
+        p = allPlans.find(x => x.tier === synonym) ?? allPlans.find(x => x.tier.endsWith('_' + synonym))
+        if (p) return p
+      }
+      // 4. Fallback: cheapest active plan (same as backend step 5)
+      return allPlans.length ? [...allPlans].sort((a, b) => Number(a.monthly_fee_etb) - Number(b.monthly_fee_etb))[0] : undefined
+    }
 
     const groups: Record<string, number> = {}
     for (const e of employees) {
@@ -728,14 +798,16 @@ async function previewInvoice() {
     }
 
     let total = 0
+    const zeroTiers: string[] = []
     const items: InvoiceItem[] = Object.entries(groups).map(([tier, count]) => {
-      const plan = planMap[tier]
+      const plan = findPlan(tier)
       const price = plan ? Number(plan.monthly_fee_etb) : 0
+      if (!price) zeroTiers.push(tier)
       const sub = count * price
       total += sub
       return { plan_tier: tier, plan_name: plan?.name ?? tier, employee_count: count, unit_price: price, subtotal: sub }
     })
-    genPreview.value = { items, total }
+    genPreview.value = { items, total, zeroTiers }
   } catch {
     genPreview.value = null
   } finally {
@@ -755,6 +827,7 @@ async function generateInvoice() {
       billing_period: formatBillingPeriod(genForm.billing_month),
       due_date:       genForm.due_date || undefined,
       notes:          genForm.notes   || undefined,
+      ...(genForm.employee_id ? { employee_id: genForm.employee_id } : {}),
     })
     genModal.show = false
     showToast('Invoice generated successfully.')
@@ -803,6 +876,7 @@ async function deleteInvoice() {
 // -- Payment verification ---------------------------------------
 function verifyPayment(p: Payment) {
   verifyModal.payment = p
+  verifyModal.notes   = ''
   verifyModal.loading = false
   verifyModal.show    = true
 }
@@ -811,7 +885,7 @@ async function confirmVerify() {
   if (!verifyModal.payment) return
   verifyModal.loading = true
   try {
-    await api.post(`admin/billing/payments/${verifyModal.payment.id}/verify`)
+    await api.post(`admin/billing/payments/${verifyModal.payment.id}/verify`, verifyModal.notes.trim() ? { notes: verifyModal.notes } : {})
     verifyModal.show = false
     showToast('Payment verified. Employees marked as paid.')
     await Promise.all([loadInvoices(), loadPendingPayments()])
@@ -1056,6 +1130,16 @@ function formatDate(dt: string | null) {
 .total-label { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
 .total-val   { font-size: 1rem; color: #4CD964; }
 .preview-loading { text-align: center; font-size: 0.84rem; color: #94a3b8; }
+.preview-zero-warn {
+  background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;
+  padding: 12px 14px; font-size: 0.82rem; color: #92400e; line-height: 1.5;
+}
+.single-emp-banner {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+  padding: 11px 14px; font-size: 0.82rem; color: #1d4ed8; line-height: 1.5;
+}
+.single-emp-banner svg { flex-shrink: 0; margin-top: 1px; }
 
 /* Detail meta */
 .detail-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.84rem; color: #64748b; }
