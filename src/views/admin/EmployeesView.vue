@@ -107,6 +107,39 @@
       </table>
     </div>
 
+    <!-- ── Activate / Deactivate confirm modal ── -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="confirmModal.open" class="modal-backdrop" @click.self="confirmModal.open = false">
+          <div class="modal-panel confirm-panel">
+            <div class="confirm-icon-wrap" :class="confirmModal.isActivate ? 'icon-activate' : 'icon-deactivate'">
+              <svg v-if="confirmModal.isActivate" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <svg v-else width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
+            <h2 class="confirm-title">{{ confirmModal.isActivate ? 'Activate Account' : 'Deactivate Account' }}</h2>
+            <p class="confirm-desc">
+              {{ confirmModal.isActivate
+                  ? 'This will allow the employee to log in and access gym facilities.'
+                  : 'This will prevent the employee from logging in and using gym services.' }}
+            </p>
+            <div class="confirm-name">{{ confirmModal.employeeName }}</div>
+            <div class="confirm-footer">
+              <button class="btn-cancel" @click="confirmModal.open = false">Cancel</button>
+              <button
+                class="btn-confirm"
+                :class="confirmModal.isActivate ? 'btn-confirm-activate' : 'btn-confirm-deactivate'"
+                :disabled="toggling !== null"
+                @click="doToggleActive"
+              >
+                <span v-if="toggling !== null" class="spinner-sm"></span>
+                <span v-else>{{ confirmModal.isActivate ? 'Yes, Activate' : 'Yes, Deactivate' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Ban modal -->
     <Teleport to="body">
       <Transition name="fade">
@@ -176,12 +209,20 @@
       </Transition>
     </Teleport>
 
-    <!-- Pagination -->
-    <div v-if="meta && meta.last_page > 1" class="pagination">
-      <button :disabled="page <= 1"             @click="page--; load()" class="pg-btn">‹ Prev</button>
-      <span class="pg-info">{{ page }} / {{ meta.last_page }}</span>
-      <button :disabled="page >= meta.last_page" @click="page++; load()" class="pg-btn">Next ›</button>
-    </div>
+    <!-- Toast -->
+    <Teleport to="body">
+      <Transition name="toast">
+        <div v-if="toast.show" class="toast" :class="'toast-' + toast.type">{{ toast.message }}</div>
+      </Transition>
+    </Teleport>
+
+    <AppPagination
+      :page="page"
+      :total-pages="meta?.last_page ?? 1"
+      :total="meta?.total ?? 0"
+      :per-page="20"
+      @update:page="v => { page = v; load() }"
+    />
 
   </div>
 </template>
@@ -189,8 +230,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
+
+// ── Toast ────────────────────────────────────────────────────
+const toast = reactive({ show: false, type: 'success', message: '' })
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function showToast(msg: string, type: 'success' | 'error' = 'success') {
+  if (toastTimer) clearTimeout(toastTimer)
+  Object.assign(toast, { show: true, type, message: msg })
+  toastTimer = setTimeout(() => { toast.show = false }, 4000)
+}
 
 interface Employee {
   id: number
@@ -262,8 +313,9 @@ async function suspendMembership(e: Employee) {
     await api.post(`memberships/${e.active_membership_id}/suspend`)
     e.is_enrolled = false
     e.active_membership_id = null
+    showToast('Membership suspended.')
   } catch (err: unknown) {
-    alert((err as Error).message)
+    showToast((err as Error).message ?? 'Failed to suspend.', 'error')
   }
 }
 
@@ -322,21 +374,40 @@ async function doUnban(e: Employee) {
     const updated = await api.post<{ employee: Employee }>(`employees/${e.id}/unban`)
     const idx = employees.value.findIndex(emp => emp.id === e.id)
     if (idx !== -1) employees.value[idx] = updated.employee
+    showToast(`${e.user?.name ?? 'Employee'} has been unbanned.`)
   } catch (err: unknown) {
-    alert(err instanceof Error ? err.message : 'Unban failed.')
+    showToast(err instanceof Error ? err.message : 'Unban failed.', 'error')
   }
 }
 
-async function toggleActive(e: Employee) {
-  const action = e.user_is_active ? 'deactivate' : 'activate'
-  if (!confirm(`${e.user_is_active ? 'Deactivate' : 'Activate'} account for ${e.user?.name ?? 'this employee'}?`)) return
-  toggling.value = e.id
+// ── Activate / Deactivate confirm modal ──────────────────────
+const confirmModal = reactive({
+  open: false,
+  isActivate: false,
+  employeeName: '',
+  employeeId: null as number | null,
+})
+
+function toggleActive(e: Employee) {
+  confirmModal.isActivate   = !e.user_is_active
+  confirmModal.employeeName = e.user?.name ?? 'this employee'
+  confirmModal.employeeId   = e.id
+  confirmModal.open         = true
+}
+
+async function doToggleActive() {
+  if (!confirmModal.employeeId) return
+  const id     = confirmModal.employeeId
+  const action = confirmModal.isActivate ? 'activate' : 'deactivate'
+  toggling.value = id
   try {
-    const res = await api.post<{ employee: Employee }>(`employees/${e.id}/toggle-active`)
-    const idx = employees.value.findIndex(emp => emp.id === e.id)
+    const res = await api.post<{ employee: Employee }>(`employees/${id}/toggle-active`)
+    const idx = employees.value.findIndex(emp => emp.id === id)
     if (idx !== -1) employees.value[idx] = res.employee
+    showToast(`Account ${action}d successfully.`)
+    confirmModal.open = false
   } catch (err: unknown) {
-    alert(err instanceof Error ? err.message : `Failed to ${action} account.`)
+    showToast(err instanceof Error ? err.message : `Failed to ${action} account.`, 'error')
   } finally {
     toggling.value = null
   }
@@ -547,12 +618,50 @@ function exportCsv() {
 .fade-enter-active, .fade-leave-active { transition: opacity .2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-.pagination { display: flex; align-items: center; gap: 12px; justify-content: center; }
-.pg-btn {
-  padding: 6px 14px; background: white; border: 1px solid #e2e8f0;
-  border-radius: 8px; color: #64748b; font-size: 0.8rem; cursor: pointer;
+/* Confirm modal */
+.confirm-panel {
+  max-width: 400px; padding: 32px 28px;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: 12px;
 }
-.pg-btn:disabled { opacity: .4; cursor: default; }
-.pg-btn:not(:disabled):hover { border-color: #4CD964; color: #4CD964; }
-.pg-info { font-size: 0.8rem; color: #94a3b8; }
+.confirm-icon-wrap {
+  width: 64px; height: 64px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+}
+.icon-activate   { background: #d1fae5; color: #15803d; }
+.icon-deactivate { background: #fef3c7; color: #b45309; }
+.confirm-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0; }
+.confirm-desc  { font-size: 0.85rem; color: #64748b; margin: 0; line-height: 1.6; max-width: 300px; }
+.confirm-name  {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 8px 18px; font-size: 0.9rem; font-weight: 700; color: #0f172a;
+}
+.confirm-footer { display: flex; gap: 10px; margin-top: 8px; width: 100%; justify-content: center; }
+.btn-confirm {
+  padding: 10px 24px; border: none; border-radius: 10px;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  transition: opacity .15s; display: flex; align-items: center; gap: 7px;
+}
+.btn-confirm:disabled { opacity: .55; cursor: not-allowed; }
+.btn-confirm:not(:disabled):hover { opacity: .85; }
+.btn-confirm-activate   { background: #4CD964; color: white; }
+.btn-confirm-deactivate { background: #f59e0b; color: white; }
+
+/* Modal slide-in transition */
+.modal-enter-active { transition: all .22s cubic-bezier(.34,1.56,.64,1); }
+.modal-leave-active { transition: all .18s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(.92); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  padding: 13px 22px; border-radius: 12px; font-size: 0.88rem; font-weight: 500;
+  z-index: 999; box-shadow: 0 8px 28px rgba(0,0,0,.14);
+  white-space: nowrap; pointer-events: none;
+}
+.toast-success { background: #0f172a; color: #fff; }
+.toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.toast-enter-active { transition: all .3s cubic-bezier(.34,1.56,.64,1); }
+.toast-leave-active { transition: all .25s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
 </style>

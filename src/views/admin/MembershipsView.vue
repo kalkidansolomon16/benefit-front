@@ -130,15 +130,13 @@
           </tbody>
         </table>
 
-        <div v-if="totalPages > 1" class="pagination">
-          <button class="page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
-          <button class="page-btn" :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
+        <AppPagination
+          :page="currentPage"
+          :total-pages="totalPages"
+          :total="totalRecords"
+          :per-page="perPage"
+          @update:page="changePage"
+        />
       </div>
     </div>
 
@@ -192,6 +190,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
 
@@ -220,9 +219,10 @@ const search       = ref('')
 const filterStatus = ref('')
 const filterTier   = ref('')
 const filterGym    = ref<number | ''>('')
-const currentPage  = ref(1)
-const totalPages   = ref(1)
-const perPage      = 15
+const currentPage   = ref(1)
+const totalPages    = ref(1)
+const totalRecords  = ref(0)
+const perPage       = 15
 
 const stats = computed(() => ({
   total:        memberships.value.length,
@@ -254,7 +254,8 @@ async function loadMemberships(page = 1) {
     const res = await api.get<{ data: any[]; meta?: { last_page: number }; last_page?: number }>(
       `memberships?${params}`
     )
-    totalPages.value = res.meta?.last_page ?? res.last_page ?? 1
+    totalPages.value   = res.meta?.last_page ?? res.last_page ?? 1
+    totalRecords.value = (res.meta as any)?.total ?? (res as any).total ?? 0
 
     let rows: MembershipRow[] = (res.data ?? []).map((m: any) => ({
       id:               m.id,
@@ -486,19 +487,6 @@ function initials(name: string) {
 .act-reinstate { background: #d1fae5; color: #15803d; }
 .act-delete    { background: #fee2e2; color: #dc2626; }
 
-/* ── Pagination ──────────────────────────────────────────────────── */
-.pagination {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  padding-top: 16px; border-top: 1px solid #f1f5f9; margin-top: 8px;
-}
-.page-btn {
-  width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid #e2e8f0;
-  background: #fff; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: #64748b;
-}
-.page-btn:hover:not(:disabled) { border-color: #4CD964; color: #4CD964; }
-.page-btn:disabled { opacity: .4; cursor: not-allowed; }
-.page-info { font-size: 0.82rem; color: #64748b; }
 
 /* ── Suspend modal ───────────────────────────────────────────────── */
 .backdrop {

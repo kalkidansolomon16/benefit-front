@@ -297,26 +297,13 @@
       </Transition>
     </Teleport>
 
-    <!-- Pagination -->
-    <div v-if="meta && meta.last_page > 1" class="pagination">
-      <button
-        :disabled="page <= 1"
-        @click="() => { page--; load() }"
-        class="pg-btn"
-      >
-        ← Prev
-      </button>
-      <span class="pg-info"
-        >Page {{ page }} of {{ meta.last_page }} &nbsp;·&nbsp; {{ meta.total }} total</span
-      >
-      <button
-        :disabled="page >= meta.last_page"
-        @click="() => { page++; load() }"
-        class="pg-btn"
-      >
-        Next →
-      </button>
-    </div>
+    <AppPagination
+      :page="page"
+      :total-pages="meta?.last_page ?? 1"
+      :total="meta?.total ?? 0"
+      :per-page="15"
+      @update:page="v => { page = v; load() }"
+    />
   </div>
 
   <!-- -- Toast notification -------------------------------------- -->
@@ -544,12 +531,73 @@
       </div>
     </Transition>
   </Teleport>
+
+  <!-- License Approve Modal -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="licApproveModal.show" class="modal-backdrop" @click.self="licApproveModal.show = false">
+        <div class="modal">
+          <div class="modal-header">
+            <div>
+              <p class="modal-title">Approve Business License</p>
+              <p class="modal-sub">Approving <strong>{{ licApproveModal.company?.name }}</strong> — the company will be activated.</p>
+            </div>
+            <button class="modal-close" @click="licApproveModal.show = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="field">
+              <label>Approval Note <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+              <textarea v-model="licApproveModal.note" rows="3" placeholder="e.g. License verified, all documents in order…" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="licApproveModal.show = false">Cancel</button>
+            <button class="btn-approve-confirm" :disabled="licApproveModal.loading" @click="confirmApproveLicense">
+              {{ licApproveModal.loading ? 'Approving…' : 'Approve' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- License Reject Modal -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="licRejectModal.show" class="modal-backdrop" @click.self="licRejectModal.show = false">
+        <div class="modal">
+          <div class="modal-header">
+            <div>
+              <p class="modal-title">Reject Business License</p>
+              <p class="modal-sub">Rejecting <strong>{{ licRejectModal.company?.name }}</strong> — the company will be notified.</p>
+            </div>
+            <button class="modal-close" @click="licRejectModal.show = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="field">
+              <label>Rejection Reason <span class="req">*</span></label>
+              <textarea v-model="licRejectModal.reason" rows="3" placeholder="e.g. License expired, company name mismatch, documents unclear…" />
+            </div>
+            <p v-if="licRejectModal.error" class="form-error">{{ licRejectModal.error }}</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="licRejectModal.show = false">Cancel</button>
+            <button class="btn-reject-confirm" :disabled="licRejectModal.loading" @click="confirmRejectLicense">
+              {{ licRejectModal.loading ? 'Rejecting…' : 'Reject' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/auth'
+import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
 const auth = useAuthStore()
@@ -641,14 +689,55 @@ onMounted(load)
 function tierLabel(t: string) {
   return { basic: 'Basic', basic_plus: 'Basic Plus', platinum: 'Platinum' }[t] ?? t
 }
-async function approveLicense(c: Company) {
-  await api.patch(`companies/${c.id}/license-status`, { status: 'approved' })
-  c.business_license_status = 'approved'
-  c.is_active = true
+const licApproveModal = reactive({ show: false, company: null as Company | null, note: '', loading: false })
+const licRejectModal  = reactive({ show: false, company: null as Company | null, reason: '', error: '', loading: false })
+
+function approveLicense(c: Company) {
+  licApproveModal.company = c
+  licApproveModal.note    = ''
+  licApproveModal.loading = false
+  licApproveModal.show    = true
 }
-async function rejectLicense(c: Company) {
-  await api.patch(`companies/${c.id}/license-status`, { status: 'rejected' })
-  c.business_license_status = 'rejected'
+
+async function confirmApproveLicense() {
+  const c = licApproveModal.company!
+  licApproveModal.loading = true
+  try {
+    await api.patch(`companies/${c.id}/license-status`, { status: 'approved', note: licApproveModal.note || undefined })
+    c.business_license_status = 'approved'
+    c.is_active = true
+    licApproveModal.show = false
+    showToast(`${c.name}'s license approved. Company is now active.`)
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Approval failed.', 'error')
+    licApproveModal.show = false
+  } finally {
+    licApproveModal.loading = false
+  }
+}
+
+function rejectLicense(c: Company) {
+  licRejectModal.company = c
+  licRejectModal.reason  = ''
+  licRejectModal.error   = ''
+  licRejectModal.loading = false
+  licRejectModal.show    = true
+}
+
+async function confirmRejectLicense() {
+  if (!licRejectModal.reason.trim()) { licRejectModal.error = 'Please provide a rejection reason.'; return }
+  const c = licRejectModal.company!
+  licRejectModal.loading = true
+  try {
+    await api.patch(`companies/${c.id}/license-status`, { status: 'rejected', reason: licRejectModal.reason })
+    c.business_license_status = 'rejected'
+    licRejectModal.show = false
+    showToast(`${c.name}'s license rejected.`)
+  } catch (e: unknown) {
+    licRejectModal.error = e instanceof Error ? e.message : 'Rejection failed.'
+  } finally {
+    licRejectModal.loading = false
+  }
 }
 async function toggleActive(c: Company) {
   const res = await api.patch<{ is_active: boolean }>(`companies/${c.id}/toggle-active`, {})
@@ -1123,35 +1212,6 @@ async function submitForm() {
   flex-shrink: 0;
 }
 
-/* Pagination */
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: center;
-}
-.pg-btn {
-  padding: 6px 14px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  color: #64748b;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.pg-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.pg-btn:not(:disabled):hover {
-  border-color: #4cd964;
-  color: #4cd964;
-}
-.pg-info {
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-
 /* -- Modal ------------------------------------------------------- */
 .modal-backdrop {
   position: fixed;
@@ -1402,6 +1462,34 @@ async function submitForm() {
 }
 
 /* -- Toast ------------------------------------------------------- */
+/* License approve / reject modals */
+.modal {
+  background: white; border-radius: 16px; width: 100%; max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.modal-sub   { font-size: 0.84rem; color: #64748b; margin: 4px 0 0; }
+.modal-body  { padding: 16px 24px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 0 24px 20px; }
+.req { color: #ef4444; margin-left: 2px; }
+.form-error { font-size: 0.8rem; color: #ef4444; margin: 6px 0 0; }
+.btn-approve-confirm {
+  padding: 9px 18px; background: #4CD964; color: white;
+  border: none; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+  transition: background .15s;
+}
+.btn-approve-confirm:hover:not(:disabled) { background: #2EB84B; }
+.btn-approve-confirm:disabled { opacity: .55; cursor: not-allowed; }
+.btn-reject-confirm {
+  padding: 9px 18px; background: #ef4444; color: white;
+  border: none; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+  transition: background .15s;
+}
+.btn-reject-confirm:hover:not(:disabled) { background: #dc2626; }
+.btn-reject-confirm:disabled { opacity: .55; cursor: not-allowed; }
+.modal-enter-active { transition: all .2s cubic-bezier(.34,1.56,.64,1); }
+.modal-leave-active { transition: all .15s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(.95); }
+
 .toast {
   position: fixed;
   bottom: 28px;

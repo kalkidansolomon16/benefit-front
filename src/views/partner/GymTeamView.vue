@@ -101,53 +101,6 @@
       :per-page="teamPerPage"
     />
 
-    <!-- ═══════════════════════════════════════════════════
-         ROLES SECTION
-    ════════════════════════════════════════════════════ -->
-    <div class="section-divider"></div>
-
-    <div class="section-header">
-      <div>
-        <h2 class="section-title">Staff Roles</h2>
-        <p class="page-sub">Create custom roles for your gym staff members.</p>
-      </div>
-      <button class="btn-secondary" @click="openAddRole">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        New Role
-      </button>
-    </div>
-
-    <div class="roles-grid">
-      <div v-for="r in roles" :key="r.id" class="role-card">
-        <div class="role-card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
-        </div>
-        <div class="role-card-body">
-          <p class="role-card-label">{{ r.label }}</p>
-          <p class="role-card-slug">{{ r.name }}</p>
-        </div>
-        <span v-if="r.is_system" class="system-badge">System</span>
-        <button
-          v-else
-          class="btn-icon btn-danger role-del"
-          title="Delete role"
-          @click="confirmDeleteRole(r)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M9 6V4h6v2" />
-          </svg>
-        </button>
-      </div>
-    </div>
-
     <!-- ── Create staff modal ─────────────────────────────── -->
     <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
       <div class="modal">
@@ -168,7 +121,7 @@
             <label>Role</label>
             <select v-model="createForm.role" required>
               <option value="">Select a role…</option>
-              <option v-for="r in assignableRoles" :key="r.id" :value="r.name">
+              <option v-for="r in GYM_ROLES" :key="r.name" :value="r.name">
                 {{ r.label }}
               </option>
             </select>
@@ -182,64 +135,6 @@
             </button>
           </div>
         </form>
-      </div>
-    </div>
-
-    <!-- ── Add role modal ────────────────────────────────────── -->
-    <div v-if="showAddRole" class="modal-overlay" @click.self="showAddRole = false">
-      <div class="modal modal-sm">
-        <div class="modal-header">
-          <h3>New Role</h3>
-          <button class="close-btn" @click="showAddRole = false">✕</button>
-        </div>
-        <form @submit.prevent="submitAddRole" class="modal-body">
-          <div class="field">
-            <label>Role Name</label>
-            <input v-model="newRoleLabel" required placeholder="e.g. Front Desk" />
-            <span class="field-hint" v-if="newRoleLabel">
-              Slug: <code>{{ previewSlug }}</code>
-            </span>
-          </div>
-          <p v-if="addRoleError" class="err-msg">{{ addRoleError }}</p>
-          <div class="modal-footer">
-            <button type="button" class="btn-ghost" @click="showAddRole = false">Cancel</button>
-            <button type="submit" class="btn-primary" :disabled="addRoleLoading">
-              <span v-if="addRoleLoading" class="spinner"></span>
-              {{ addRoleLoading ? 'Creating…' : 'Create Role' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- ── Delete role confirm ────────────────────────────────── -->
-    <div
-      v-if="deleteRoleModal.show"
-      class="modal-overlay"
-      @click.self="deleteRoleModal.show = false"
-    >
-      <div class="modal modal-sm">
-        <div class="modal-header">
-          <h3>Delete Role</h3>
-          <button class="close-btn" @click="deleteRoleModal.show = false">✕</button>
-        </div>
-        <div class="modal-body">
-          <p class="confirm-text">
-            Delete the <strong>{{ deleteRoleModal.label }}</strong> role? Staff with this role will
-            need to be reassigned.
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-ghost" @click="deleteRoleModal.show = false">Cancel</button>
-          <button
-            class="btn-danger-solid"
-            @click="submitDeleteRole"
-            :disabled="deleteRoleModal.loading"
-          >
-            <span v-if="deleteRoleModal.loading" class="spinner"></span>
-            {{ deleteRoleModal.loading ? 'Deleting…' : 'Delete' }}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -336,24 +231,22 @@ interface Member {
   created_at: string
 }
 
-interface Role {
-  id: number
-  name: string
-  label: string
-  scope: string
-  is_system: boolean
-}
+/* Static gym staff roles — permissions are managed by the admin */
+const GYM_ROLES = [
+  { name: 'gym_manager',      label: 'Manager' },
+  { name: 'gym_receptionist', label: 'Receptionist' },
+  { name: 'gym_trainer',      label: 'Trainer' },
+] as const
 
 const members = ref<Member[]>([])
+const loading = ref(false)
 
-const teamPage = ref(1)
-const teamPerPage = 15
-const teamTotalPages = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
+const teamPage     = ref(1)
+const teamPerPage  = 15
+const teamTotalPages  = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
 const paginatedMembers = computed(() =>
   members.value.slice((teamPage.value - 1) * teamPerPage, teamPage.value * teamPerPage)
 )
-const roles = ref<Role[]>([])
-const loading = ref(false)
 
 /* ── Fetch ──────────────────────────────────────────────── */
 async function fetchMembers() {
@@ -368,23 +261,10 @@ async function fetchMembers() {
   }
 }
 
-async function fetchRoles() {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/partner/roles`, {
-    headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-  })
-  roles.value = await res.json()
-}
-
-onMounted(() => {
-  fetchMembers()
-  fetchRoles()
-})
-
-// Roles available to assign (exclude the primary gym_partner role)
-const assignableRoles = computed(() => roles.value.filter((r) => r.name !== 'gym_partner'))
+onMounted(() => { fetchMembers() })
 
 function roleLabel(roleName: string): string {
-  return roles.value.find((r) => r.name === roleName)?.label ?? roleName
+  return GYM_ROLES.find((r) => r.name === roleName)?.label ?? roleName
 }
 
 /* ── Create staff ───────────────────────────────────────── */
@@ -486,72 +366,6 @@ async function submitResetTemp() {
   }
 }
 
-/* ── Add role ───────────────────────────────────────────── */
-const showAddRole = ref(false)
-const newRoleLabel = ref('')
-const addRoleError = ref('')
-const addRoleLoading = ref(false)
-
-const previewSlug = computed(
-  () =>
-    'gym_' +
-    newRoleLabel.value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_|_$/g, '')
-)
-
-function openAddRole() {
-  newRoleLabel.value = ''
-  addRoleError.value = ''
-  showAddRole.value = true
-}
-
-async function submitAddRole() {
-  addRoleError.value = ''
-  addRoleLoading.value = true
-  try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/partner/roles`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ label: newRoleLabel.value }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Failed to create role.')
-    showAddRole.value = false
-    fetchRoles()
-  } catch (e: any) {
-    addRoleError.value = e.message
-  } finally {
-    addRoleLoading.value = false
-  }
-}
-
-/* ── Delete role ────────────────────────────────────────── */
-const deleteRoleModal = ref({ show: false, id: 0, label: '', loading: false })
-function confirmDeleteRole(r: Role) {
-  deleteRoleModal.value = { show: true, id: r.id, label: r.label, loading: false }
-}
-async function submitDeleteRole() {
-  deleteRoleModal.value.loading = true
-  try {
-    await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/partner/roles/${deleteRoleModal.value.id}`,
-      {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
-      }
-    )
-    deleteRoleModal.value.show = false
-    fetchRoles()
-  } finally {
-    deleteRoleModal.value.loading = false
-  }
-}
 </script>
 
 <style scoped>

@@ -19,6 +19,14 @@
         Partner Applications
         <span v-if="pendingCount > 0" class="tab-count tab-count--red">{{ pendingCount }}</span>
       </button>
+      <button
+        class="tab-btn"
+        :class="{ active: tab === 'upgrades' }"
+        @click="tab = 'upgrades'; loadUpgradeRequests()"
+      >
+        Upgrade Requests
+        <span v-if="upgradePendingCount > 0" class="tab-count tab-count--amber">{{ upgradePendingCount }}</span>
+      </button>
     </div>
 
     <!-- ----------------------------------------------------------
@@ -74,6 +82,86 @@
         :total-pages="gymTotalPages"
         :total="gyms.length"
         :per-page="gymPerPage"
+      />
+    </div>
+
+    <!-- ----------------------------------------------------------
+         TAB 3 — GYM UPGRADE REQUESTS
+    ----------------------------------------------------------- -->
+    <div v-else-if="tab === 'upgrades'">
+
+      <div class="app-toolbar">
+        <div class="filter-tabs">
+          <button v-for="f in upgradeStatusFilters" :key="f.value"
+            class="filter-btn" :class="{ active: upgradeStatus === f.value }"
+            @click="upgradeStatus = f.value; loadUpgradeRequests()"
+          >{{ f.label }}</button>
+        </div>
+      </div>
+
+      <div v-if="loadingUpgrades" class="state-msg">Loading upgrade requests…</div>
+      <div v-else-if="!upgradeRequests.length" class="state-msg">
+        No {{ upgradeStatus === 'all' ? '' : upgradeStatus }} upgrade requests.
+      </div>
+
+      <div v-else class="app-list">
+        <div v-for="r in paginatedUpgrades" :key="r.id" class="upgrade-req-card">
+
+          <div class="urc-header">
+            <div class="app-avatar">{{ (r.gym_name ?? '?').slice(0,2).toUpperCase() }}</div>
+            <div class="app-header-info">
+              <h3 class="app-name">{{ r.gym_name }}</h3>
+              <p class="app-contact">{{ r.gym_city }}</p>
+            </div>
+            <span class="status-badge" :class="`status--${r.status}`">{{ r.status }}</span>
+          </div>
+
+          <div class="urc-tier-row">
+            <div class="urc-tier-block">
+              <p class="urc-tier-label">Current Tier</p>
+              <span class="tier-badge-sm" :class="`tb-${gymTierKey(r.current_tier ?? '')}`">{{ gymTierLabel(r.current_tier ?? '') }}</span>
+            </div>
+            <div class="urc-arrow">→</div>
+            <div class="urc-tier-block">
+              <p class="urc-tier-label">Requested Tier</p>
+              <span class="tier-badge-sm tb-requested">{{ gymTierLabel(r.requested_tier) }}</span>
+            </div>
+          </div>
+
+          <div v-if="r.message" class="urc-message">
+            <p class="urc-message-label">Message from gym</p>
+            <p class="urc-message-body">{{ r.message }}</p>
+          </div>
+
+          <div v-if="r.status === 'rejected' && r.rejection_reason" class="rejection-note">
+            Rejection reason: {{ r.rejection_reason }}
+          </div>
+
+          <div v-if="r.reviewed_by" class="urc-reviewed">
+            Reviewed by <strong>{{ r.reviewed_by }}</strong> on {{ r.reviewed_at ? formatDate(r.reviewed_at) : '—' }}
+          </div>
+
+          <p class="app-date">Submitted {{ formatDate(r.created_at) }}</p>
+
+          <div v-if="r.status === 'pending'" class="app-actions">
+            <button class="btn-approve" @click="openUpgradeApprove(r)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+              Approve Upgrade
+            </button>
+            <button class="btn-reject" @click="openUpgradeReject(r)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              Reject
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <AppPagination
+        v-model:page="upgradePage"
+        :total-pages="upgradeTotalPages"
+        :total="upgradeRequests.length"
+        :per-page="upgradePerPage"
       />
     </div>
 
@@ -286,6 +374,81 @@
       </div>
     </Teleport>
 
+    <!-- -- Upgrade Approve Modal -- -->
+    <Teleport to="body">
+      <div v-if="upgradeApproveModal" class="modal-overlay" @click.self="upgradeApproveModal = false">
+        <div class="modal">
+          <div class="modal-header">
+            <h2 class="modal-title">Approve Tier Upgrade</h2>
+            <button class="modal-close" @click="upgradeApproveModal = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-subtitle">
+              Approving upgrade for <strong>{{ selectedUpgrade?.gym_name }}</strong>.
+              You can approve the requested tier or select a different one.
+            </p>
+            <div class="field-group">
+              <label class="field-label">Approve as Tier <span class="req">*</span></label>
+              <div class="tier-grid">
+                <button
+                  v-for="t in tierOptions"
+                  :key="t.value"
+                  type="button"
+                  class="tier-btn"
+                  :class="{ selected: upgradeApproveTier === t.value }"
+                  @click="upgradeApproveTier = t.value"
+                >
+                  <span class="tier-dot" :class="`dot-${t.value}`"></span>
+                  <span>{{ t.label }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="upgradeApproveModal = false">Cancel</button>
+            <button class="btn-confirm-approve" :disabled="!upgradeApproveTier || upgradeApproveLoading" @click="confirmUpgradeApprove">
+              <span v-if="upgradeApproveLoading" class="spinner"></span>
+              <span v-else>Confirm Approval</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- -- Upgrade Reject Modal -- -->
+    <Teleport to="body">
+      <div v-if="upgradeRejectModal" class="modal-overlay" @click.self="upgradeRejectModal = false">
+        <div class="modal">
+          <div class="modal-header">
+            <h2 class="modal-title">Reject Upgrade Request</h2>
+            <button class="modal-close" @click="upgradeRejectModal = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-subtitle">
+              Rejecting upgrade request for <strong>{{ selectedUpgrade?.gym_name }}</strong>.
+              A reason is required so the gym knows what to improve.
+            </p>
+            <div class="field-group">
+              <label class="field-label">Rejection Reason <span class="req">*</span></label>
+              <textarea
+                v-model="upgradeRejectReason"
+                class="textarea"
+                rows="3"
+                placeholder="e.g. Facility does not yet meet the minimum capacity requirement for this tier…"
+              ></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="upgradeRejectModal = false">Cancel</button>
+            <button class="btn-confirm-reject" :disabled="upgradeRejectLoading || !upgradeRejectReason.trim()" @click="confirmUpgradeReject">
+              <span v-if="upgradeRejectLoading" class="spinner"></span>
+              <span v-else>Confirm Rejection</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- -- Toast -- -->
     <Teleport to="body">
       <Transition name="toast">
@@ -301,12 +464,59 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useRoute } from 'vue-router'
 import AppPagination from '@/components/AppPagination.vue'
 
-const api = useApi()
+const api   = useApi()
+const route = useRoute()
+
+// -- Plans (dynamic tier source) ----------------------------
+interface Plan { id: number; name: string; tier: string; monthly_fee_etb: number; is_active: boolean }
+const allPlans = ref<Plan[]>([])
+
+async function loadPlans() {
+  try {
+    const res = await api.get<Plan[]>('membership-plans?all=true')
+    allPlans.value = (Array.isArray(res) ? res : []).filter((p: Plan) => p.is_active)
+  } catch { allPlans.value = [] }
+}
+
+/** Strip common plan prefixes to get canonical tier (fit_basic_plus → basic_plus). */
+function normalizeTier(tier: string): string {
+  const stripped = tier.toLowerCase().replace(/^[a-z]+_(?=basic|premium|platinum|gold|silver)/i, '')
+  if (stripped.includes('platinum') || stripped.includes('gold')) return 'platinum'
+  if (stripped.includes('premium')) return 'premium'
+  if (stripped.includes('basic_plus') || stripped.includes('plus')) return 'basic_plus'
+  return 'basic'
+}
+
+/** Deduplicated tier options from active plans, canonical value + plan name as label. */
+const tierOptions = computed(() => {
+  const seen = new Set<string>()
+  const opts: { value: string; label: string }[] = []
+  // Sort by fee so cheapest plan wins for each canonical tier
+  const sorted = [...allPlans.value].sort((a, b) => Number(a.monthly_fee_etb) - Number(b.monthly_fee_etb))
+  for (const p of sorted) {
+    const canonical = normalizeTier(p.tier)
+    if (!seen.has(canonical)) {
+      seen.add(canonical)
+      opts.push({ value: canonical, label: p.name })
+    }
+  }
+  // Fallback static options if plans haven't loaded yet
+  if (!opts.length) {
+    return [
+      { value: 'basic',      label: 'Basic' },
+      { value: 'basic_plus', label: 'Basic Plus' },
+      { value: 'premium',    label: 'Premium' },
+      { value: 'platinum',   label: 'Platinum' },
+    ]
+  }
+  return opts
+})
 
 // -- Tabs ----------------------------------------------------
-const tab = ref<'gyms' | 'applications'>('gyms')
+const tab = ref<'gyms' | 'applications' | 'upgrades'>('gyms')
 
 // -- Gyms ----------------------------------------------------
 interface Gym {
@@ -388,13 +598,6 @@ const approveLoading = ref(false)
 const approveTier    = ref('')
 const selectedApp    = ref<Application | null>(null)
 
-const tierOptions = [
-  { value: 'basic',      label: 'Basic' },
-  { value: 'basic_plus', label: 'Basic Plus' },
-  { value: 'premium',    label: 'Premium' },
-  { value: 'platinum',   label: 'Platinum' },
-]
-
 function openApprove(app: Application) {
   selectedApp.value  = app
   approveTier.value  = ''
@@ -451,6 +654,107 @@ function showToast(message: string, type = 'success') {
   toastTimer = setTimeout(() => { toast.value.show = false }, 4000)
 }
 
+// -- Upgrade Requests -----------------------------------------
+interface UpgradeRequest {
+  id: number; gym_id: number; gym_name: string | null; gym_city: string | null
+  current_tier: string | null; requested_tier: string; message: string | null
+  status: string; rejection_reason: string | null
+  reviewed_by: string | null; reviewed_at: string | null; created_at: string
+}
+
+const upgradeRequests     = ref<UpgradeRequest[]>([])
+const loadingUpgrades     = ref(false)
+const upgradePendingCount = ref(0)
+const upgradeStatus       = ref('all')
+const upgradePage         = ref(1)
+const upgradePerPage      = 8
+const upgradeTotalPages   = computed(() => Math.max(1, Math.ceil(upgradeRequests.value.length / upgradePerPage)))
+const paginatedUpgrades   = computed(() =>
+  upgradeRequests.value.slice((upgradePage.value - 1) * upgradePerPage, upgradePage.value * upgradePerPage)
+)
+const upgradeStatusFilters = [
+  { value: 'all',      label: 'All' },
+  { value: 'pending',  label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+]
+
+async function loadUpgradeRequests() {
+  loadingUpgrades.value = true
+  upgradePage.value = 1
+  try {
+    const params = upgradeStatus.value !== 'all' ? `?status=${upgradeStatus.value}` : ''
+    const res = await api.get<{ data: UpgradeRequest[]; pending_count: number }>(`admin/gym-upgrades${params}`)
+    upgradeRequests.value    = res.data
+    upgradePendingCount.value = res.pending_count
+  } finally {
+    loadingUpgrades.value = false
+  }
+}
+
+// Upgrade approve modal
+const upgradeApproveModal   = ref(false)
+const upgradeApproveLoading = ref(false)
+const upgradeApproveTier    = ref('')
+const selectedUpgrade       = ref<UpgradeRequest | null>(null)
+
+function openUpgradeApprove(r: UpgradeRequest) {
+  selectedUpgrade.value    = r
+  upgradeApproveTier.value = normalizeTier(r.requested_tier)
+  upgradeApproveModal.value = true
+}
+
+async function confirmUpgradeApprove() {
+  if (!selectedUpgrade.value || !upgradeApproveTier.value) return
+  upgradeApproveLoading.value = true
+  try {
+    const res = await api.post<{ message: string }>(
+      `admin/gym-upgrades/${selectedUpgrade.value.id}/approve`,
+      { tier: upgradeApproveTier.value }
+    )
+    upgradeApproveModal.value = false
+    showToast(res.message, 'success')
+    await loadUpgradeRequests()
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Approval failed.', 'error')
+  } finally {
+    upgradeApproveLoading.value = false
+  }
+}
+
+// Upgrade reject modal
+const upgradeRejectModal   = ref(false)
+const upgradeRejectLoading = ref(false)
+const upgradeRejectReason  = ref('')
+
+function openUpgradeReject(r: UpgradeRequest) {
+  selectedUpgrade.value   = r
+  upgradeRejectReason.value = ''
+  upgradeRejectModal.value  = true
+}
+
+async function confirmUpgradeReject() {
+  if (!selectedUpgrade.value || !upgradeRejectReason.value.trim()) return
+  upgradeRejectLoading.value = true
+  try {
+    const res = await api.post<{ message: string }>(
+      `admin/gym-upgrades/${selectedUpgrade.value.id}/reject`,
+      { reason: upgradeRejectReason.value }
+    )
+    upgradeRejectModal.value = false
+    showToast(res.message, 'success')
+    await loadUpgradeRequests()
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Rejection failed.', 'error')
+  } finally {
+    upgradeRejectLoading.value = false
+  }
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 // -- Helpers --------------------------------------------------
 const categoryMap: Record<string, string> = {
   gym: '??? Gym & Fitness', swimming: '?? Swimming Pool',
@@ -461,22 +765,28 @@ const categoryMap: Record<string, string> = {
 function categoryLabel(c: string): string { return categoryMap[c] ?? c }
 
 function gymTierKey(t: string) {
-  if (!t) return 'basic'
-  if (t.includes('platinum')) return 'platinum'
-  if (t.includes('basic_plus') || t.includes('plus')) return 'plus'
+  const c = normalizeTier(t || 'basic')
+  if (c === 'platinum') return 'platinum'
+  if (c === 'premium')  return 'premium'
+  if (c === 'basic_plus') return 'plus'
   return 'basic'
 }
 function gymTierLabel(t: string) {
-  if (!t) return 'Basic'
-  if (t.includes('platinum')) return 'Platinum'
-  if (t.includes('premium'))  return 'Premium'
-  if (t.includes('basic_plus') || t.includes('plus')) return 'Basic Plus'
-  return 'Basic'
+  if (!t) return tierOptions.value[0]?.label ?? 'Basic'
+  const canonical = normalizeTier(t)
+  // Find plan whose canonical tier matches; prefer plan name from DB
+  const match = tierOptions.value.find(o => o.value === canonical)
+  return match?.label ?? canonical.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 onMounted(() => {
+  // If navigated here via notification link (?tab=upgrades)
+  if (route.query.tab === 'upgrades') tab.value = 'upgrades'
+
   loadGyms()
-  loadApplications()   // pre-load so pendingCount badge shows immediately
+  loadApplications()    // pre-load so pendingCount badge shows immediately
+  loadUpgradeRequests() // pre-load so upgradePendingCount badge shows immediately
+  loadPlans()           // load plan tiers for dynamic tier options
 })
 </script>
 
@@ -501,8 +811,10 @@ onMounted(() => {
   font-size: 0.72rem; font-weight: 700;
 }
 .tab-btn:not(.active) .tab-count { background: #f1f5f9; color: #64748b; }
-.tab-count--red { background: #fee2e2 !important; color: #dc2626 !important; }
+.tab-count--red   { background: #fee2e2 !important; color: #dc2626 !important; }
 .tab-btn.active .tab-count--red { background: rgba(220,38,38,0.2) !important; color: #fca5a5 !important; }
+.tab-count--amber { background: #fef3c7 !important; color: #b45309 !important; }
+.tab-btn.active .tab-count--amber { background: rgba(180,83,9,0.2) !important; color: #fcd34d !important; }
 
 /* -- Gyms tab ----------------------------------------------- */
 .page-actions { display: flex; align-items: center; justify-content: space-between; }
@@ -536,6 +848,33 @@ onMounted(() => {
 .gc-partner-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .partner { background: #d1fae5; color: #2EB84B; }
 .regular { background: #f1f5f9; color: #94a3b8; }
+
+/* -- Upgrade request cards ---------------------------------- */
+.upgrade-req-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+  padding: 22px; display: flex; flex-direction: column; gap: 14px;
+}
+.urc-header { display: flex; align-items: center; gap: 14px; }
+.urc-tier-row {
+  display: flex; align-items: center; gap: 14px;
+  background: #f8fafc; border-radius: 10px; padding: 12px 16px;
+}
+.urc-tier-block { display: flex; flex-direction: column; gap: 4px; }
+.urc-tier-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin: 0; }
+.urc-arrow { font-size: 1.2rem; color: #94a3b8; flex-shrink: 0; margin: 0 8px; }
+.tier-badge-sm {
+  display: inline-block; padding: 3px 12px; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 700;
+}
+.tb-basic      { background: #eff6ff; color: #3b82f6; }
+.tb-plus       { background: #f0fdf4; color: #16a34a; }
+.tb-premium    { background: #fff7ed; color: #ea580c; }
+.tb-platinum   { background: #faf5ff; color: #9333ea; }
+.tb-requested  { background: #fef3c7; color: #b45309; }
+.urc-message { display: flex; flex-direction: column; gap: 4px; }
+.urc-message-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin: 0; }
+.urc-message-body  { font-size: 0.85rem; color: #374151; margin: 0; font-style: italic; }
+.urc-reviewed { font-size: 0.75rem; color: #94a3b8; }
 
 /* -- Applications tab --------------------------------------- */
 .app-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

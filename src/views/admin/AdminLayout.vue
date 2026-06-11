@@ -93,6 +93,7 @@
                 >
                   <div class="notif-icon" :class="'notif-icon--' + n.type">
                     <svg v-if="n.type === 'invoice_request'" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <svg v-else-if="n.type === 'gym_upgrade_request'" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><polyline points="8 12 12 8 16 12"/></svg>
                     <svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   </div>
                   <div class="notif-body">
@@ -179,11 +180,19 @@ async function handleNotifClick(n: Notif) {
   notifOpen.value = false
   // Navigate based on type
   if (n.type === 'invoice_request') {
-    const companyId = (n.data as Record<string, unknown>)?.company_id
-    router.push(companyId
-      ? `/admin/billing/invoices?company_id=${companyId}`
-      : '/admin/billing/invoices'
-    )
+    const d = n.data as Record<string, unknown>
+    const companyId  = d?.company_id
+    const employeeId = d?.employee_id
+    if (companyId) {
+      const q = employeeId
+        ? `company_id=${companyId}&employee_id=${employeeId}`
+        : `company_id=${companyId}`
+      router.push(`/admin/billing/invoices?${q}`)
+    } else {
+      router.push('/admin/billing/invoices')
+    }
+  } else if (n.type === 'gym_upgrade_request') {
+    router.push('/admin/gyms?tab=upgrades')
   }
 }
 
@@ -250,7 +259,7 @@ const navItems = computed(() => {
     },
     {
       name: 'employee-approvals', label: 'Employee Approvals', to: '/admin/employee-approvals',
-      permission: 'employees.view',
+      permission: 'employee_approvals.view',
       get badge() { return pendingApprovals.value },
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`,
     },
@@ -261,7 +270,7 @@ const navItems = computed(() => {
     },
     {
       name: 'memberships', label: 'Memberships', to: '/admin/memberships',
-      permission: 'employees.view',
+      permission: 'memberships.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
     },
     {
@@ -281,22 +290,27 @@ const navItems = computed(() => {
     },
     {
       name: 'billing-payment-methods', label: 'Payment Methods', to: '/admin/billing/payment-methods',
-      permission: 'payment_methods.manage',
+      permission: 'payment_methods.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
     },
     {
       name: 'team', label: 'Team', to: '/admin/team',
-      permission: 'team.manage',
+      permission: 'team.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     },
     {
       name: 'permissions', label: 'Permissions', to: '/admin/permissions',
-      permission: 'permissions.manage',
+      permission: 'permissions.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    },
+    {
+      name: 'settings', label: 'Settings', to: '/admin/settings',
+      permission: null,
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
     },
   ]
 
-  return all.filter(item => auth.hasPermission(item.permission))
+  return all.filter(item => item.permission === null || auth.hasPermission(item.permission))
 })
 
 const pageMeta: Record<string, { title: string; sub?: string }> = {
@@ -314,6 +328,7 @@ const pageMeta: Record<string, { title: string; sub?: string }> = {
   'admin-team':               { title: 'Team Management', sub: 'Manage Finance and Support sub-users' },
   'admin-permissions':        { title: 'Permissions', sub: 'Grant or revoke permissions for admin roles' },
   'admin-employee-approvals': { title: 'Employee Approvals', sub: 'Final approval for HR-approved employees' },
+  'admin-settings':           { title: 'Settings', sub: 'Account preferences and integrations' },
 }
 
 const currentTitle    = computed(() => pageMeta[route.name as string]?.title ?? 'Admin')
@@ -547,8 +562,9 @@ async function handleLogout() {
   width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.notif-icon--invoice_request { background: #EBFAEE; color: #2EB84B; }
-.notif-icon--default          { background: #f1f5f9; color: #64748b; }
+.notif-icon--invoice_request     { background: #EBFAEE; color: #2EB84B; }
+.notif-icon--gym_upgrade_request { background: #fef3c7; color: #b45309; }
+.notif-icon--default              { background: #f1f5f9; color: #64748b; }
 
 .notif-body { flex: 1; min-width: 0; }
 .notif-item-title { font-size: 0.84rem; font-weight: 700; color: #0f172a; margin: 0 0 3px; }

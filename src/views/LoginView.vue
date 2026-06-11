@@ -359,12 +359,12 @@ async function handleSignIn() {
 /* Error */
 .error-msg {
   font-size: 0.85rem;
-  color: #4CD964;
+  color: #dc2626;
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: #fff0f3;
+  background: #fef2f2;
   border-radius: 8px;
-  border: 1px solid #fcd5de;
+  border: 1px solid #fecaca;
 }
 
 /* ── Actions row ──────────────────────────────────────── */

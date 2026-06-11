@@ -877,7 +877,7 @@ async function handleSubmit() {
   color: #333;
 }
 .req {
-  color: #4cd964;
+  color: #ef4444;
 }
 .optional {
   color: #aaa;
@@ -889,7 +889,7 @@ async function handleSubmit() {
   margin-top: 2px;
 }
 .error-hint {
-  color: #4cd964 !important;
+  color: #ef4444 !important;
 }
 .ok-hint {
   color: #16a34a !important;
@@ -915,7 +915,8 @@ async function handleSubmit() {
   box-shadow: 0 0 0 3px rgba(224, 56, 106, 0.07);
 }
 .input.input-error {
-  border-color: #4cd964;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
 }
 .input.input-ok {
   border-color: #16a34a;
@@ -1240,9 +1241,9 @@ async function handleSubmit() {
 
 .error-msg {
   font-size: 0.88rem;
-  color: #4cd964;
-  background: #fff0f4;
-  border: 1px solid #fad0db;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;

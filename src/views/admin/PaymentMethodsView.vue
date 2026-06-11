@@ -1,9 +1,9 @@
-﻿<template>
+<template>
   <div class="page">
 
     <!-- Header -->
     <div class="page-hd">
-      <p class="page-desc">Add bank accounts companies will use when paying invoices.</p>
+      <p class="page-desc">Add payment methods (bank accounts, mobile wallets, etc.) that companies use when paying invoices.</p>
       <button class="btn-add" @click="openAdd">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Payment Method
@@ -13,18 +13,21 @@
     <div v-if="loading" class="state-msg">Loading payment methods…</div>
 
     <div v-else-if="methods.length === 0" class="empty-state">
-      <div class="empty-icon">🏦</div>
+      <div class="empty-icon">💳</div>
       <p class="empty-title">No payment methods yet</p>
-      <p class="empty-sub">Add a bank account so companies know where to send payments.</p>
+      <p class="empty-sub">Add a bank account or mobile wallet so companies know where to send payments.</p>
     </div>
 
     <!-- Methods grid -->
     <div v-else class="methods-grid">
-      <div v-for="m in methods" :key="m.id" class="method-card">
+      <div v-for="m in pmPaginatedMethods" :key="m.id" class="method-card">
         <div class="method-card-top">
-          <div class="bank-icon">🏦</div>
+          <div class="method-icon">{{ typeIcon(m.type) }}</div>
           <div class="method-info">
-            <p class="method-bank">{{ m.bank_name }}</p>
+            <div class="method-name-row">
+              <p class="method-bank">{{ m.bank_name }}</p>
+              <span class="type-badge" :class="'type-' + m.type">{{ typeLabel(m.type) }}</span>
+            </div>
             <p class="method-holder">{{ m.account_name }}</p>
           </div>
           <span class="status-dot" :class="m.is_active ? 'dot-active' : 'dot-inactive'"
@@ -32,7 +35,7 @@
         </div>
 
         <div class="method-account">
-          <span class="acct-label">Account No.</span>
+          <span class="acct-label">{{ accountLabel(m.type) }}</span>
           <span class="acct-number">{{ m.account_number }}</span>
         </div>
 
@@ -48,6 +51,14 @@
       </div>
     </div>
 
+    <AppPagination
+      v-if="!loading && methods.length"
+      v-model:page="pmPage"
+      :total-pages="pmTotalPages"
+      :total="methods.length"
+      :per-page="pmPerPage"
+    />
+
     <!-- Add / Edit Modal -->
     <Teleport to="body">
       <Transition name="modal">
@@ -59,17 +70,35 @@
             </div>
 
             <div class="modal-body">
+
+              <!-- Type selector -->
               <div class="field">
-                <label>Bank Name <span class="req">*</span></label>
-                <input v-model="form.bank_name" placeholder="e.g. Commercial Bank of Ethiopia" />
+                <label>Payment Type <span class="req">*</span></label>
+                <div class="type-grid">
+                  <button
+                    v-for="t in PAYMENT_TYPES" :key="t.value"
+                    type="button"
+                    class="type-option"
+                    :class="{ selected: form.type === t.value }"
+                    @click="selectType(t.value)"
+                  >
+                    <span class="type-opt-icon">{{ t.icon }}</span>
+                    <span class="type-opt-label">{{ t.label }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>{{ currentTypeConfig.providerLabel }} <span class="req">*</span></label>
+                <input v-model="form.bank_name" :placeholder="currentTypeConfig.providerPlaceholder" />
               </div>
               <div class="field">
                 <label>Account Holder Name <span class="req">*</span></label>
                 <input v-model="form.account_name" placeholder="e.g. FitAccess Ethiopia PLC" />
               </div>
               <div class="field">
-                <label>Account Number <span class="req">*</span></label>
-                <input v-model="form.account_number" placeholder="e.g. 1000123456789" />
+                <label>{{ currentTypeConfig.accountLabel }} <span class="req">*</span></label>
+                <input v-model="form.account_number" :placeholder="currentTypeConfig.accountPlaceholder" />
               </div>
               <div class="field">
                 <label>Transfer Instructions <span class="opt">(optional)</span></label>
@@ -105,22 +134,124 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import AppPagination from '@/components/AppPagination.vue'
 
 interface Method {
-  id: number; bank_name: string; account_name: string
-  account_number: string; instructions: string | null; is_active: boolean
+  id: number
+  type: string
+  bank_name: string
+  account_name: string
+  account_number: string
+  instructions: string | null
+  is_active: boolean
 }
+
+interface TypeConfig {
+  value: string
+  label: string
+  icon: string
+  providerLabel: string
+  providerPlaceholder: string
+  accountLabel: string
+  accountPlaceholder: string
+}
+
+const PAYMENT_TYPES: TypeConfig[] = [
+  {
+    value: 'bank',
+    label: 'Bank Transfer',
+    icon: '🏦',
+    providerLabel: 'Bank Name',
+    providerPlaceholder: 'e.g. Commercial Bank of Ethiopia',
+    accountLabel: 'Account Number',
+    accountPlaceholder: 'e.g. 1000123456789',
+  },
+  {
+    value: 'telebirr',
+    label: 'Telebirr',
+    icon: '📱',
+    providerLabel: 'Provider',
+    providerPlaceholder: 'Telebirr',
+    accountLabel: 'Phone Number',
+    accountPlaceholder: 'e.g. 0911 234 567',
+  },
+  {
+    value: 'cbe_birr',
+    label: 'CBE Birr',
+    icon: '📲',
+    providerLabel: 'Provider',
+    providerPlaceholder: 'CBE Birr',
+    accountLabel: 'Phone Number',
+    accountPlaceholder: 'e.g. 0911 234 567',
+  },
+  {
+    value: 'mpesa',
+    label: 'M-Pesa',
+    icon: '💚',
+    providerLabel: 'Provider',
+    providerPlaceholder: 'M-Pesa',
+    accountLabel: 'Phone Number',
+    accountPlaceholder: 'e.g. 0711 234 567',
+  },
+  {
+    value: 'other',
+    label: 'Other',
+    icon: '💳',
+    providerLabel: 'Method Name',
+    providerPlaceholder: 'e.g. Western Union, PayPal',
+    accountLabel: 'Account / Reference',
+    accountPlaceholder: 'e.g. REF-001 or account number',
+  },
+]
+
+function getTypeConfig(type: string): TypeConfig {
+  return PAYMENT_TYPES.find(t => t.value === type) ?? PAYMENT_TYPES[0]!
+}
+
+function typeIcon(type: string): string  { return getTypeConfig(type).icon }
+function typeLabel(type: string): string { return getTypeConfig(type).label }
+function accountLabel(type: string): string { return getTypeConfig(type).accountLabel }
 
 const api     = useApi()
 const methods = ref<Method[]>([])
 const loading = ref(true)
+
+const pmPage    = ref(1)
+const pmPerPage = 10
+const pmTotalPages    = computed(() => Math.max(1, Math.ceil(methods.value.length / pmPerPage)))
+const pmPaginatedMethods = computed(() =>
+  methods.value.slice((pmPage.value - 1) * pmPerPage, pmPage.value * pmPerPage)
+)
 const saving  = ref(false)
 const formError = ref('')
 
 const modal = reactive({ show: false, editId: null as number | null })
-const form  = reactive({ bank_name: '', account_name: '', account_number: '', instructions: '', is_active: true })
+const form  = reactive({
+  type: 'bank',
+  bank_name: '',
+  account_name: '',
+  account_number: '',
+  instructions: '',
+  is_active: true,
+})
+
+const currentTypeConfig = computed<TypeConfig>(() => getTypeConfig(form.type))
+
+function selectType(type: string) {
+  form.type = type
+  // Auto-fill provider name for mobile wallets
+  const config = getTypeConfig(type)
+  if (['telebirr', 'cbe_birr', 'mpesa'].includes(type) && !form.bank_name) {
+    form.bank_name = config.providerPlaceholder
+  }
+  // Clear auto-filled provider if user switched away and it still matches the old placeholder
+  if (type === 'bank' || type === 'other') {
+    const prev = PAYMENT_TYPES.find(t => ['telebirr','cbe_birr','mpesa'].includes(t.value) && t.providerPlaceholder === form.bank_name)
+    if (prev) form.bank_name = ''
+  }
+}
 
 const toast = reactive({ show: false, type: 'success', message: '' })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -141,13 +272,21 @@ async function load() {
 onMounted(load)
 
 function openAdd() {
-  Object.assign(form, { bank_name: '', account_name: '', account_number: '', instructions: '', is_active: true })
+  Object.assign(form, { type: 'bank', bank_name: '', account_name: '', account_number: '', instructions: '', is_active: true })
   formError.value = ''
   modal.editId = null
   modal.show = true
 }
+
 function openEdit(m: Method) {
-  Object.assign(form, { bank_name: m.bank_name, account_name: m.account_name, account_number: m.account_number, instructions: m.instructions ?? '', is_active: m.is_active })
+  Object.assign(form, {
+    type: m.type || 'bank',
+    bank_name: m.bank_name,
+    account_name: m.account_name,
+    account_number: m.account_number,
+    instructions: m.instructions ?? '',
+    is_active: m.is_active,
+  })
   formError.value = ''
   modal.editId = m.id
   modal.show = true
@@ -156,7 +295,7 @@ function openEdit(m: Method) {
 async function save() {
   formError.value = ''
   if (!form.bank_name.trim() || !form.account_name.trim() || !form.account_number.trim()) {
-    formError.value = 'Bank name, account holder and account number are required.'
+    formError.value = `${currentTypeConfig.value.providerLabel}, account holder and ${currentTypeConfig.value.accountLabel.toLowerCase()} are required.`
     return
   }
   saving.value = true
@@ -223,17 +362,29 @@ async function remove(m: Method) {
   border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,.05);
 }
-.method-card-top { display: flex; align-items: center; gap: 12px; }
-.bank-icon { font-size: 1.8rem; flex-shrink: 0; }
-.method-info { flex: 1; }
-.method-bank   { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
+.method-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.method-icon { font-size: 1.8rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+.method-info { flex: 1; min-width: 0; }
+.method-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.method-bank   { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0; }
 .method-holder { font-size: 0.78rem; color: #64748b; margin: 0; }
-.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
 .dot-active   { background: #4CD964; }
 .dot-inactive { background: #94a3b8; }
 
+/* Type badge on card */
+.type-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+}
+.type-bank     { background: #dbeafe; color: #1d4ed8; }
+.type-telebirr { background: #fef3c7; color: #b45309; }
+.type-cbe_birr { background: #dcfce7; color: #15803d; }
+.type-mpesa    { background: #d1fae5; color: #065f46; }
+.type-other    { background: #f1f5f9; color: #475569; }
+
 .method-account { display: flex; align-items: center; gap: 10px; background: #f8fafc; border-radius: 8px; padding: 10px 14px; }
-.acct-label  { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+.acct-label  { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
 .acct-number { font-family: monospace; font-size: 0.9rem; font-weight: 600; color: #0f172a; letter-spacing: .04em; }
 .method-note { font-size: 0.78rem; color: #64748b; margin: 0; font-style: italic; }
 
@@ -246,7 +397,7 @@ async function remove(m: Method) {
 
 /* Modal */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 500; padding: 16px; }
-.modal { background: white; border-radius: 18px; width: 100%; max-width: 480px; box-shadow: 0 24px 64px rgba(0,0,0,.18); }
+.modal { background: white; border-radius: 18px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,.18); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 24px 16px; border-bottom: 1px solid #f1f5f9; }
 .modal-title  { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0; }
 .modal-close  { width: 28px; height: 28px; border-radius: 50%; border: none; background: #f1f5f9; color: #64748b; cursor: pointer; font-size: 0.75rem; }
@@ -263,6 +414,24 @@ async function remove(m: Method) {
 }
 .field input:focus, .field textarea:focus { border-color: #4CD964; }
 .field textarea { resize: vertical; min-height: 72px; }
+
+/* Type selector grid */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.type-option {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 10px 6px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+  background: #fff; cursor: pointer; transition: all .15s; font-family: inherit;
+}
+.type-option:hover { border-color: #94a3b8; background: #f8fafc; }
+.type-option.selected { border-color: #4CD964; background: #EBFAEE; }
+.type-opt-icon  { font-size: 1.4rem; line-height: 1; }
+.type-opt-label { font-size: 0.68rem; font-weight: 600; color: #374151; text-align: center; line-height: 1.2; }
+.type-option.selected .type-opt-label { color: #15803d; }
+
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #374151; cursor: pointer; }
 .check-row input { width: 16px; height: 16px; accent-color: #4CD964; }
 .form-error { font-size: 0.8rem; color: #ef4444; margin: 0; }
@@ -285,4 +454,8 @@ async function remove(m: Method) {
 .toast-enter-active { transition: all .3s cubic-bezier(.34,1.56,.64,1); }
 .toast-leave-active { transition: all .25s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
+
+@media (max-width: 480px) {
+  .type-grid { grid-template-columns: repeat(3, 1fr); }
+}
 </style>
