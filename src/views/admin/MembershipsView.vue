@@ -222,7 +222,7 @@ const filterGym    = ref<number | ''>('')
 const currentPage   = ref(1)
 const totalPages    = ref(1)
 const totalRecords  = ref(0)
-const perPage       = 15
+const perPage       = 10
 
 const stats = computed(() => ({
   total:        memberships.value.length,

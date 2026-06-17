@@ -13,11 +13,11 @@ interface User {
 }
 
 const ADMIN_ROLES = ['super_admin', 'fitaccess_admin', 'admin_finance', 'admin_support']
-const HR_ROLES = ['company_hr', 'company_finance', 'company_ceo']
-const PARTNER_ROLES = ['gym_partner', 'gym_staff']
+const HR_ROLES = ['company_hr', 'co_hr', 'co_executive', 'co_finance', 'company_finance', 'company_ceo']
+const PARTNER_ROLES = ['gym_partner', 'gym_hr', 'gym_executive', 'gym_finance']
 const ADMIN_SUB_ROLES = ['admin_finance', 'admin_support']
-const COMPANY_SUB_ROLES = ['company_finance', 'company_ceo']
-const GYM_SUB_ROLES = ['gym_staff']
+const COMPANY_SUB_ROLES = ['co_hr', 'co_executive', 'co_finance', 'company_finance', 'company_ceo']
+const GYM_SUB_ROLES = ['gym_hr', 'gym_executive', 'gym_finance']
 
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL
 
@@ -50,6 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
   /* ── Permission helper ────────────────────────────────── */
   function hasPermission(permission: string): boolean {
     if (['super_admin', 'fitaccess_admin'].includes(user.value?.role ?? '')) return true
+    const role = user.value?.role ?? ''
+    // Primary company account always has full access to their company scope
+    if (role === 'company_hr' && permission.startsWith('co.')) return true
+    // Primary gym account always has full access to their gym scope
+    if (role === 'gym_partner' && permission.startsWith('gym.')) return true
     return permissions.value.includes(permission)
   }
 

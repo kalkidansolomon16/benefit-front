@@ -364,7 +364,7 @@ const roles = ref<Role[]>([])
 const loading = ref(false)
 
 const teamPage = ref(1)
-const teamPerPage = 15
+const teamPerPage = 10
 const teamTotalPages = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
 const paginatedMembers = computed(() =>
   members.value.slice((teamPage.value - 1) * teamPerPage, teamPage.value * teamPerPage)

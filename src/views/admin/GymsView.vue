@@ -527,7 +527,7 @@ interface Gym {
 const gyms       = ref<Gym[]>([])
 const loadingGyms = ref(true)
 const gymPage    = ref(1)
-const gymPerPage = 12
+const gymPerPage = 10
 const gymTotalPages   = computed(() => Math.max(1, Math.ceil(gyms.value.length / gymPerPage)))
 const paginatedGyms   = computed(() => gyms.value.slice((gymPage.value - 1) * gymPerPage, gymPage.value * gymPerPage))
 
@@ -568,7 +568,7 @@ const loadingApps   = ref(false)
 const pendingCount  = ref(0)
 const appStatus     = ref('all')
 const appPage       = ref(1)
-const appPerPage    = 8
+const appPerPage    = 10
 const appTotalPages    = computed(() => Math.max(1, Math.ceil(applications.value.length / appPerPage)))
 const paginatedApps    = computed(() => applications.value.slice((appPage.value - 1) * appPerPage, appPage.value * appPerPage))
 
@@ -667,7 +667,7 @@ const loadingUpgrades     = ref(false)
 const upgradePendingCount = ref(0)
 const upgradeStatus       = ref('all')
 const upgradePage         = ref(1)
-const upgradePerPage      = 8
+const upgradePerPage      = 10
 const upgradeTotalPages   = computed(() => Math.max(1, Math.ceil(upgradeRequests.value.length / upgradePerPage)))
 const paginatedUpgrades   = computed(() =>
   upgradeRequests.value.slice((upgradePage.value - 1) * upgradePerPage, upgradePage.value * upgradePerPage)

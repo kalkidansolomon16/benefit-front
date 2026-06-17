@@ -159,6 +159,12 @@ const router = createRouter({
           meta: { requiresPermission: 'co.billing.view' },
         },
         {
+          path: 'billing/chapa-return',
+          name: 'hr-chapa-return',
+          component: () => import('../views/hr/ChapaReturnView.vue'),
+          meta: { requiresHR: true },
+        },
+        {
           path: 'team',
           name: 'hr-team',
           component: () => import('../views/hr/CompanyTeamView.vue'),
@@ -250,6 +256,12 @@ const router = createRouter({
           name: 'admin-permissions',
           component: () => import('../views/admin/AdminPermissionsView.vue'),
           meta: { requiresPermission: 'permissions.view' },
+        },
+        {
+          path: 'roles',
+          name: 'admin-roles',
+          component: () => import('../views/admin/AdminRolesView.vue'),
+          meta: { requiresPermission: 'permissions.manage' },
         },
         {
           path: 'employee-approvals',

@@ -13,14 +13,48 @@
       <div class="scan-card">
         <div class="scan-head">
           <div>
-            <p class="scan-title">Scan Member Barcode</p>
-            <p class="scan-sub">Type or scan the barcode shown on the member's app.</p>
+            <p class="scan-title">Scan Member QR Code</p>
+            <p class="scan-sub">Point the camera at the member's QR code, or enter the code manually.</p>
           </div>
           <span v-if="scanResult" class="scan-pill" :class="scanResult.ok ? 'pill--ok' : 'pill--err'">
             {{ scanResult.message }}
           </span>
         </div>
-        <form class="scan-form" @submit.prevent="submitScan">
+
+        <!-- Mode tabs -->
+        <div class="scan-tabs">
+          <button
+            class="scan-tab"
+            :class="{ 'scan-tab--active': scanMode === 'camera' }"
+            type="button"
+            @click="enableCamera"
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+            </svg>
+            Camera
+          </button>
+          <button
+            class="scan-tab"
+            :class="{ 'scan-tab--active': scanMode === 'manual' }"
+            type="button"
+            @click="enableManual"
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/>
+            </svg>
+            Manual
+          </button>
+        </div>
+
+        <!-- Camera QR scanner -->
+        <div v-show="scanMode === 'camera'">
+          <div id="qr-reader" class="qr-reader-box"></div>
+          <p v-if="cameraError" class="camera-error">{{ cameraError }}</p>
+        </div>
+
+        <!-- Manual input -->
+        <form v-if="scanMode === 'manual'" class="scan-form" @submit.prevent="submitScan">
           <input
             v-model="scanToken"
             class="scan-input"
@@ -189,9 +223,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AppPagination from '@/components/AppPagination.vue'
+import { Html5Qrcode } from 'html5-qrcode'
 
 const api = useApi()
 
@@ -224,10 +259,54 @@ const expectedVisitors = ref<ExpectedVisitor[]>([])
 const visitorsLoading  = ref(false)
 
 // Scan state
-const scanToken = ref('')
-const scanning  = ref(false)
+const scanToken  = ref('')
+const scanning   = ref(false)
 const scanResult = ref<{ ok: boolean; message: string } | null>(null)
 let scanResultTimer: ReturnType<typeof setTimeout> | null = null
+
+// Camera QR state
+const scanMode   = ref<'camera' | 'manual'>('camera')
+const cameraError = ref('')
+let qrScanner: Html5Qrcode | null = null
+
+async function enableCamera() {
+  scanMode.value = 'camera'
+  cameraError.value = ''
+  await nextTick()
+  try {
+    if (qrScanner) {
+      try { if (qrScanner.isScanning) await qrScanner.stop() } catch {}
+      qrScanner.clear()
+    }
+    qrScanner = new Html5Qrcode('qr-reader')
+    await qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      async (decoded: string) => {
+        scanToken.value = decoded.trim().toUpperCase()
+        await disableCamera()
+        await submitScan()
+      },
+      () => {}
+    )
+  } catch {
+    cameraError.value = 'Camera not available or permission denied. Use manual entry instead.'
+    scanMode.value = 'manual'
+  }
+}
+
+async function disableCamera() {
+  if (qrScanner) {
+    try { if (qrScanner.isScanning) await qrScanner.stop() } catch {}
+    try { qrScanner.clear() } catch {}
+    qrScanner = null
+  }
+}
+
+async function enableManual() {
+  await disableCamera()
+  scanMode.value = 'manual'
+}
 
 async function submitScan() {
   if (!scanToken.value.trim()) return
@@ -289,6 +368,11 @@ async function loadExpectedVisitors() {
 onMounted(async () => {
   await load()
   await loadExpectedVisitors()
+  await enableCamera()
+})
+
+onUnmounted(async () => {
+  await disableCamera()
 })
 
 const filtered = computed(() => {
@@ -324,7 +408,7 @@ const monthOptions = computed(() => {
 })
 
 const partnerPage    = ref(1)
-const partnerPerPage = 20
+const partnerPerPage = 10
 const partnerTotalPages   = computed(() => Math.max(1, Math.ceil(filtered.value.length / partnerPerPage)))
 const paginatedFiltered   = computed(() => filtered.value.slice((partnerPage.value - 1) * partnerPerPage, partnerPage.value * partnerPerPage))
 
@@ -571,6 +655,34 @@ function initials(name: string): string {
 }
 .pill--ok  { background: #f0fdf4; color: #15803d; }
 .pill--err { background: #fef2f2; color: #b91c1c; }
+/* Scan mode tabs */
+.scan-tabs {
+  display: flex; gap: 6px;
+  background: #f8fafc; border-radius: 10px; padding: 4px;
+}
+.scan-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px; border: none;
+  background: transparent; color: #64748b;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.scan-tab--active {
+  background: #fff; color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.scan-tab:hover:not(.scan-tab--active) { color: #0f172a; }
+
+/* QR reader box */
+.qr-reader-box {
+  width: 100%; overflow: hidden; border-radius: 10px;
+  background: #000; min-height: 280px;
+}
+.camera-error {
+  font-size: 0.8rem; color: #dc2626; margin: 4px 0 0;
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 8px; padding: 8px 12px;
+}
+
 .scan-form { display: flex; gap: 10px; flex-wrap: wrap; }
 .scan-input {
   flex: 1; min-width: 200px;

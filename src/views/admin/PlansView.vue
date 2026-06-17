@@ -35,7 +35,7 @@
         <!-- Top -->
         <div class="plan-top">
           <div class="plan-top-left">
-            <span class="tier-badge">{{ plan.tier }}</span>
+            <span class="tier-badge">{{ { basic: 'Basic', basic_plus: 'Basic+', platinum: 'Platinum' }[plan.tier] ?? plan.tier }}</span>
             <span v-if="!plan.is_active" class="inactive-badge">Inactive</span>
           </div>
           <div class="plan-actions">
@@ -122,18 +122,16 @@
                 <!-- Tier key -->
                 <div class="field-group">
                   <label class="field-label">
-                    Tier Key <span class="req">*</span>
-                    <span class="label-hint">Unique slug used internally (e.g. premium_plus)</span>
+                    Tier <span class="req">*</span>
+                    <span class="label-hint">Controls which gyms employees on this plan can access</span>
                   </label>
-                  <input
-                    v-model="form.tier"
-                    type="text"
-                    class="input"
-                    placeholder="e.g. premium_plus"
-                    :disabled="!!editing"
-                    @input="form.tier = (form.tier as string).toLowerCase().replace(/[^a-z0-9_]/g, '_')"
-                  />
-                  <p v-if="editing" class="field-hint">Tier key cannot be changed after creation.</p>
+                  <select v-model="form.tier" class="input" :disabled="!!editing">
+                    <option value="">— Select tier —</option>
+                    <option value="basic">Basic — access Basic gyms only</option>
+                    <option value="basic_plus">Basic+ — access Basic & Basic+ gyms</option>
+                    <option value="platinum">Platinum — access all gyms</option>
+                  </select>
+                  <p v-if="editing" class="field-hint">Tier cannot be changed after creation.</p>
                 </div>
 
                 <!-- Fee + Duration row -->
@@ -278,7 +276,7 @@ const loading = ref(true)
 const activePlans = computed(() => plans.value.filter(p => p.is_active).length)
 
 const planPage    = ref(1)
-const planPerPage = 12
+const planPerPage = 10
 const planTotalPages  = computed(() => Math.max(1, Math.ceil(plans.value.length / planPerPage)))
 const paginatedPlans  = computed(() => plans.value.slice((planPage.value - 1) * planPerPage, planPage.value * planPerPage))
 

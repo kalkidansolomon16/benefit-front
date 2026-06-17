@@ -1,5 +1,5 @@
 <template>
-  <div v-if="totalPages > 1" class="apg">
+  <div v-if="totalPages >= 1" class="apg">
     <!-- Prev -->
     <button class="apg-btn" :disabled="page <= 1" @click="emit('update:page', page - 1)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

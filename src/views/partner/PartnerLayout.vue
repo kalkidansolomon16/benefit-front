@@ -15,7 +15,11 @@
 
       <!-- Gym chip -->
       <div class="gym-chip">
-        <p class="chip-label">{{ auth.user?.role === 'gym_staff' ? 'GYM STAFF' : 'GYM PARTNER' }}</p>
+        <p class="chip-label">{{
+          auth.user?.role === 'gym_hr' ? 'GYM HR' :
+          auth.user?.role === 'gym_executive' ? 'GYM EXECUTIVE' :
+          auth.user?.role === 'gym_finance' ? 'GYM FINANCE' : 'GYM PARTNER'
+        }}</p>
         <p class="chip-name" :title="gymName">{{ gymName }}</p>
         <span class="chip-tier" :class="`tier--${gymTier}`">{{ tierLabel }}</span>
       </div>

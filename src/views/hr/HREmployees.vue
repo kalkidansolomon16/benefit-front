@@ -394,7 +394,7 @@ const acting       = ref<number | null>(null)
 const hrRejectModal = reactive({ show: false, employee: null as Emp | null, reason: '', error: '', loading: false })
 
 const empPage    = ref(1)
-const empPerPage = 20
+const empPerPage = 10
 const empTotalPages   = computed(() => Math.max(1, Math.ceil(employees.value.length / empPerPage)))
 const paginatedEmployees = computed(() => employees.value.slice((empPage.value - 1) * empPerPage, empPage.value * empPerPage))
 

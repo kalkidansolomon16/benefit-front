@@ -57,7 +57,7 @@
           <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
         </div>
         <!-- Register Employee shortcut on dashboard -->
-        <RouterLink v-if="route.name === 'hr-dashboard' && auth.hasPermission('co.employees.manage')" to="/hr/register" class="btn-register">
+        <RouterLink v-if="route.name === 'hr-dashboard' && auth.hasPermission('co.employees.register')" to="/hr/register" class="btn-register">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
           Register Employee
         </RouterLink>
@@ -137,17 +137,21 @@ const pageMeta: Record<string, { title: string; sub?: string }> = {
   'hr-employees': { title: 'Employees' },
   'hr-billing':   { title: 'Billing & Invoices', sub: 'View invoices and submit payments' },
   'hr-team':      { title: 'Team Management', sub: 'Manage Finance and CEO sub-accounts' },
+  'hr-settings':  { title: 'Account Settings' },
 }
 
 const currentTitle    = computed(() => {
   if (route.name === 'hr-dashboard') return `Welcome, ${companyName.value}`
-  return pageMeta[route.name as string]?.title ?? 'HR Portal'
+  return pageMeta[route.name as string]?.title ?? 'Company Portal'
 })
 const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub ?? '')
 
 const hrRoleLabel = computed(() => {
   const map: Record<string, string> = {
     company_hr:      'HR',
+    co_hr:           'HR',
+    co_executive:    'EXECUTIVE',
+    co_finance:      'FINANCE',
     company_finance: 'FINANCE',
     company_ceo:     'CEO',
   }
