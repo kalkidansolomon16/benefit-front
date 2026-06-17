@@ -312,20 +312,28 @@
 
           <!-- Normal sent: pay now -->
           <template v-else-if="detailInv.status === 'sent'">
-            <button class="btn-proceed" @click="payModal.show = true">
-              <svg
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                viewBox="0 0 24 24"
-              >
-                <rect x="1" y="4" width="22" height="16" rx="2" />
-                <line x1="1" y1="10" x2="23" y2="10" />
-              </svg>
-              Proceed to Payment
-            </button>
+            <div class="pay-options">
+              <!-- Chapa online payment -->
+              <button class="btn-chapa" :disabled="chapaLoading" @click="payWithChapa">
+                <span v-if="chapaLoading" class="spinner-sm"></span>
+                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="4" width="22" height="16" rx="2"/>
+                  <line x1="1" y1="10" x2="23" y2="10"/>
+                </svg>
+                {{ chapaLoading ? 'Redirecting to Chapa…' : 'Pay Online with Chapa' }}
+              </button>
+              <p class="pay-or">— or pay by bank transfer —</p>
+              <!-- Manual bank transfer -->
+              <button class="btn-proceed btn-proceed--outline" @click="payModal.show = true">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Upload Bank Receipt
+              </button>
+            </div>
+            <p v-if="chapaError" class="form-error" style="margin-top:8px">{{ chapaError }}</p>
           </template>
 
           <!-- OVERDUE state — Pay Now is locked until admin re-issues the invoice -->
@@ -736,6 +744,38 @@ const payModal = reactive({
 })
 const negModal = reactive({ show: false, reason: '', submitting: false, error: '' })
 const toast = reactive({ show: false, type: 'success', message: '' })
+
+// ── Chapa ─────────────────────────────────────────────────────
+const chapaLoading = ref(false)
+const chapaError   = ref('')
+
+async function payWithChapa() {
+  if (!detailInv.value) return
+  chapaLoading.value = true
+  chapaError.value   = ''
+  try {
+    const { useAuthStore } = await import('@/stores/auth')
+    const auth = useAuthStore()
+    const res  = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/hr/billing/invoices/${detailInv.value.id}/chapa/initialize`,
+      {
+        method:  'POST',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${auth.token}` },
+      }
+    )
+    const data = await res.json()
+    if (!res.ok) {
+      chapaError.value = data.message || 'Failed to initialize Chapa payment.'
+      return
+    }
+    // Redirect the browser to Chapa's hosted checkout page
+    window.location.href = data.checkout_url
+  } catch {
+    chapaError.value = 'Network error. Please try again.'
+  } finally {
+    chapaLoading.value = false
+  }
+}
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 function showToast(msg: string, type: 'success' | 'error' = 'success') {
@@ -1391,6 +1431,54 @@ function formatDate(dt: string | null) {
   color: #065f46;
   border: 1px solid #a7f3d0;
 }
+
+/* Chapa payment */
+.pay-options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+.btn-chapa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  width: 100%;
+}
+.btn-chapa:hover { opacity: 0.85; }
+.btn-chapa:disabled { opacity: 0.6; cursor: not-allowed; }
+.pay-or {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0;
+}
+.btn-proceed--outline {
+  background: #fff;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+}
+.btn-proceed--outline:hover { border-color: #94a3b8; opacity: 1; }
+.spinner-sm {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Buttons */
 .btn-proceed {

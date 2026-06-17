@@ -86,7 +86,7 @@ const filterRole   = ref('')
 const filterAction = ref('')
 
 const page    = ref(1)
-const perPage = 20
+const perPage = 10
 
 onMounted(async () => {
   try {

@@ -67,7 +67,7 @@
       >
         <div v-if="selecting" class="spinner-sm"></div>
         <svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        {{ selecting ? 'Confirming…' : 'Confirm & Get Barcode' }}
+        {{ selecting ? 'Confirming…' : 'Confirm & Get QR Code' }}
       </button>
 
     </template>
@@ -106,26 +106,11 @@
           Your access resets tomorrow at midnight
         </div>
 
-        <!-- Barcode (dimmed, for reference) -->
+        <!-- QR Code (dimmed, for reference) -->
         <div class="used-barcode-wrap">
-          <p class="used-barcode-label">Today's barcode (used)</p>
+          <p class="used-barcode-label">Today's QR code (used)</p>
           <div class="barcode-inner">
-            <svg
-              class="barcode barcode--dim"
-              :viewBox="`0 0 ${barWidth} 100`"
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect
-                v-for="(bar, i) in bars"
-                :key="i"
-                :x="bar.x"
-                :y="0"
-                :width="bar.w"
-                :height="100"
-                fill="#cbd5e1"
-              />
-            </svg>
+            <img v-if="qrDataUrl" :src="qrDataUrl" class="qr-img qr-img--dim" alt="QR code (used)" />
             <p class="barcode-text barcode-text--dim">{{ token }}</p>
           </div>
         </div>
@@ -136,7 +121,7 @@
         <p class="info-title">How daily access works</p>
         <ul class="info-list">
           <li>Each day you can visit <strong>one gym</strong> from your plan's eligible gyms.</li>
-          <li>Once checked in, your barcode is deactivated for the rest of the day.</li>
+          <li>Once checked in, your QR code is deactivated for the rest of the day.</li>
           <li>Tomorrow you can select a <strong>different gym</strong> if you like.</li>
         </ul>
       </div>
@@ -175,24 +160,10 @@
           </div>
         </div>
 
-        <!-- Barcode -->
-        <div class="barcode-wrap">
-          <svg
-            class="barcode"
-            :viewBox="`0 0 ${barWidth} 100`"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect
-              v-for="(bar, i) in bars"
-              :key="i"
-              :x="bar.x"
-              :y="0"
-              :width="bar.w"
-              :height="100"
-              fill="#0f172a"
-            />
-          </svg>
+        <!-- QR Code -->
+        <div class="qr-wrap">
+          <img v-if="qrDataUrl" :src="qrDataUrl" class="qr-img" alt="QR code" />
+          <div v-else class="qr-placeholder"></div>
           <p class="barcode-text">{{ token }}</p>
         </div>
 
@@ -202,7 +173,7 @@
             <div class="countdown-fill" :style="{ width: progressPct + '%' }"></div>
           </div>
           <p class="countdown-text">
-            Barcode refreshes in <strong>{{ countdownLabel }}</strong>
+            QR code refreshes in <strong>{{ countdownLabel }}</strong>
           </p>
         </div>
       </div>
@@ -211,9 +182,9 @@
       <div class="info-card">
         <p class="info-title">How it works</p>
         <ul class="info-list">
-          <li>Show this barcode to the staff at <strong>{{ selectedGym?.name }}</strong> to check in.</li>
-          <li>The barcode rotates every <strong>12 hours</strong> and works <strong>only at your selected gym</strong>.</li>
-          <li>Once scanned and checked in, your daily access is used — barcode deactivates.</li>
+          <li>Show this QR code to the staff at <strong>{{ selectedGym?.name }}</strong> to check in.</li>
+          <li>The QR code rotates every <strong>12 hours</strong> and works <strong>only at your selected gym</strong>.</li>
+          <li>Once scanned and checked in, your daily access is used — QR code deactivates.</li>
           <li>You can choose a different gym tomorrow.</li>
         </ul>
       </div>
@@ -224,8 +195,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
+import QRCode from 'qrcode'
 
 interface Gym {
   id: number
@@ -372,36 +344,20 @@ const progressPct = computed(() => {
   return Math.max(0, Math.min(100, (remaining.value / totalSlotSeconds.value) * 100))
 })
 
-const barWidth = 600
-const bars = computed(() => {
-  const t = token.value
-  if (!t) return []
-  type Bar = { x: number; w: number }
-  const out: Bar[] = []
-  const padding = 10
-  const usable  = barWidth - padding * 2
-  const stripesPerChar = 6
-  const totalStripes   = t.length * stripesPerChar + 4
-  const unit           = usable / totalStripes
+const qrDataUrl = ref('')
 
-  let x = padding
-  out.push({ x, w: unit }); x += unit * 2
-  out.push({ x: x - unit, w: unit })
+async function renderQR() {
+  if (!token.value) return
+  qrDataUrl.value = await QRCode.toDataURL(token.value, {
+    width: 220,
+    margin: 2,
+    color: { dark: '#0f172a', light: '#ffffff' },
+  })
+}
 
-  for (let i = 0; i < t.length; i++) {
-    const code = t.charCodeAt(i)
-    for (let s = 0; s < stripesPerChar; s++) {
-      const bit = (code >> s) & 1
-      const widthUnits = ((code >> (s * 2)) & 0b11) + 1
-      const w = unit * (widthUnits * 0.35 + 0.25)
-      if (bit) out.push({ x, w })
-      x += unit
-    }
-  }
-
-  out.push({ x, w: unit }); x += unit * 2
-  out.push({ x: x - unit, w: unit })
-  return out
+watch(token, async () => {
+  await nextTick()
+  renderQR()
 })
 </script>
 
@@ -549,7 +505,6 @@ const bars = computed(() => {
   background: #f8fafc; border-radius: 10px; padding: 14px;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
-.barcode--dim { width: 100%; height: 80px; display: block; }
 .barcode-text--dim {
   font-family: 'Courier New', monospace; font-size: 0.9rem;
   letter-spacing: .25em; color: #cbd5e1; margin: 0;
@@ -575,12 +530,20 @@ const bars = computed(() => {
 .dot { width: 6px; height: 6px; border-radius: 50%; background: #4CD964; animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
-.barcode-wrap {
+.qr-wrap {
   background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
   padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 12px;
 }
-.barcode      { width: 100%; height: 110px; display: block; }
-.barcode-text { font-family: 'Courier New', monospace; font-size: 1.1rem; letter-spacing: .3em; color: #0f172a; margin: 0; font-weight: 700; }
+.qr-img {
+  width: 220px; height: 220px; display: block; border-radius: 6px;
+}
+.qr-img--dim {
+  filter: grayscale(1) opacity(0.35);
+}
+.qr-placeholder {
+  width: 220px; height: 220px; background: #f1f5f9; border-radius: 6px;
+}
+.barcode-text { font-family: 'Courier New', monospace; font-size: 0.95rem; letter-spacing: .2em; color: #0f172a; margin: 0; font-weight: 700; }
 
 .countdown       { margin-top: 20px; }
 .countdown-bar   { width: 100%; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }

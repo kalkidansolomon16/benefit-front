@@ -231,7 +231,7 @@ onMounted(async () => {
 
 /* ── Detail table pagination ──────────────────────────────────── */
 const detailPage    = ref(1)
-const detailPerPage = 20
+const detailPerPage = 10
 const detailTotalPages   = computed(() => Math.max(1, Math.ceil(periodData.value.length / detailPerPage)))
 const paginatedPeriodData = computed(() => periodData.value.slice((detailPage.value - 1) * detailPerPage, detailPage.value * detailPerPage))
 

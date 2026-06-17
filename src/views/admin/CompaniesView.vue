@@ -301,7 +301,7 @@
       :page="page"
       :total-pages="meta?.last_page ?? 1"
       :total="meta?.total ?? 0"
-      :per-page="15"
+      :per-page="10"
       @update:page="v => { page = v; load() }"
     />
   </div>
@@ -1315,6 +1315,20 @@ async function submitForm() {
   flex-direction: column;
   gap: 5px;
 }
+.field textarea {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  color: #0f172a;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+.field textarea:focus { border-color: #4CD964; }
+.field textarea::placeholder { color: #94a3b8; }
 .field-label {
   font-size: 0.75rem;
   font-weight: 500;

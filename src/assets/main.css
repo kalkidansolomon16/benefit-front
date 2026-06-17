@@ -1,5 +1,23 @@
 @import './base.css';
 
+/* Global textarea styling */
+textarea {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  color: #0f172a;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+textarea:focus { border-color: #4CD964; }
+textarea::placeholder { color: #94a3b8; }
+
 #app {
   min-height: 100vh;
   width: 100%;

@@ -220,7 +220,7 @@
       :page="page"
       :total-pages="meta?.last_page ?? 1"
       :total="meta?.total ?? 0"
-      :per-page="20"
+      :per-page="10"
       @update:page="v => { page = v; load() }"
     />
 
@@ -274,7 +274,7 @@ const meta        = ref<Meta | null>(null)
 async function load() {
   loading.value = true
   try {
-    const res = await api.get<{ data: Employee[]; meta: Meta }>(`employees?page=${page.value}&per_page=20`)
+    const res = await api.get<{ data: Employee[]; meta: Meta }>(`employees?page=${page.value}&per_page=10`)
     employees.value = res.data ?? []
     meta.value      = res.meta ?? null
   } finally {

@@ -239,16 +239,15 @@ interface Member {
 
 /* Static company roles — permissions are managed by the admin */
 const COMPANY_ROLES = [
-  { name: 'co_hr',        label: 'HR' },
-  { name: 'co_executive', label: 'Executive' },
-  { name: 'co_finance',   label: 'Finance' },
+  { name: 'company_finance', label: 'Finance' },
+  { name: 'company_ceo',     label: 'CEO / Executive' },
 ] as const
 
 const members = ref<Member[]>([])
 const loading = ref(false)
 
 const teamPage     = ref(1)
-const teamPerPage  = 15
+const teamPerPage  = 10
 const teamTotalPages  = computed(() => Math.max(1, Math.ceil(members.value.length / teamPerPage)))
 const paginatedMembers = computed(() =>
   members.value.slice((teamPage.value - 1) * teamPerPage, teamPage.value * teamPerPage)
@@ -269,8 +268,16 @@ async function fetchMembers() {
 
 onMounted(() => { fetchMembers() })
 
+const ROLE_LABEL_MAP: Record<string, string> = {
+  company_finance: 'Finance',
+  company_ceo:     'CEO / Executive',
+  co_hr:           'HR',
+  co_finance:      'Finance',
+  co_executive:    'Executive',
+}
+
 function roleLabel(roleName: string): string {
-  return COMPANY_ROLES.find((r) => r.name === roleName)?.label ?? roleName
+  return ROLE_LABEL_MAP[roleName] ?? COMPANY_ROLES.find((r) => r.name === roleName)?.label ?? roleName
 }
 
 /* ── Create member ──────────────────────────────────────── */
@@ -322,10 +329,15 @@ function copyTempPw() {
 
 /* ── Toggle active ─────────────────────────────────────── */
 async function toggleActive(m: Member) {
-  await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/team/${m.id}/toggle-active`, {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/team/${m.id}/toggle-active`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
   })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    alert(err.message || 'Failed to update status.')
+    return
+  }
   fetchMembers()
 }
 

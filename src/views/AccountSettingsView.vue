@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 
 const api = useApi()
@@ -91,8 +91,19 @@ async function unlink() {
   }
 }
 
+const botUsername = computed(() => {
+  if (!botUrl.value) return 'FitAccessETBot'
+  const match = botUrl.value.match(/t\.me\/([^?]+)/)
+  return match ? match[1] : 'FitAccessETBot'
+})
+
 function openBot() {
-  if (botUrl.value) window.open(botUrl.value, '_blank')
+  window.location.href = `tg://resolve?domain=${botUsername.value}`
+}
+
+function copyBotUsername() {
+  navigator.clipboard.writeText('@' + botUsername.value)
+  showToast('@' + botUsername.value + ' copied!')
 }
 </script>
 
@@ -149,7 +160,7 @@ function openBot() {
               </div>
               <div class="step">
                 <span class="step-num">2</span>
-                <span>Open the FitAccess Bot in Telegram</span>
+                <span>Open the <strong>Telegram app</strong> and search for <code>@FitAccessETBot</code></span>
               </div>
               <div class="step">
                 <span class="step-num">3</span>
@@ -165,7 +176,7 @@ function openBot() {
                   <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
                   </svg>
-                  Copy
+                  Copy Code
                 </button>
               </div>
               <div class="code-meta">
@@ -173,6 +184,8 @@ function openBot() {
                   Expires in {{ formatCountdown(countdown) }}
                 </span>
               </div>
+
+              <!-- Open bot button -->
               <button class="btn-open-bot" @click="openBot">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.022 14.51l-2.948-.924c-.64-.203-.654-.64.136-.954l11.52-4.44c.533-.194 1.002.13.832.956z"/>

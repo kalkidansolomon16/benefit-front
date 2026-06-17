@@ -156,7 +156,7 @@ const availableMonths = computed(() => {
 })
 
 const ciPage    = ref(1)
-const ciPerPage = 20
+const ciPerPage = 10
 const ciTotalPages   = computed(() => Math.max(1, Math.ceil(filteredCheckins.value.length / ciPerPage)))
 const paginatedCheckins = computed(() => filteredCheckins.value.slice((ciPage.value - 1) * ciPerPage, ciPage.value * ciPerPage))
 

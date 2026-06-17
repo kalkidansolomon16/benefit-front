@@ -654,7 +654,7 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 }
 
 const invPage     = ref(1)
-const invPerPage  = 15
+const invPerPage  = 10
 const invTotalPages = computed(() => Math.max(1, Math.ceil(filteredInvoices.value.length / invPerPage)))
 const paginatedInvoices = computed(() => filteredInvoices.value.slice((invPage.value - 1) * invPerPage, invPage.value * invPerPage))
 

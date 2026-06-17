@@ -143,7 +143,7 @@ const accessibleTiers = computed(() =>
 )
 
 const gymPage    = ref(1)
-const gymPerPage = 12
+const gymPerPage = 10
 const gymTotalPages  = computed(() => Math.max(1, Math.ceil(filteredGyms.value.length / gymPerPage)))
 const paginatedGyms  = computed(() => filteredGyms.value.slice((gymPage.value - 1) * gymPerPage, gymPage.value * gymPerPage))
 
