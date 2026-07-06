@@ -125,12 +125,13 @@
                     Tier <span class="req">*</span>
                     <span class="label-hint">Controls which gyms employees on this plan can access</span>
                   </label>
-                  <select v-model="form.tier" class="input" :disabled="!!editing">
-                    <option value="">— Select tier —</option>
-                    <option value="basic">Basic — access Basic gyms only</option>
-                    <option value="basic_plus">Basic+ — access Basic & Basic+ gyms</option>
-                    <option value="platinum">Platinum — access all gyms</option>
-                  </select>
+                  <input
+                    v-model="form.tier"
+                    type="text"
+                    class="input"
+                    :disabled="!!editing"
+                    placeholder="e.g. basic, platinum, vip"
+                  />
                   <p v-if="editing" class="field-hint">Tier cannot be changed after creation.</p>
                 </div>
 

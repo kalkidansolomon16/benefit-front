@@ -10,6 +10,7 @@ interface User {
   phone: string | null
   photo_path: string | null
   is_active: boolean
+  must_change_password?: boolean
 }
 
 const ADMIN_ROLES = ['super_admin', 'fitaccess_admin', 'admin_finance', 'admin_support']
@@ -108,7 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error(data.message || data.errors?.email?.[0] || 'Login failed')
     }
 
-    setSession(data.user, data.token, data.permissions ?? [], data.must_reset_password ?? false)
+    setSession(data.user, data.token, data.permissions ?? [], data.user?.must_change_password ?? false)
   }
 
   /* ── Logout ───────────────────────────────────────────── */

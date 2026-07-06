@@ -466,10 +466,15 @@ function confirmRemove(m: Member) {
 async function submitRemove() {
   removeModal.value.loading = true
   try {
-    await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${removeModal.value.id}`, {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${removeModal.value.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
     })
+    if (!res.ok) {
+      const data = await res.json()
+      alert(data.message || 'Failed to remove member.')
+      return
+    }
     removeModal.value.show = false
     fetchMembers()
   } finally {

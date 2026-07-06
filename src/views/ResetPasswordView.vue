@@ -217,9 +217,22 @@ async function submitFirstLogin() {
     })
 
     const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Failed to reset password.')
 
-    auth.clearMustReset()
+    if (!res.ok) {
+      // If backend says reset not required, the flag is stale — clear it and redirect
+      if (res.status === 422 && data.message === 'Password reset is not required.') {
+        auth.clearMustReset()
+        redirectToDashboard()
+        return
+      }
+      throw new Error(data.message || 'Failed to reset password.')
+    }
+
+    if (data.permissions) {
+      auth.setSession(auth.user!, auth.token!, data.permissions, false)
+    } else {
+      auth.clearMustReset()
+    }
     success.value = 'Password set! Redirecting…'
 
     // Redirect based on role

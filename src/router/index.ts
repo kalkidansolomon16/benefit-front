@@ -99,7 +99,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'partner-dashboard',
           component: () => import('../views/partner/PartnerDashboard.vue'),
-          meta: { requiresPermission: 'gym.dashboard.view' },
+          meta: {},
         },
         {
           path: 'checkins',
@@ -138,7 +138,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'hr-dashboard',
           component: () => import('../views/hr/HRDashboard.vue'),
-          meta: { requiresPermission: 'co.dashboard.view' },
+          meta: {},
         },
         {
           path: 'register',
@@ -189,7 +189,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'admin-dashboard',
           component: () => import('../views/admin/DashboardView.vue'),
-          meta: { requiresPermission: 'dashboard.view' },
+          meta: {},
         },
         {
           path: 'companies',
