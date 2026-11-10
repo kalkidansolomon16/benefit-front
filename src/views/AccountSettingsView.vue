@@ -1,8 +1,36 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useAuthStore } from '@/stores/auth'
 
 const api = useApi()
+const authStore = useAuthStore()
+
+// Employees can hide their name from the "who is in the gym" list
+const isEmployee = computed(() => authStore.user?.role === 'employee')
+const showInGymList = ref(true)
+const privacyLoading = ref(false)
+
+async function loadPrivacy() {
+  if (!isEmployee.value) return
+  try {
+    showInGymList.value = (await api.get<{ show_in_gym_list: boolean }>('employee/gym-privacy')).show_in_gym_list
+  } catch { /* leave the default */ }
+}
+
+async function savePrivacy() {
+  privacyLoading.value = true
+  const wanted = showInGymList.value
+  try {
+    const res = await api.put<{ message: string }>('employee/gym-privacy', { show_in_gym_list: wanted })
+    showToast(res.message)
+  } catch (e: unknown) {
+    showInGymList.value = !wanted
+    showToast(e instanceof Error ? e.message : 'Could not save your choice.', 'error')
+  } finally {
+    privacyLoading.value = false
+  }
+}
 
 interface TelegramStatus { linked: boolean; chat_id: number | null }
 interface GenerateCodeResult { code: string; expires_in: number; bot_url: string }
@@ -28,6 +56,7 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 }
 
 onMounted(async () => {
+  loadPrivacy()
   try {
     const data = await api.get<TelegramStatus>('telegram/status')
     linked.value = data.linked
@@ -111,6 +140,23 @@ function copyBotUsername() {
   <div class="settings-page">
     <div class="settings-card">
       <h1 class="settings-title">Account Settings</h1>
+
+      <!-- Gym list privacy (employees) -->
+      <section v-if="isEmployee" class="settings-section">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Gym list privacy</h2>
+            <p class="section-desc">
+              Other members can see who is working out at a gym (first name and initial).
+              Turn this off to stay out of that list — you are still counted in the totals.
+            </p>
+          </div>
+        </div>
+        <label class="privacy-row">
+          <input v-model="showInGymList" type="checkbox" :disabled="privacyLoading" @change="savePrivacy" />
+          <span>Show me in the gym list</span>
+        </label>
+      </section>
 
       <!-- Telegram Section -->
       <section class="settings-section">
@@ -496,4 +542,6 @@ function copyBotUsername() {
   .settings-card { padding: 24px 20px; }
   .code-value { font-size: 1.5rem; }
 }
+.privacy-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 0.92rem; font-weight: 600; cursor: pointer; }
+.privacy-row input { width: 18px; height: 18px; accent-color: #72B800; cursor: pointer; }
 </style>

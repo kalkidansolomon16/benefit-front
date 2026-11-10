@@ -16,7 +16,7 @@
       <!-- User chip -->
       <div class="user-chip">
         <p class="user-role-label">{{ roleLabel }}</p>
-        <p class="user-email">{{ auth.user?.email ?? 'admin@fitaccess.et' }}</p>
+        <p class="user-email">{{ auth.user?.email ?? '' }}</p>
       </div>
 
       <!-- Nav -->
@@ -247,6 +247,11 @@ const navItems = computed(() => {
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
     },
     {
+      name: 'company-applications', label: 'Company Applications', to: '/admin/company-applications',
+      permission: 'companies.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>`,
+    },
+    {
       name: 'gyms', label: 'Gyms', to: '/admin/gyms',
       permission: 'gyms.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`,
@@ -389,7 +394,7 @@ async function handleLogout() {
 }
 .logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #8BE000; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* User chip */
 .user-chip {
@@ -420,7 +425,7 @@ async function handleLogout() {
   transition: color 0.15s, background 0.15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.08); }
+.nav-item--active { color: #8BE000; background: rgba(139, 224, 0,0.08); }
 .nav-icon  { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; flex: 1; }
 .nav-badge {
@@ -512,8 +517,8 @@ async function handleLogout() {
   transition: border-color .15s, color .15s, box-shadow .15s;
 }
 .notif-btn:hover, .notif-btn.active {
-  border-color: #4CD964; color: #2EB84B;
-  box-shadow: 0 0 0 3px rgba(76,217,100,0.12);
+  border-color: #8BE000; color: #72B800;
+  box-shadow: 0 0 0 3px rgba(139, 224, 0,0.12);
 }
 .notif-badge {
   position: absolute; top: -6px; right: -6px;
@@ -542,10 +547,10 @@ async function handleLogout() {
 }
 .notif-title    { font-size: 0.9rem; font-weight: 700; color: #0f172a; }
 .notif-read-all {
-  font-size: 0.78rem; color: #4CD964; font-weight: 600;
+  font-size: 0.78rem; color: #8BE000; font-weight: 600;
   background: none; border: none; cursor: pointer; padding: 0;
 }
-.notif-read-all:hover { color: #2EB84B; }
+.notif-read-all:hover { color: #72B800; }
 
 .notif-loading, .notif-empty {
   padding: 32px 16px; text-align: center;
@@ -568,7 +573,7 @@ async function handleLogout() {
   width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.notif-icon--invoice_request     { background: #EBFAEE; color: #2EB84B; }
+.notif-icon--invoice_request     { background: #EBFAEE; color: #72B800; }
 .notif-icon--gym_upgrade_request { background: #fef3c7; color: #b45309; }
 .notif-icon--default              { background: #f1f5f9; color: #64748b; }
 
@@ -579,7 +584,7 @@ async function handleLogout() {
 
 .notif-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #4CD964; flex-shrink: 0; margin-top: 4px;
+  background: #8BE000; flex-shrink: 0; margin-top: 4px;
 }
 
 /* Dropdown animation */

@@ -445,7 +445,7 @@ function levelLabel(level: string): string {
 .page-desc { font-size: 0.83rem; color: #94a3b8; margin: 0; }
 .btn-add {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 18px; background: #1b3a6b; color: #fff;
+  padding: 9px 18px; background: #0B0C10; color: #fff;
   border: none; border-radius: 9px; font-size: 0.88rem; font-weight: 600;
   cursor: pointer; font-family: inherit; transition: background .15s;
 }
@@ -459,7 +459,7 @@ function levelLabel(level: string): string {
 }
 .spinner {
   width: 32px; height: 32px;
-  border: 3px solid #e2e8f0; border-top-color: #1b3a6b;
+  border: 3px solid #e2e8f0; border-top-color: #0B0C10;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -487,7 +487,7 @@ function levelLabel(level: string): string {
 .tier-badge {
   font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; padding: 3px 9px; border-radius: 20px;
-  background: #EBFAEE; color: #1b3a6b;
+  background: #EBFAEE; color: #0B0C10;
 }
 .inactive-badge {
   font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
@@ -513,7 +513,7 @@ function levelLabel(level: string): string {
   display: flex; align-items: baseline; gap: 3px;
 }
 .price-currency { font-size: 0.75rem; font-weight: 600; color: #94a3b8; }
-.price-amount   { font-size: 1.6rem; font-weight: 800; color: #1b3a6b; line-height: 1; }
+.price-amount   { font-size: 1.6rem; font-weight: 800; color: #0B0C10; line-height: 1; }
 .price-period   { font-size: 0.72rem; color: #94a3b8; }
 
 .plan-meta { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -531,7 +531,7 @@ function levelLabel(level: string): string {
   display: flex; align-items: flex-start; gap: 7px;
   font-size: 0.8rem; color: #475569;
 }
-.plan-features li svg { flex-shrink: 0; color: #4CD964; margin-top: 1px; }
+.plan-features li svg { flex-shrink: 0; color: #8BE000; margin-top: 1px; }
 .no-features { font-size: 0.78rem; color: #cbd5e1; margin: 0; }
 
 /* -- Modal ----------------------------------------------------- */
@@ -581,7 +581,7 @@ function levelLabel(level: string): string {
   background: #f8fafc; transition: border-color .15s;
   box-sizing: border-box; width: 100%;
 }
-.input:focus { border-color: #1b3a6b; background: #fff; }
+.input:focus { border-color: #0B0C10; background: #fff; }
 .input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
 
 .select-wrap { position: relative; }
@@ -607,7 +607,7 @@ function levelLabel(level: string): string {
   cursor: pointer; transition: border-color .15s, color .15s;
   font-family: inherit;
 }
-.btn-add-feature:hover { border-color: #1b3a6b; color: #1b3a6b; }
+.btn-add-feature:hover { border-color: #0B0C10; color: #0B0C10; }
 
 /* Toggle */
 .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
@@ -615,7 +615,7 @@ function levelLabel(level: string): string {
   width: 40px; height: 22px; border-radius: 11px; background: #e2e8f0;
   position: relative; transition: background .2s; flex-shrink: 0;
 }
-.toggle-track.toggle-on { background: #1b3a6b; }
+.toggle-track.toggle-on { background: #0B0C10; }
 .toggle-thumb {
   width: 16px; height: 16px; border-radius: 50%; background: #fff;
   position: absolute; top: 3px; left: 3px;
@@ -639,7 +639,7 @@ function levelLabel(level: string): string {
   display: inline-flex; align-items: center; gap: 7px;
   transition: background .15s;
 }
-.btn-save.active { background: #1b3a6b; cursor: pointer; }
+.btn-save.active { background: #0B0C10; cursor: pointer; }
 .btn-save.active:hover { background: #162f58; }
 
 .btn-delete {

@@ -14,6 +14,15 @@
       <button class="btn-retry" @click="load">Retry</button>
     </div>
 
+    <!-- Paid period ended / not paid yet: no pass -->
+    <div v-else-if="accessEnded" class="access-ended">
+      <svg width="44" height="44" fill="none" stroke="#b45309" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <h2>Your gym pass is paused</h2>
+      <p>{{ accessMessage }}</p>
+      <p class="access-ended-hint">Please contact your HR team. Your pass will work again as soon as your company's invoice is paid.</p>
+      <button class="btn-retry" @click="load">Check again</button>
+    </div>
+
     <!-- ── STEP 1: Gym Selection ── -->
     <template v-else-if="needsSelection">
 
@@ -53,6 +62,7 @@
               <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               {{ gym.address }}
             </p>
+            <GymCrowd :crowd="gym.crowd" :gym-id="gym.id" />
           </div>
         </button>
       </div>
@@ -90,7 +100,7 @@
       <!-- Daily access used card -->
       <div class="used-card">
         <div class="used-icon-wrap">
-          <svg width="48" height="48" fill="none" stroke="#4CD964" stroke-width="1.8" viewBox="0 0 24 24">
+          <svg width="48" height="48" fill="none" stroke="#8BE000" stroke-width="1.8" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="20 6 9 17 4 12"/>
           </svg>
@@ -198,6 +208,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
 import QRCode from 'qrcode'
+import GymCrowd, { type Crowd } from '@/components/GymCrowd.vue'
 
 interface Gym {
   id: number
@@ -206,10 +217,14 @@ interface Gym {
   city: string | null
   sub_city: string | null
   tier?: string
+  crowd?: Crowd | null
 }
 
 interface TokenResponse {
   needs_selection: boolean
+  access_ended?: boolean
+  paid_until?: string | null
+  message?: string
   gyms: Gym[]
   fan_number?: string
   token?: string
@@ -238,6 +253,8 @@ const api = useApi()
 const loading         = ref(true)
 const error           = ref('')
 const needsSelection  = ref(false)
+const accessEnded     = ref(false)
+const accessMessage   = ref('')
 const gyms            = ref<Gym[]>([])
 const selectedGymId   = ref<number | null>(null)
 const selectedGym     = ref<Gym | null>(null)
@@ -262,8 +279,12 @@ async function load() {
   try {
     const res = await api.get<TokenResponse>('employee/checkin-token')
     gyms.value = res.gyms ?? []
+    accessEnded.value = !!res.access_ended
+    accessMessage.value = res.message ?? ''
 
-    if (res.needs_selection) {
+    if (res.access_ended) {
+      needsSelection.value = false
+    } else if (res.needs_selection) {
       needsSelection.value = true
     } else {
       needsSelection.value = false
@@ -371,7 +392,7 @@ watch(token, async () => {
 }
 .spinner {
   width: 34px; height: 34px; border: 3px solid #e2e8f0;
-  border-top-color: #4CD964; border-radius: 50%;
+  border-top-color: #8BE000; border-radius: 50%;
   animation: spin .7s linear infinite;
 }
 .spinner-sm {
@@ -407,15 +428,15 @@ watch(token, async () => {
   padding: 16px 18px; cursor: pointer; text-align: left;
   transition: all .18s; width: 100%;
 }
-.gym-card:hover { border-color: #4CD964; background: #f0fdf4; }
-.gym-card--selected { border-color: #4CD964; background: #f0fdf4; box-shadow: 0 0 0 3px rgba(76,217,100,.12); }
+.gym-card:hover { border-color: #8BE000; background: #f0fdf4; }
+.gym-card--selected { border-color: #8BE000; background: #f0fdf4; box-shadow: 0 0 0 3px rgba(139, 224, 0,.12); }
 
 .gym-card-check {
   width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e2e8f0;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: all .15s;
 }
-.gym-card--selected .gym-card-check { background: #4CD964; border-color: #4CD964; color: white; }
+.gym-card--selected .gym-card-check { background: #8BE000; border-color: #8BE000; color: white; }
 
 .gym-icon {
   width: 42px; height: 42px; border-radius: 10px;
@@ -438,7 +459,7 @@ watch(token, async () => {
 
 .btn-confirm {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; padding: 14px 24px; background: #4CD964; color: white;
+  width: 100%; padding: 14px 24px; background: #8BE000; color: white;
   border: none; border-radius: 13px; font-size: 0.95rem; font-weight: 700;
   cursor: pointer; transition: opacity .15s;
 }
@@ -520,14 +541,14 @@ watch(token, async () => {
 .pass-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
 .pass-label  { font-size: 0.72rem; color: #94a3b8; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 4px; }
 .pass-fan    { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0; }
-.pass-fan span { font-family: 'Courier New', monospace; color: #4CD964; }
+.pass-fan span { font-family: 'Courier New', monospace; color: #8BE000; }
 .pass-tier {
   display: inline-flex; align-items: center; gap: 6px;
   background: #ecfdf5; color: #15803d; font-size: 0.72rem;
   padding: 4px 10px; border-radius: 999px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em;
 }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: #4CD964; animation: pulse 1.6s ease-in-out infinite; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #8BE000; animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
 .qr-wrap {
@@ -547,7 +568,7 @@ watch(token, async () => {
 
 .countdown       { margin-top: 20px; }
 .countdown-bar   { width: 100%; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
-.countdown-fill  { height: 100%; background: linear-gradient(90deg, #4CD964, #2EB84B); border-radius: 999px; transition: width 1s linear; }
+.countdown-fill  { height: 100%; background: linear-gradient(90deg, #8BE000, #72B800); border-radius: 999px; transition: width 1s linear; }
 .countdown-text  { margin: 10px 0 0; font-size: 0.82rem; color: #64748b; text-align: center; }
 .countdown-text strong { color: #0f172a; font-family: 'Courier New', monospace; }
 
@@ -555,4 +576,12 @@ watch(token, async () => {
 .info-card  { background: #fff; border: 1px solid #f1f5f9; border-radius: 14px; padding: 18px 22px; }
 .info-title { margin: 0 0 8px; font-size: 0.9rem; font-weight: 700; color: #0f172a; }
 .info-list  { margin: 0; padding-left: 18px; color: #475569; font-size: 0.85rem; line-height: 1.8; }
+
+.access-ended {
+  max-width: 460px; margin: 40px auto; padding: 32px 28px; text-align: center;
+  background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 18px;
+}
+.access-ended h2 { margin: 14px 0 8px; font-size: 1.2rem; font-weight: 800; color: #0f172a; }
+.access-ended p { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.55; color: #334155; }
+.access-ended-hint { color: #64748b !important; font-size: 0.84rem !important; }
 </style>

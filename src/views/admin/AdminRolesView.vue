@@ -202,7 +202,7 @@ onMounted(() => fetchEntities())
   background: #fff; font-size: 0.875rem; font-weight: 500; color: #64748b;
   cursor: pointer; transition: all 0.15s;
 }
-.scope-tab.active { border-color: #4CD964; color: #16a34a; background: #f0fdf4; }
+.scope-tab.active { border-color: #8BE000; color: #16a34a; background: #f0fdf4; }
 
 /* Selector */
 .selector-row { display: flex; gap: 12px; align-items: center; }
@@ -212,7 +212,7 @@ onMounted(() => fetchEntities())
   border: 1.5px solid #e2e8f0; background: #f8fafc;
   font-size: 0.875rem; color: #0f172a; cursor: pointer;
 }
-.select-wrap select:focus { outline: none; border-color: #4CD964; }
+.select-wrap select:focus { outline: none; border-color: #8BE000; }
 
 /* Empty state */
 .empty-state {
@@ -248,7 +248,7 @@ onMounted(() => fetchEntities())
 }
 .badge-custom {
   font-size: 0.7rem; padding: 2px 8px; border-radius: 20px;
-  background: #eff6ff; color: #3b82f6; font-weight: 600;
+  background: #EEF9DC; color: #4D7C0F; font-weight: 600;
 }
 .btn-delete {
   padding: 6px; border-radius: 7px; border: 1px solid #fee2e2;
@@ -268,11 +268,11 @@ onMounted(() => fetchEntities())
   border: 1.5px solid #e2e8f0; font-size: 0.875rem;
   background: #fff; color: #0f172a;
 }
-.add-role input:focus { outline: none; border-color: #4CD964; }
+.add-role input:focus { outline: none; border-color: #8BE000; }
 .btn-add {
   display: flex; align-items: center; gap: 6px;
   padding: 9px 16px; border-radius: 8px; border: none;
-  background: #4CD964; color: #fff; font-size: 0.875rem; font-weight: 600;
+  background: #8BE000; color: #fff; font-size: 0.875rem; font-weight: 600;
   cursor: pointer; white-space: nowrap; transition: background 0.15s;
 }
 .btn-add:hover { background: #3ab554; }

@@ -13,11 +13,9 @@
         <option value="active">Active</option>
         <option value="suspended">Suspended</option>
       </select>
-      <select v-model="filterTier" class="filter-select" @change="() => loadMemberships()">
+      <select v-model="filterPlan" class="filter-select" @change="() => loadMemberships()">
         <option value="">All plans</option>
-        <option value="basic">Fit Basic</option>
-        <option value="basic_plus">Fit Basic Plus</option>
-        <option value="platinum">Fit Platinum</option>
+        <option v-for="p in plans" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
       <select v-model="filterGym" class="filter-select" @change="() => loadMemberships()">
         <option value="">All gyms</option>
@@ -32,7 +30,7 @@
         Memberships are <strong>assigned automatically</strong> when a company activates an employee.
         <strong>Basic</strong> employees access all Basic gyms &mdash;
         <strong>Basic+</strong> gets Basic &amp; Basic+ gyms &mdash;
-        <strong>Platinum</strong> gets all gyms.
+        <strong>Premium</strong> gets all gyms.
       </p>
     </div>
 
@@ -217,7 +215,8 @@ const loading     = ref(true)
 
 const search       = ref('')
 const filterStatus = ref('')
-const filterTier   = ref('')
+const filterPlan   = ref<number | ''>('')
+const plans        = ref<{ id: number; name: string }[]>([])
 const filterGym    = ref<number | ''>('')
 const currentPage   = ref(1)
 const totalPages    = ref(1)
@@ -247,7 +246,7 @@ async function loadMemberships(page = 1) {
   try {
     const params = new URLSearchParams({ page: String(page) })
     if (filterStatus.value) params.set('status',   filterStatus.value)
-    if (filterTier.value)   params.set('gym_tier',  filterTier.value)
+    if (filterPlan.value)   params.set('plan_id',   String(filterPlan.value))
     if (filterGym.value)    params.set('gym_id',    String(filterGym.value))
     if (search.value)       params.set('search',    search.value)
 
@@ -257,7 +256,7 @@ async function loadMemberships(page = 1) {
     totalPages.value   = res.meta?.last_page ?? res.last_page ?? 1
     totalRecords.value = (res.meta as any)?.total ?? (res as any).total ?? 0
 
-    let rows: MembershipRow[] = (res.data ?? []).map((m: any) => ({
+    const rows: MembershipRow[] = (res.data ?? []).map((m: any) => ({
       id:               m.id,
       employee_name:    m.employee?.user?.name ?? 'Unknown',
       company_name:     m.employee?.company?.name ?? '',
@@ -271,14 +270,6 @@ async function loadMemberships(page = 1) {
       status:           m.status,
       suspension_reason: m.suspension_reason ?? null,
     }))
-
-    if (search.value) {
-      const q = search.value.toLowerCase()
-      rows = rows.filter(m =>
-        m.employee_name.toLowerCase().includes(q) ||
-        (m.fan_number ?? '').toLowerCase().includes(q)
-      )
-    }
 
     memberships.value = rows
   } finally {
@@ -294,7 +285,15 @@ async function loadGyms() {
   } catch { /* non-fatal */ }
 }
 
-onMounted(() => { loadMemberships(); loadGyms() })
+async function loadPlans() {
+  try {
+    const res = await api.get<any>('membership-plans?all=true')
+    const arr = Array.isArray(res) ? res : res.data ?? []
+    plans.value = arr.map((p: any) => ({ id: p.id, name: p.name }))
+  } catch { /* non-fatal */ }
+}
+
+onMounted(() => { loadMemberships(); loadGyms(); loadPlans() })
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onSearch() {
@@ -371,7 +370,7 @@ function isExpiringSoon(end: string): boolean {
 function statusLabel(s: string) {
   return { active: 'Active', suspended: 'Suspended' }[s] ?? s
 }
-const COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
+const COLORS = ['#0B0C10','#72B800','#8BE000','#f59e0b','#ef4444','#4D7C0F','#ec4899']
 function avatarColor(name: string) {
   let h = 0; for (const c of (name ?? '')) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return COLORS[h % COLORS.length]
@@ -393,7 +392,7 @@ function initials(name: string) {
   border-radius: 9px; font-size: 0.87rem; color: #334155;
   background: #fff; outline: none; box-sizing: border-box;
 }
-.search-input:focus { border-color: #4CD964; }
+.search-input:focus { border-color: #8BE000; }
 .search-clear {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.75rem;
@@ -404,13 +403,13 @@ function initials(name: string) {
   font-size: 0.87rem; color: #334155; background: #fff;
   outline: none; min-width: 130px; cursor: pointer;
 }
-.filter-select:focus { border-color: #4CD964; }
+.filter-select:focus { border-color: #8BE000; }
 
 /* ── Info banner ─────────────────────────────────────────────────── */
 .info-banner {
   display: flex; align-items: flex-start; gap: 10px;
-  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
-  padding: 12px 16px; color: #1e40af; font-size: 0.83rem; line-height: 1.6;
+  background: #EEF9DC; border: 1px solid #D9F2AE; border-radius: 10px;
+  padding: 12px 16px; color: #4D7C0F; font-size: 0.83rem; line-height: 1.6;
 }
 .info-banner p { margin: 0; }
 
@@ -419,7 +418,7 @@ function initials(name: string) {
 .stat-tile  { background: #fff; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
 .tile-lbl   { font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 4px; }
 .tile-val   { font-size: 1.9rem; font-weight: 800; margin: 0; color: #0f172a; }
-.tile-val.green { color: #4CD964; }
+.tile-val.green { color: #8BE000; }
 .tile-val.amber { color: #f59e0b; }
 .tile-val.red   { color: #ef4444; }
 
@@ -430,7 +429,7 @@ function initials(name: string) {
   gap: 12px; padding: 48px 24px; color: #94a3b8; font-size: 0.88rem; text-align: center;
 }
 .spinner {
-  width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #4CD964;
+  width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #8BE000;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -522,7 +521,7 @@ function initials(name: string) {
   outline: none; resize: vertical; font-family: inherit;
   width: 100%; box-sizing: border-box; transition: border-color .15s;
 }
-.field-textarea:focus { border-color: #4CD964; }
+.field-textarea:focus { border-color: #8BE000; }
 .banner-error {
   padding: 10px 14px; background: #fee2e2; border: 1px solid #fecaca;
   border-radius: 8px; color: #dc2626; font-size: 0.82rem;

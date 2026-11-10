@@ -68,7 +68,7 @@
           <div class="inv-left">
             <div class="inv-avatar">{{ (inv.company?.name ?? '?').slice(0, 2).toUpperCase() }}</div>
             <div>
-              <p class="inv-company">{{ inv.company?.name }}</p>
+              <p class="inv-company">{{ inv.company?.name }}<template v-if="inv.branch"> · <span class="inv-branch">{{ inv.branch.name }}</span></template></p>
               <p class="inv-meta">{{ inv.invoice_number }} · {{ inv.billing_period }}</p>
             </div>
           </div>
@@ -102,7 +102,7 @@
         <div v-for="p in pendingPayments" :key="p.id" class="receipt-card">
           <div class="rcpt-header">
             <div>
-              <p class="rcpt-company">{{ p.company?.name }}</p>
+              <p class="rcpt-company">{{ p.company?.name }}<template v-if="p.branch"> · <span class="inv-branch">{{ p.branch.name }}</span></template></p>
               <p class="rcpt-meta">{{ p.invoice_number }} · {{ p.billing_period }} · ETB {{ Number(p.invoice_total).toLocaleString() }}</p>
             </div>
             <span class="rcpt-time">{{ formatDate(p.submitted_at) }}</span>
@@ -207,19 +207,47 @@
               <div class="field-row">
                 <div class="field">
                   <label>Company <span class="req">*</span></label>
-                  <select v-model="genForm.company_id" @change="previewInvoice">
+                  <select v-model="genForm.company_id" @change="onCompanyChange">
                     <option value="">Select company</option>
                     <option v-for="c in companies" :key="c.id" :value="c.id">{{ c.name }}</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label>Billing Period <span class="req">*</span></label>
+                  <label>Pay for <span class="req">*</span></label>
+                  <select v-model.number="genForm.period_months" :disabled="!genForm.company_id" @change="previewInvoice">
+                    <option v-for="c in CYCLES" :key="c.months" :value="c.months">
+                      {{ c.label }}{{ genPreview && genPreview.preferred_months === c.months ? ' — company preference' : '' }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>Coverage starts <span class="req">*</span></label>
                   <div class="date-wrap">
-                    <input class="date-input" :class="{ 'date-empty': !genForm.billing_month }" type="month" v-model="genForm.billing_month" @change="previewInvoice" />
-                    <span v-if="!genForm.billing_month" class="date-ph">Select billing month</span>
+                    <input class="date-input" type="date" v-model="genForm.period_start" :disabled="!genForm.company_id" @change="previewInvoice" />
                     <svg class="date-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   </div>
                 </div>
+                <div class="field">
+                  <label>Coverage ends</label>
+                  <div class="coverage-end">{{ genPreview ? fmtDay(genPreview.period_end) : '—' }}</div>
+                </div>
+              </div>
+              <p v-if="genPreview" class="coverage-note">
+                Paying this invoice gives the employees access from <strong>{{ fmtDay(genPreview.period_start) }}</strong>
+                to <strong>{{ fmtDay(genPreview.period_end) }}</strong>. After that, check-in stops until the next invoice is paid.
+                <template v-if="genPreview.preferred_months !== genForm.period_months">
+                  The company prefers to pay <strong>{{ cycleLabel(genPreview.preferred_months).toLowerCase() }}</strong>.
+                </template>
+              </p>
+              <div v-if="genBranches.length && !genForm.employee_id" class="field">
+                <label>Branch</label>
+                <select v-model="genForm.branch" @change="previewInvoice">
+                  <option value="">All branches — one invoice per branch</option>
+                  <option value="main">Head office only</option>
+                  <option v-for="b in genBranches" :key="b.id" :value="String(b.id)">{{ b.name }} only</option>
+                </select>
               </div>
               <div class="field-row">
                 <div class="field">
@@ -236,49 +264,61 @@
               </div>
 
               <!-- Preview -->
-              <div v-if="genPreview" class="gen-preview">
-                <p class="preview-title">Invoice Preview</p>
+              <div v-if="genPreview && previewItems.length" class="gen-preview">
+                <p class="preview-title">Invoice Preview · {{ genPreview.period_text }}</p>
                 <table class="preview-table">
                   <thead>
-                    <tr><th>Plan</th><th>Employees</th><th>Unit Price (ETB)</th><th>Subtotal (ETB)</th></tr>
+                    <tr><th>Plan</th><th>Employees</th><th>Monthly price (ETB)</th><th>Months</th><th>Subtotal (ETB)</th></tr>
                   </thead>
                   <tbody>
-                    <tr v-for="item in genPreview.items" :key="item.plan_tier">
+                    <tr v-for="item in previewItems" :key="item.plan_tier">
                       <td>{{ item.plan_name }}</td>
                       <td class="tc">{{ item.employee_count }}</td>
                       <td class="tc">{{ Number(item.unit_price).toLocaleString() }}</td>
+                      <td class="tc">{{ item.months }}</td>
                       <td class="tc fw">{{ Number(item.subtotal).toLocaleString() }}</td>
                     </tr>
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colspan="3" class="total-label">Total</td>
+                      <td colspan="4" class="total-label">Total</td>
                       <td class="tc fw total-val">ETB {{ Number(genPreview.total).toLocaleString() }}</td>
                     </tr>
                   </tfoot>
                 </table>
+                <div v-if="genPreview.groups.length > 1" class="per-branch">
+                  <p class="preview-title">One invoice per branch</p>
+                  <div v-for="b in genPreview.groups" :key="b.label" class="per-branch-row">
+                    <span>{{ b.label }} · {{ b.employees }} employee{{ b.employees !== 1 ? 's' : '' }}</span>
+                    <strong>ETB {{ Number(b.total).toLocaleString() }}</strong>
+                  </div>
+                </div>
               </div>
+              <p v-if="genPreview && (genPreview.already_covered || genPreview.already_invoiced)" class="coverage-note coverage-note--muted">
+                Not included:
+                <template v-if="genPreview.already_covered">{{ genPreview.already_covered }} already paid until after {{ fmtDay(genPreview.period_start) }}</template>
+                <template v-if="genPreview.already_covered && genPreview.already_invoiced">; </template>
+                <template v-if="genPreview.already_invoiced">{{ genPreview.already_invoiced }} already on an unpaid invoice</template>.
+              </p>
               <div v-if="previewLoading" class="preview-loading">Calculating…</div>
               <div v-if="genPreview && genPreview.total < 100 && !previewLoading" class="preview-zero-warn">
-                <strong>Invoice total is ETB {{ Number(genPreview.total).toLocaleString() }}</strong> — must be at least ETB 100.
-                <template v-if="genPreview.zeroTiers.length">
-                  No active plan found for tier{{ genPreview.zeroTiers.length > 1 ? 's' : '' }}:
-                  <em>{{ genPreview.zeroTiers.join(', ') }}</em>.
-                  Create an active membership plan whose <strong>Tier key</strong> matches or ends with
-                  <em>_{{ genPreview.zeroTiers.join(', _') }}</em>
-                  (e.g. <em>fit_{{ genPreview.zeroTiers[0] }}</em>).
+                <template v-if="genPreview.zero_plans.length">
+                  <strong>Invoice total is ETB {{ Number(genPreview.total).toLocaleString() }}</strong> — must be at least ETB 100.
+                  No active plan price found for: <em>{{ genPreview.zero_plans.join(', ') }}</em>.
+                  Check the plans' monthly fee in Plans.
                 </template>
                 <template v-else>
-                  No unpaid enrolled employees found for this company.
+                  No employees to invoice for this period: every enrolled employee is already paid for it or already on an unpaid invoice.
                 </template>
               </div>
+              <p v-if="previewError" class="form-error">{{ previewError }}</p>
               <p v-if="genError" class="form-error">{{ genError }}</p>
             </div>
 
             <div class="modal-footer">
               <button class="btn-cancel" @click="genModal.show = false">Cancel</button>
               <button class="btn-save"
-                :disabled="genSaving || !genForm.company_id || !genForm.billing_month || (genPreview !== null && genPreview.total < 100)"
+                :disabled="genSaving || previewLoading || !genForm.company_id || !genPreview || genPreview.total < 100"
                 @click="generateInvoice">
                 {{ genSaving ? 'Generating…' : 'Generate Invoice' }}
               </button>
@@ -296,7 +336,7 @@
             <div class="modal-header">
               <div>
                 <p class="modal-title">{{ detailModal.inv?.invoice_number }}</p>
-                <p class="modal-sub">{{ detailModal.inv?.company?.name }} · {{ detailModal.inv?.billing_period }}</p>
+                <p class="modal-sub">{{ detailModal.inv?.company?.name }}<template v-if="detailModal.inv?.branch"> — {{ detailModal.inv.branch.name }}</template> · {{ detailModal.inv?.billing_period }}</p>
               </div>
               <div style="display:flex;gap:8px;align-items:center;">
                 <span class="inv-badge" :class="'inv-' + detailModal.inv?.status">{{ invStatusLabel(detailModal.inv?.status ?? '') }}</span>
@@ -307,24 +347,32 @@
             <div v-if="detailModal.inv" class="modal-body">
               <!-- Items table -->
               <table class="preview-table">
-                <thead><tr><th>Plan</th><th>Employees</th><th>Unit Price (ETB)</th><th>Subtotal (ETB)</th></tr></thead>
+                <thead><tr><th>Plan</th><th>Employees</th><th>Monthly price (ETB)</th><th>Months</th><th>Subtotal (ETB)</th></tr></thead>
                 <tbody>
                   <tr v-for="item in detailModal.inv.items" :key="item.plan_tier">
                     <td>{{ item.plan_name }}</td>
                     <td class="tc">{{ item.employee_count }}</td>
                     <td class="tc">{{ Number(item.unit_price).toLocaleString() }}</td>
+                    <td class="tc">{{ item.months ?? 1 }}</td>
                     <td class="tc fw">{{ Number(item.subtotal).toLocaleString() }}</td>
                   </tr>
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colspan="3" class="total-label">Total</td>
+                    <td colspan="4" class="total-label">Total</td>
                     <td class="tc fw total-val">ETB {{ Number(detailModal.inv.total_amount).toLocaleString() }}</td>
                   </tr>
                 </tfoot>
               </table>
 
               <!-- Due date / notes -->
+              <div v-if="detailModal.inv.period_start && detailModal.inv.period_end" class="coverage-note">
+                Covers <strong>{{ fmtDay(detailModal.inv.period_start) }} – {{ fmtDay(detailModal.inv.period_end) }}</strong>
+                ({{ detailModal.inv.period_months }} month{{ detailModal.inv.period_months === 1 ? '' : 's' }})
+                <template v-if="detailModal.inv.covered_count"> for {{ detailModal.inv.covered_count }} employee{{ detailModal.inv.covered_count === 1 ? '' : 's' }}</template>.
+                <template v-if="detailModal.inv.status === 'paid'"> Paid: they have access until {{ fmtDay(detailModal.inv.period_end) }}.</template>
+                <template v-else> Their access for this period starts once it is paid.</template>
+              </div>
               <div class="detail-meta">
                 <span v-if="detailModal.inv.due_date">Due: <strong>{{ detailModal.inv.due_date }}</strong></span>
                 <span v-if="detailModal.inv.notes" class="detail-note">{{ detailModal.inv.notes }}</span>
@@ -369,7 +417,7 @@
       <Transition name="modal">
         <div v-if="verifyModal.show" class="modal-backdrop" @click.self="verifyModal.show = false">
           <div class="modal modal--confirm">
-            <div class="confirm-icon"><svg width="40" height="40" fill="none" stroke="#4CD964" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
+            <div class="confirm-icon"><svg width="40" height="40" fill="none" stroke="#8BE000" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
             <p class="confirm-title">Verify Payment</p>
             <p class="confirm-body">
               Confirm payment from <strong>{{ verifyModal.payment?.company?.name }}</strong> and mark
@@ -425,7 +473,7 @@
       <Transition name="modal">
         <div v-if="approveNegModal.show" class="modal-backdrop" @click.self="approveNegModal.show = false">
           <div class="modal modal--confirm">
-            <div class="confirm-icon"><svg width="40" height="40" fill="none" stroke="#4CD964" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
+            <div class="confirm-icon"><svg width="40" height="40" fill="none" stroke="#8BE000" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg></div>
             <p class="confirm-title">Approve Extension</p>
             <p class="confirm-body">
               Approve the extension request from <strong>{{ approveNegModal.neg?.company?.name }}</strong>?
@@ -579,18 +627,28 @@ import AppPagination from '@/components/AppPagination.vue'
 
 const route = useRoute()
 
-interface InvoiceItem { plan_tier: string; plan_name: string; employee_count: number; unit_price: number; subtotal: number }
+interface InvoiceItem { plan_tier: string; plan_name: string; employee_count: number; unit_price: number; months?: number; subtotal: number }
+interface PreviewGroup { label: string; employees: number; items: InvoiceItem[]; total: number; zero_plans: string[] }
+interface InvoicePreview {
+  preferred_months: number; period_months: number
+  period_start: string; period_end: string; period_text: string
+  employees: number; total: number; groups: PreviewGroup[]
+  already_covered: number; already_invoiced: number; zero_plans: string[]
+}
 interface LatestPayment { status: string; submitted_at: string; payment_method_bank: string; admin_notes: string | null }
 interface Invoice {
   id: number; invoice_number: string; billing_period: string; total_amount: number
+  period_months?: number; period_start?: string | null; period_end?: string | null; covered_count?: number
   due_date: string | null; notes: string | null; status: string
   sent_at: string | null; paid_at: string | null; created_at: string
   company: { id: number; name: string; contact_email: string; contact_phone: string } | null
+  branch_scoped?: boolean; branch?: { id: number | null; name: string } | null
   items: InvoiceItem[]; latest_payment: LatestPayment | null
 }
 interface Payment {
   id: number; billing_invoice_id: number; invoice_number: string; billing_period: string; invoice_total: number
   company: { id: number; name: string } | null
+  branch?: { id: number | null; name: string } | null
   amount: number; payment_method_bank: string; payment_method_account_number: string
   receipt_path: string | null; status: string; submitted_at: string
   admin_notes: string | null
@@ -622,11 +680,43 @@ const genForm    = reactive({
   company_id:  '' as string | number,
   employee_id: null as number | null,   // set when opened from a Pay Now notification
   employee_name: '',                     // display only
-  billing_month: '',
+  branch: '' as string,                  // '' = every branch (one invoice each), 'main' or a branch id
+  period_months: 1,
+  period_start: '',                      // filled with the suggested start from the preview
   due_date:    '',
   notes:       '',
 })
-const genPreview = ref<{ items: InvoiceItem[]; total: number; zeroTiers: string[] } | null>(null)
+
+// How often a company can be invoiced
+const CYCLES = [
+  { months: 1, label: 'Monthly (1 month)' },
+  { months: 3, label: 'Quarterly (3 months)' },
+  { months: 6, label: 'Every 6 months' },
+  { months: 12, label: 'Yearly (12 months)' },
+]
+function cycleLabel(m: number): string {
+  return CYCLES.find(c => c.months === m)?.label ?? `${m} months`
+}
+function fmtDay(d: string | null | undefined): string {
+  if (!d) return '—'
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const genPreview = ref<InvoicePreview | null>(null)
+const previewError = ref('')
+// All branches' lines merged into one table (per-branch totals are listed below it)
+const previewItems = computed<InvoiceItem[]>(() => {
+  const map = new Map<string, InvoiceItem>()
+  for (const g of genPreview.value?.groups ?? []) {
+    for (const it of g.items) {
+      const cur = map.get(it.plan_name)
+      if (cur) { cur.employee_count += it.employee_count; cur.subtotal += Number(it.subtotal) }
+      else map.set(it.plan_name, { ...it, subtotal: Number(it.subtotal) })
+    }
+  }
+  return [...map.values()]
+})
+const genBranches = ref<{ id: number; name: string }[]>([])   // the chosen company's branches
 const previewLoading = ref(false)
 const genSaving  = ref(false)
 const genError   = ref('')
@@ -718,7 +808,7 @@ onMounted(async () => {
       company_id:    Number(qCompany),
       employee_id:   qEmployee ? Number(qEmployee) : null,
       employee_name: empName,
-      billing_month: '',
+      period_start:  '',
       due_date:      '',
       notes:         '',
     })
@@ -733,83 +823,49 @@ watch(filteredInvoices, () => { invPage.value = 1 })
 
 // -- Generate invoice -------------------------------------------
 function openGenerate() {
-  Object.assign(genForm, { company_id: '', employee_id: null, employee_name: '', billing_month: '', due_date: '', notes: '' })
+  Object.assign(genForm, { company_id: '', employee_id: null, employee_name: '', branch: '', period_months: 1, period_start: '', due_date: '', notes: '' })
+  genBranches.value = []
   genPreview.value = null
   genError.value   = ''
   genModal.show    = true
 }
 
-function formatBillingPeriod(ym: string): string {
-  if (!ym) return ''
-  const [year, month] = ym.split('-')
-  const date = new Date(Number(year), Number(month) - 1, 1)
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+async function onCompanyChange() {
+  genForm.branch = ''
+  genForm.period_start = ''
+  usePreferredMonths = true
+  genBranches.value = []
+  if (genForm.company_id) {
+    try {
+      genBranches.value = (await api.get<{ data: { id: number; name: string }[] }>(`companies/${genForm.company_id}/branches`)).data
+    } catch { /* company has no branches, or the list is unavailable */ }
+  }
+  await previewInvoice()
 }
 
+// First preview after picking a company uses the company's preferred cycle
+let usePreferredMonths = true
+
+/** The backend works out who is billed, the period and the price */
 async function previewInvoice() {
+  previewError.value = ''
   if (!genForm.company_id) { genPreview.value = null; return }
   previewLoading.value = true
-  genPreview.value = null
   try {
-    // Fetch employees for this company
-    const res = await api.get<{ data: any[] }>(`employees?company_id=${genForm.company_id}&per_page=500`)
-    let employees: any[] = Array.isArray(res) ? res : (res as any).data ?? []
-
-    if (genForm.employee_id) {
-      // Pay Now: only the specific employee
-      employees = employees.filter((e: any) => e.id === genForm.employee_id)
-    } else {
-      // Batch: only unpaid enrolled+approved employees
-      employees = employees.filter((e: any) =>
-        e.payment_status === 'unpaid' &&
-        e.registration_status === 'approved' &&
-        e.is_enrolled
-      )
-    }
-
-    const plans = await api.get<any[]>('membership-plans?all=true')
-    // Only use active plans (same as backend findPlanByTier which filters is_active=true)
-    const allPlans: any[] = (Array.isArray(plans) ? plans : []).filter((x: any) => x.is_active)
-
-    const levelTier: Record<string, string> = { chief: 'platinum', director: 'basic_plus', manager: 'basic', staff: 'basic' }
-
-    // Flexible plan finder: exact → suffix match → synonym → cheapest active plan fallback
-    function findPlan(tier: string): any | undefined {
-      // 1. Exact tier match
-      let p = allPlans.find(x => x.tier === tier)
-      if (p) return p
-      // 2. Suffix match: plan tier ends with '_' + tier (e.g. 'fit_basic' matches 'basic')
-      p = allPlans.find(x => x.tier.endsWith('_' + tier))
-      if (p) return p
-      // 3. Synonym: platinum ↔ premium
-      const synonym = tier === 'platinum' ? 'premium' : tier === 'premium' ? 'platinum' : null
-      if (synonym) {
-        p = allPlans.find(x => x.tier === synonym) ?? allPlans.find(x => x.tier.endsWith('_' + synonym))
-        if (p) return p
-      }
-      // 4. Fallback: cheapest active plan (same as backend step 5)
-      return allPlans.length ? [...allPlans].sort((a, b) => Number(a.monthly_fee_etb) - Number(b.monthly_fee_etb))[0] : undefined
-    }
-
-    const groups: Record<string, number> = {}
-    for (const e of employees) {
-      const tier = levelTier[e.level ?? 'staff'] ?? 'basic'
-      groups[tier] = (groups[tier] ?? 0) + 1
-    }
-
-    let total = 0
-    const zeroTiers: string[] = []
-    const items: InvoiceItem[] = Object.entries(groups).map(([tier, count]) => {
-      const plan = findPlan(tier)
-      const price = plan ? Number(plan.monthly_fee_etb) : 0
-      if (!price) zeroTiers.push(tier)
-      const sub = count * price
-      total += sub
-      return { plan_tier: tier, plan_name: plan?.name ?? tier, employee_count: count, unit_price: price, subtotal: sub }
+    const res = await api.post<InvoicePreview>('admin/billing/invoices/preview', {
+      company_id: genForm.company_id,
+      ...(genForm.branch ? { branch: genForm.branch } : {}),
+      ...(genForm.employee_id ? { employee_id: genForm.employee_id } : {}),
+      ...(usePreferredMonths ? {} : { period_months: genForm.period_months }),
+      ...(genForm.period_start ? { period_start: genForm.period_start } : {}),
     })
-    genPreview.value = { items, total, zeroTiers }
-  } catch {
+    genPreview.value = res
+    genForm.period_months = res.period_months
+    genForm.period_start  = res.period_start
+    usePreferredMonths = false
+  } catch (e: unknown) {
     genPreview.value = null
+    previewError.value = e instanceof Error ? e.message : 'Could not calculate the invoice.'
   } finally {
     previewLoading.value = false
   }
@@ -817,20 +873,22 @@ async function previewInvoice() {
 
 async function generateInvoice() {
   genError.value = ''
-  if (!genForm.company_id || !genForm.billing_month) {
-    genError.value = 'Company and billing period are required.'; return
+  if (!genForm.company_id || !genForm.period_start) {
+    genError.value = 'Choose a company and when the coverage starts.'; return
   }
   genSaving.value = true
   try {
-    await api.post('admin/billing/invoices/generate', {
+    const res = await api.post<{ message: string }>('admin/billing/invoices/generate', {
       company_id:     genForm.company_id,
-      billing_period: formatBillingPeriod(genForm.billing_month),
+      ...(genForm.branch ? { branch: genForm.branch } : {}),
+      period_months:  genForm.period_months,
+      period_start:   genForm.period_start,
       due_date:       genForm.due_date || undefined,
       notes:          genForm.notes   || undefined,
       ...(genForm.employee_id ? { employee_id: genForm.employee_id } : {}),
     })
     genModal.show = false
-    showToast('Invoice generated successfully.')
+    showToast(res.message || 'Invoice generated successfully.')
     await loadInvoices()
   } catch (e: unknown) {
     genError.value = e instanceof Error ? e.message : 'Failed to generate invoice.'
@@ -1021,9 +1079,12 @@ function formatDate(dt: string | null) {
 .search-wrap { position: relative; flex: 1; min-width: 220px; }
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .search-input { width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.88rem; color: #0f172a; outline: none; font-family: inherit; }
-.search-input:focus { border-color: #4CD964; }
+.search-input:focus { border-color: #8BE000; }
 .filter-select { padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.84rem; color: #0f172a; background: white; outline: none; cursor: pointer; font-family: inherit; }
-.filter-select:focus { border-color: #4CD964; }
+.filter-select:focus { border-color: #8BE000; }
+.coverage-end { padding: 10px 12px; border: 1.5px dashed #e2e8f0; border-radius: 10px; font-size: 0.88rem; font-weight: 600; color: #0f172a; background: #f8fafc; }
+.coverage-note { margin: 4px 0 12px; padding: 10px 12px; border-radius: 10px; background: #EEF9DC; color: #0f172a; font-size: 0.82rem; line-height: 1.5; }
+.coverage-note--muted { background: #f8fafc; color: #475569; }
 .btn-generate { display: flex; align-items: center; gap: 7px; padding: 10px 18px; background: #0f172a; color: white; border: none; border-radius: 10px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; white-space: nowrap; }
 .btn-generate:hover { opacity: .85; }
 
@@ -1049,8 +1110,8 @@ function formatDate(dt: string | null) {
 .inv-amount  { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0; }
 .inv-badge   { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .inv-draft   { background: #f1f5f9; color: #64748b; }
-.inv-sent    { background: #EBFAEE; color: #2EB84B; }
-.inv-paid    { background: #d1fae5; color: #2EB84B; }
+.inv-sent    { background: #EBFAEE; color: #72B800; }
+.inv-paid    { background: #d1fae5; color: #72B800; }
 .inv-overdue { background: #fee2e2; color: #dc2626; }
 
 /* Receipt cards */
@@ -1066,8 +1127,8 @@ function formatDate(dt: string | null) {
 .rcpt-view-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: #f1f5f9; color: #0f172a; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: background .15s; }
 .rcpt-view-btn:hover { background: #e2e8f0; }
 .rcpt-actions { display: flex; gap: 10px; }
-.btn-verify { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #2EB84B; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
-.btn-verify:hover { background: #2EB84B; color: white; }
+.btn-verify { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #72B800; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-verify:hover { background: #72B800; color: white; }
 .btn-reject-pay { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-reject-pay:hover { background: #dc2626; color: white; }
 
@@ -1081,16 +1142,16 @@ function formatDate(dt: string | null) {
 .modal-close { width: 28px; height: 28px; border-radius: 50%; border: none; background: #f1f5f9; color: #64748b; cursor: pointer; font-size: 0.75rem; flex-shrink: 0; }
 .modal-close:hover { background: #e2e8f0; }
 .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
-.field { display: flex; flex-direction: column; gap: 5px; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field label { font-size: 0.8rem; font-weight: 600; color: #374151; }
 .req { color: #ef4444; }
 .field input, .field select, .field textarea {
   padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px;
   font-size: 0.88rem; color: #0f172a; background: white; font-family: inherit; outline: none;
 }
-.field input:focus, .field select:focus, .field textarea:focus { border-color: #4CD964; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #8BE000; }
 
 /* Styled date inputs */
 .date-wrap {
@@ -1103,7 +1164,7 @@ function formatDate(dt: string | null) {
   font-family: inherit; outline: none; cursor: pointer;
   color-scheme: light; transition: border-color .15s, box-shadow .15s;
 }
-.date-input:focus { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(76,217,100,0.1); }
+.date-input:focus { border-color: #8BE000; box-shadow: 0 0 0 3px rgba(139, 224, 0,0.1); }
 .date-icon {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
   color: #94a3b8; pointer-events: none;
@@ -1128,7 +1189,7 @@ function formatDate(dt: string | null) {
 .tc { text-align: right; }
 .fw { font-weight: 700; }
 .total-label { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
-.total-val   { font-size: 1rem; color: #4CD964; }
+.total-val   { font-size: 1rem; color: #8BE000; }
 .preview-loading { text-align: center; font-size: 0.84rem; color: #94a3b8; }
 .preview-zero-warn {
   background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;
@@ -1136,8 +1197,8 @@ function formatDate(dt: string | null) {
 }
 .single-emp-banner {
   display: flex; align-items: flex-start; gap: 8px;
-  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
-  padding: 11px 14px; font-size: 0.82rem; color: #1d4ed8; line-height: 1.5;
+  background: #EEF9DC; border: 1px solid #D9F2AE; border-radius: 10px;
+  padding: 11px 14px; font-size: 0.82rem; color: #4D7C0F; line-height: 1.5;
 }
 .single-emp-banner svg { flex-shrink: 0; margin-top: 1px; }
 
@@ -1152,7 +1213,7 @@ function formatDate(dt: string | null) {
 .lp-bank { font-size: 0.88rem; font-weight: 600; color: #0f172a; }
 .lp-status { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
 .ps-pending  { background: #fef9c3; color: #a16207; }
-.ps-verified { background: #d1fae5; color: #2EB84B; }
+.ps-verified { background: #d1fae5; color: #72B800; }
 .ps-rejected { background: #fee2e2; color: #dc2626; }
 .lp-date { font-size: 0.76rem; color: #94a3b8; margin: 4px 0 0; }
 
@@ -1176,7 +1237,7 @@ function formatDate(dt: string | null) {
 .confirm-body  { font-size: 0.88rem; color: #64748b; margin: 0; line-height: 1.6; }
 .confirm-body strong { color: #0f172a; }
 .confirm-actions { display: flex; gap: 10px; justify-content: center; margin-top: 4px; }
-.btn-verify-confirm { padding: 10px 24px; background: #2EB84B; color: white; border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+.btn-verify-confirm { padding: 10px 24px; background: #72B800; color: white; border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
 .btn-verify-confirm:hover:not(:disabled) { opacity: .85; }
 .btn-verify-confirm:disabled { opacity: .5; cursor: default; }
 
@@ -1202,14 +1263,14 @@ function formatDate(dt: string | null) {
 .neg-reason-text  { font-size: 0.87rem; color: #0f172a; margin: 0; line-height: 1.55; }
 .neg-submitted { font-size: 0.74rem; color: #94a3b8; margin: 0; }
 .neg-card-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn-approve-neg { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #2EB84B; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
-.btn-approve-neg:hover { background: #2EB84B; color: white; }
+.btn-approve-neg { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #d1fae5; color: #72B800; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-approve-neg:hover { background: #72B800; color: white; }
 .btn-reject-neg  { display: flex; align-items: center; gap: 5px; padding: 8px 18px; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-reject-neg:hover { background: #dc2626; color: white; }
 
 /* Approve neg modal */
 .modal--confirm textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.86rem; font-family: inherit; outline: none; resize: vertical; min-height: 60px; box-sizing: border-box; }
-.modal--confirm textarea:focus { border-color: #4CD964; }
+.modal--confirm textarea:focus { border-color: #8BE000; }
 .modal--confirm .field label { font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
 
 /* Company action modal */
@@ -1237,7 +1298,7 @@ function formatDate(dt: string | null) {
 .action-options + .field { margin-top: 8px; }
 .action-options + .field label { font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 5px; display: block; }
 .action-options + .field textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.86rem; font-family: inherit; outline: none; resize: vertical; min-height: 80px; box-sizing: border-box; }
-.action-options + .field textarea:focus { border-color: #4CD964; }
+.action-options + .field textarea:focus { border-color: #8BE000; }
 .btn-action-confirm { padding: 9px 22px; color: white; border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
 .btn-action-confirm:disabled { opacity: .5; cursor: default; }
 .btn-suspend { background: #f59e0b; }
@@ -1254,4 +1315,7 @@ function formatDate(dt: string | null) {
 .toast-enter-active { transition: all .3s cubic-bezier(.34,1.56,.64,1); }
 .toast-leave-active { transition: all .25s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
+.inv-branch { color: #4D7C0F; font-weight: 600; }
+.per-branch { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
+.per-branch-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.84rem; color: #334155; }
 </style>

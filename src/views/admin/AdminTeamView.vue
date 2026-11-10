@@ -82,6 +82,12 @@
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                 </button>
+                <button class="btn-icon" title="Reset 2FA" @click="resetTwoFactor(m)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="2" width="14" height="20" rx="2" />
+                    <path d="M12 18h.01" />
+                  </svg>
+                </button>
                 <button class="btn-icon btn-danger" title="Remove" @click="confirmRemove(m)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6" />
@@ -482,6 +488,17 @@ async function submitRemove() {
   }
 }
 
+/* ── Reset 2FA ──────────────────────────────────────────── */
+async function resetTwoFactor(m: Member) {
+  if (!confirm(`Reset two-factor authentication for ${m.name}? They will be signed out and must scan a new QR code on their next login.`)) return
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${m.id}/reset-2fa`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
+  })
+  const data = await res.json().catch(() => ({}))
+  alert(data.message || (res.ok ? 'Two-factor authentication reset.' : 'Failed to reset two-factor authentication.'))
+}
+
 /* ── Reset temp password ────────────────────────────────── */
 const resetModal = ref({ show: false, id: 0, name: '', loading: false })
 function confirmResetTemp(m: Member) {
@@ -611,7 +628,7 @@ async function submitDeleteRole() {
   align-items: center;
   gap: 7px;
   padding: 10px 20px;
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -620,16 +637,16 @@ async function submitDeleteRole() {
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(76, 217, 100, 0.28);
+  box-shadow: 0 2px 8px rgba(139, 224, 0, 0.28);
 }
 .btn-primary svg {
   width: 16px;
   height: 16px;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #2eb84b;
+  background: #72B800;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(76, 217, 100, 0.38);
+  box-shadow: 0 4px 14px rgba(139, 224, 0, 0.38);
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -759,8 +776,8 @@ async function submitDeleteRole() {
   height: 14px;
 }
 .btn-icon:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 .btn-icon.btn-danger:hover {
@@ -774,7 +791,7 @@ async function submitDeleteRole() {
   width: 40px;
   height: 40px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4cd964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -904,8 +921,8 @@ async function submitDeleteRole() {
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: #4cd964;
-  box-shadow: 0 0 0 3px rgba(76, 217, 100, 0.12);
+  border-color: #8BE000;
+  box-shadow: 0 0 0 3px rgba(139, 224, 0, 0.12);
   background: #fff;
 }
 .field select {
@@ -1025,8 +1042,8 @@ async function submitDeleteRole() {
   transition: all 0.15s;
 }
 .copy-btn:hover {
-  background: #4cd964;
-  border-color: #4cd964;
+  background: #8BE000;
+  border-color: #8BE000;
   color: #fff;
 }
 
@@ -1076,8 +1093,8 @@ async function submitDeleteRole() {
   height: 16px;
 }
 .btn-secondary:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 
@@ -1100,7 +1117,7 @@ async function submitDeleteRole() {
 }
 .role-card:hover {
   border-color: #b8f0c0;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 4px 12px rgba(139,224,0,0.08);
 }
 
 .role-card-icon {
@@ -1112,7 +1129,7 @@ async function submitDeleteRole() {
   justify-content: center;
   background: #ebfaee;
   border-radius: 9px;
-  color: #4cd964;
+  color: #8BE000;
 }
 .role-card-icon svg {
   width: 18px;

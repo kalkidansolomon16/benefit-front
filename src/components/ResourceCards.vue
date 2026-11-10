@@ -3,7 +3,7 @@ const resources = [
   {
     category: 'Report',
     categoryColor: '#EBFAEE',
-    categoryText: '#4CD964',
+    categoryText: '#8BE000',
     title: '2024 Ethiopian Corporate Wellness Report',
     description: 'Discover how Addis Ababa\'s top employers are investing in staff health, reducing absenteeism, and boosting morale with structured wellness benefits.',
     emoji: '📊',

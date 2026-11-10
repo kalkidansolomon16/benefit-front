@@ -1,6 +1,15 @@
 ﻿<template>
   <div class="dashboard">
 
+    <div v-if="branchOptions.length" class="dash-filter">
+      <label class="dash-filter-label" for="dash-branch">Showing</label>
+      <select id="dash-branch" v-model="branchFilter" class="dash-filter-select" @change="loadDashboard">
+        <option value="all">All branches</option>
+        <option value="main">Head office</option>
+        <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+      </select>
+    </div>
+
     <!-- ── Stats row ───────────────────────────────────────────── -->
     <section class="stats-row">
       <div class="stat-card">
@@ -38,7 +47,7 @@
     <!-- ── Package Distribution ─────────────────────────────────── -->
     <div class="card">
       <div class="card-header">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CD964" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8BE000" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
         <h3 class="card-title">Package Distribution</h3>
       </div>
       <div class="pkg-grid">
@@ -98,17 +107,33 @@ const pkgDist = ref<Pkg>({ basic: 0, basic_plus: 0, platinum: 0 })
 const recent  = ref<Reg[]>([])
 const loading = ref(true)
 
-onMounted(async () => {
+// Branch filter: head office defaults to everyone, a branch login to its own branch
+const branchOptions = ref<{ id: number; name: string }[]>([])
+const branchFilter  = ref('all')
+
+async function loadDashboard() {
+  loading.value = true
   try {
+    const qs = `?branch_id=${encodeURIComponent(branchFilter.value)}`
     const res = await api.get<{
       stats: Stats; package_distribution: Pkg; recent_registrations: Reg[]
-    }>('hr/dashboard')
+    }>(`hr/dashboard${qs}`)
     stats.value   = res.stats
     pkgDist.value = res.package_distribution
     recent.value  = res.recent_registrations
   } finally {
     loading.value = false
   }
+}
+
+onMounted(async () => {
+  try {
+    const res = await api.get<{ branches: { id: number; name: string; is_mine: boolean }[] }>('hr/branches')
+    branchOptions.value = res.branches
+    const mine = res.branches.find(b => b.is_mine)
+    if (mine) branchFilter.value = String(mine.id)
+  } catch { /* filter is optional */ }
+  await loadDashboard()
 })
 
 const packageCards = computed(() => [
@@ -121,7 +146,7 @@ function tierLabel(t: string) {
   return { basic: 'Basic', basic_plus: 'Basic Plus', platinum: 'Platinum' }[t] ?? t
 }
 
-const COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
+const COLORS = ['#0B0C10','#72B800','#8BE000','#f59e0b','#ef4444','#4D7C0F','#ec4899']
 function avatarColor(name: string) {
   let h = 0; for (const c of (name ?? '')) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return COLORS[h % COLORS.length]
@@ -149,8 +174,8 @@ function initials(name: string) {
   width: 48px; height: 48px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.stat-icon.teal   { background: rgba(76,217,100,0.1); color: #4CD964; }
-.stat-icon.purple { background: rgba(124,58,237,0.1); color: #2EB84B; }
+.stat-icon.teal   { background: rgba(139, 224, 0,0.1); color: #8BE000; }
+.stat-icon.purple { background: rgba(124,58,237,0.1); color: #72B800; }
 .stat-key  { font-size: 0.7rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 4px; }
 .stat-num  { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0; line-height: 1; }
 .stat-hint { font-size: 0.72rem; color: #94a3b8; margin: 4px 0 0; }
@@ -161,7 +186,7 @@ function initials(name: string) {
 .card-header.space-between { justify-content: space-between; }
 .card-title { font-size: 1rem; font-weight: 600; color: #0f172a; margin: 0; }
 .card-title.no-margin { margin: 0; }
-.view-all { font-size: 0.82rem; color: #4CD964; text-decoration: none; font-weight: 500; }
+.view-all { font-size: 0.82rem; color: #8BE000; text-decoration: none; font-weight: 500; }
 .view-all:hover { text-decoration: underline; }
 
 /* Package grid */
@@ -179,8 +204,8 @@ function initials(name: string) {
   font-size: 0.78rem; font-weight: 600; margin-bottom: 12px;
 }
 .pkb-basic      { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.pkb-basic_plus { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
-.pkb-platinum   { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
+.pkb-basic_plus { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
+.pkb-platinum   { background: #ede9fe; color: #72B800; border: 1px solid #B8F0C0; }
 .pkg-num { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 4px; }
 .pkg-sub { font-size: 0.75rem; color: #94a3b8; margin: 0; }
 
@@ -206,11 +231,14 @@ function initials(name: string) {
   display: inline-block; padding: 3px 10px; border-radius: 20px;
   font-size: 0.72rem; font-weight: 600;
 }
-.status-badge.active   { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
+.status-badge.active   { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
 .status-badge.inactive { background: #fee2e2; color: #dc2626; }
 
 @media (max-width: 700px) {
   .stats-row  { grid-template-columns: 1fr; }
   .pkg-grid   { grid-template-columns: 1fr; }
 }
+.dash-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.dash-filter-label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+.dash-filter-select { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 0.85rem; }
 </style>

@@ -1,5 +1,58 @@
 ﻿<template>
   <div class="page">
+    <!-- Coverage + billing preference -->
+    <section v-if="coverage && !detailInv" class="cov-card" :class="coverageTone">
+      <div class="cov-main">
+        <p class="cov-kicker">Employee access</p>
+        <h2 class="cov-title">{{ coverageHeadline }}</h2>
+        <p class="cov-text">{{ coverageDetail }}</p>
+        <ul class="cov-stats">
+          <li><strong>{{ coverage.covered }}</strong> covered</li>
+          <li v-if="coverage.expiring_soon"><strong>{{ coverage.expiring_soon }}</strong> ending within a week</li>
+          <li v-if="coverage.expired"><strong>{{ coverage.expired }}</strong> access ended</li>
+          <li v-if="coverage.not_paid_yet"><strong>{{ coverage.not_paid_yet }}</strong> not paid yet</li>
+        </ul>
+      </div>
+      <div class="cov-pref">
+        <label class="cov-pref-label" for="bill-cycle">We prefer to pay</label>
+        <div class="cov-pref-row">
+          <select
+            id="bill-cycle"
+            v-model.number="prefMonths"
+            class="cov-select"
+            :disabled="!coverage.can_change || prefSaving"
+          >
+            <option v-for="c in coverage.cycles" :key="c.months" :value="c.months">{{ c.label }}</option>
+          </select>
+          <button
+            v-if="coverage.can_change"
+            type="button"
+            class="cov-save"
+            :disabled="prefSaving || prefMonths === coverage.billing_cycle_months"
+            @click="savePreference"
+          >{{ prefSaving ? 'Saving…' : 'Save' }}</button>
+        </div>
+        <p class="cov-pref-hint">
+          {{ coverage.can_change
+            ? 'Your next invoice from FitAccess will cover this many months.'
+            : 'Set by your head office.' }}
+        </p>
+      </div>
+    </section>
+
+    <!-- Branch filter (head office only, when the company has branches) -->
+    <div v-if="branchOptions.length && !detailInv" class="branch-filter">
+      <label class="branch-filter-label" for="bill-branch">Branch</label>
+      <select id="bill-branch" v-model="branchFilter" class="branch-filter-select" @change="load">
+        <option value="">All branches</option>
+        <option value="main">Head office</option>
+        <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+      </select>
+    </div>
+    <p v-else-if="myBranchId && !detailInv" class="branch-note">
+      Showing the invoices issued to your branch. Each branch is invoiced and pays separately.
+    </p>
+
     <!-- Loading -->
     <div v-if="loading" class="state-msg">Loading invoices…</div>
 
@@ -49,6 +102,11 @@
             </div>
             <div>
               <p class="inv-number">{{ inv.invoice_number }}</p>
+              <p v-if="inv.period_end" class="inv-cover">
+                {{ inv.status === 'paid' ? 'Paid: access until' : 'Pays for access until' }} {{ fmtDay(inv.period_end) }}
+                · {{ inv.period_months }} month{{ inv.period_months === 1 ? '' : 's' }}
+              </p>
+              <p v-if="inv.branch" class="inv-branch">📍 {{ inv.branch.name }}</p>
               <p class="inv-employees">
                 {{ totalEmployees(inv) }} employee{{ totalEmployees(inv) !== 1 ? 's' : '' }} across
                 {{ inv.items.length }} plan{{ inv.items.length !== 1 ? 's' : '' }}
@@ -124,10 +182,29 @@
           <div>
             <p class="detail-period">{{ detailInv.billing_period }}</p>
             <p class="detail-inv-num">{{ detailInv.invoice_number }}</p>
+            <p v-if="detailInv.branch" class="inv-branch">📍 {{ detailInv.branch.name }}</p>
           </div>
           <span class="inv-badge" :class="'inv-' + detailInv.status">{{
             statusLabel(detailInv.status)
           }}</span>
+        </div>
+
+        <!-- What this invoice pays for -->
+        <div v-if="detailInv.period_start && detailInv.period_end" class="cov-box">
+          <p class="cov-box-title">Coverage period</p>
+          <p class="cov-box-range">
+            {{ fmtDay(detailInv.period_start) }} – {{ fmtDay(detailInv.period_end) }}
+            <span>({{ detailInv.period_months }} month{{ detailInv.period_months === 1 ? '' : 's' }})</span>
+          </p>
+          <p class="cov-box-text">
+            <template v-if="detailInv.status === 'paid'">
+              Paid. The employees on this invoice can use FitAccess until {{ fmtDay(detailInv.period_end) }}.
+            </template>
+            <template v-else>
+              Once this invoice is paid, the employees on it can use FitAccess until {{ fmtDay(detailInv.period_end) }}.
+              If it is not paid, their access stops when their current period ends.
+            </template>
+          </p>
         </div>
 
         <!-- Breakdown table -->
@@ -138,7 +215,8 @@
               <tr>
                 <th>Plan</th>
                 <th class="tr">Employees</th>
-                <th class="tr">Unit Price (ETB)</th>
+                <th class="tr">Monthly price (ETB)</th>
+                <th class="tr">Months</th>
                 <th class="tr">Subtotal (ETB)</th>
               </tr>
             </thead>
@@ -151,12 +229,13 @@
                 </td>
                 <td class="tr">{{ item.employee_count }}</td>
                 <td class="tr">{{ Number(item.unit_price).toLocaleString() }}</td>
+                <td class="tr">{{ item.months ?? 1 }}</td>
                 <td class="tr fw">{{ Number(item.subtotal).toLocaleString() }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="3" class="total-label">Total Amount</td>
+                <td colspan="4" class="total-label">Total Amount</td>
                 <td class="tr total-val">
                   ETB {{ Number(detailInv.total_amount).toLocaleString() }}
                 </td>
@@ -627,7 +706,7 @@
                       width="24"
                       height="24"
                       fill="none"
-                      stroke="#2EB84B"
+                      stroke="#72B800"
                       stroke-width="2"
                       viewBox="0 0 24 24"
                     >
@@ -669,6 +748,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { useApi } from '@/composables/useApi'
 import AppPagination from '@/components/AppPagination.vue'
 
@@ -677,7 +757,22 @@ interface InvoiceItem {
   plan_name: string
   employee_count: number
   unit_price: number
+  months?: number
   subtotal: number
+}
+interface Coverage {
+  billing_cycle_months: number
+  billing_cycle_label: string
+  cycles: { months: number; label: string }[]
+  can_change: boolean
+  employees: number
+  covered: number
+  expired: number
+  not_paid_yet: number
+  expiring_soon: number
+  covered_until: string | null
+  covered_until_latest: string | null
+  grace_days: number
 }
 interface Negotiation {
   id: number
@@ -701,6 +796,9 @@ interface Invoice {
   id: number
   invoice_number: string
   billing_period: string
+  period_months?: number
+  period_start?: string | null
+  period_end?: string | null
   total_amount: number
   due_date: string | null
   notes: string | null
@@ -708,6 +806,8 @@ interface Invoice {
   sent_at: string | null
   paid_at: string | null
   items: InvoiceItem[]
+  branch_scoped?: boolean
+  branch?: { id: number | null; name: string } | null
   latest_payment: { status: string } | null
   negotiation: Negotiation | null
   payments?: PaymentRecord[]
@@ -789,13 +889,89 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 async function load() {
   loading.value = true
   billPage.value = 1
+  loadCoverage()
   try {
-    invoices.value = await api.get<Invoice[]>('hr/billing/invoices')
+    const qs = branchFilter.value ? `?company_branch_id=${encodeURIComponent(branchFilter.value)}` : ''
+    invoices.value = await api.get<Invoice[]>(`hr/billing/invoices${qs}`)
   } finally {
     loading.value = false
   }
 }
-onMounted(load)
+
+// Head office can narrow the list to one branch; a branch login only ever sees its own invoices
+const auth = useAuthStore()
+const myBranchId = auth.user?.company_branch_id ?? null
+const branchOptions = ref<{ id: number; name: string }[]>([])
+const branchFilter = ref('')
+
+// ── Coverage + preference ─────────────────────────────────────
+const coverage   = ref<Coverage | null>(null)
+const prefMonths = ref(1)
+const prefSaving = ref(false)
+
+function fmtDay(d: string | null | undefined): string {
+  if (!d) return '—'
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+async function loadCoverage() {
+  try {
+    coverage.value = await api.get<Coverage>('hr/billing/coverage')
+    prefMonths.value = coverage.value.billing_cycle_months
+  } catch { /* the card is optional */ }
+}
+
+async function savePreference() {
+  prefSaving.value = true
+  try {
+    const res = await api.put<{ message: string; billing_cycle_months: number }>('hr/billing/preference', {
+      billing_cycle_months: prefMonths.value,
+    })
+    if (coverage.value) coverage.value.billing_cycle_months = res.billing_cycle_months
+    showToast(res.message)
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Could not save your preference.', 'error')
+  } finally {
+    prefSaving.value = false
+  }
+}
+
+const coverageTone = computed(() => {
+  const c = coverage.value
+  if (!c || !c.employees) return 'cov--neutral'
+  if (c.expired || c.not_paid_yet) return 'cov--alert'
+  if (c.expiring_soon) return 'cov--warn'
+  return 'cov--ok'
+})
+const coverageHeadline = computed(() => {
+  const c = coverage.value
+  if (!c) return ''
+  if (!c.employees) return 'No enrolled employees yet'
+  if (!c.covered) return c.expired ? 'Employee access has ended' : 'Waiting for your first payment'
+  if (c.covered_until === c.covered_until_latest) return `Covered until ${fmtDay(c.covered_until)}`
+  return `Covered until ${fmtDay(c.covered_until)} – ${fmtDay(c.covered_until_latest)}`
+})
+const coverageDetail = computed(() => {
+  const c = coverage.value
+  if (!c || !c.employees) return 'Employees appear here once they are approved and enrolled.'
+  const stop = c.grace_days
+    ? `${c.grace_days} day${c.grace_days === 1 ? '' : 's'} after their paid period ends`
+    : 'the day after their paid period ends'
+  const blocked = c.expired + c.not_paid_yet
+  return blocked
+    ? `${blocked} employee${blocked === 1 ? ' cannot' : 's cannot'} check in until the open invoice is paid. Access always stops ${stop}.`
+    : `Employees can check in at partner facilities until then. Access stops ${stop} unless the next invoice is paid.`
+})
+
+onMounted(async () => {
+  loadCoverage()
+  if (!myBranchId) {
+    try {
+      branchOptions.value = (await api.get<{ branches: { id: number; name: string }[] }>('hr/branches')).branches
+    } catch { /* the filter is optional */ }
+  }
+  await load()
+})
 
 async function openDetail(inv: Invoice) {
   const full = await api.get<Invoice>(`hr/billing/invoices/${inv.id}`)
@@ -1029,11 +1205,11 @@ function formatDate(dt: string | null) {
 }
 .inv-sent {
   background: #ebfaee;
-  color: #2eb84b;
+  color: #72B800;
 }
 .inv-paid {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .inv-overdue {
   background: #fee2e2;
@@ -1175,7 +1351,7 @@ function formatDate(dt: string | null) {
 }
 .total-val {
   font-size: 1.1rem;
-  color: #4cd964;
+  color: #8BE000;
   font-weight: 700;
 }
 .plan-chip {
@@ -1189,11 +1365,11 @@ function formatDate(dt: string | null) {
 }
 .chip-platinum {
   background: #ebfaee;
-  color: #2eb84b;
+  color: #72B800;
 }
 .chip-basic_plus {
-  background: #e0f2fe;
-  color: #2eb84b;
+  background: #EEF9DC;
+  color: #72B800;
 }
 .chip-basic {
   background: #f1f5f9;
@@ -1287,7 +1463,7 @@ function formatDate(dt: string | null) {
 }
 .neg-badge-approved {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .neg-badge-rejected {
   background: #fee2e2;
@@ -1378,7 +1554,7 @@ function formatDate(dt: string | null) {
 }
 .ps-verified {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .ps-rejected {
   background: #fee2e2;
@@ -1486,7 +1662,7 @@ function formatDate(dt: string | null) {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: #4cd964;
+  background: #8BE000;
   color: white;
   border: none;
   border-radius: 12px;
@@ -1648,7 +1824,7 @@ function formatDate(dt: string | null) {
   transition: border-color 0.15s;
 }
 .field textarea:focus {
-  border-color: #4cd964;
+  border-color: #8BE000;
 }
 .req {
   color: #ef4444;
@@ -1690,11 +1866,11 @@ function formatDate(dt: string | null) {
   transition: all 0.15s;
 }
 .method-select-card:hover {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #f0fdfa;
 }
 .method-select-card--selected {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #f0fdfa;
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
 }
@@ -1710,7 +1886,7 @@ function formatDate(dt: string | null) {
   margin-top: 2px;
 }
 .method-select-card--selected .msc-check {
-  background: #4cd964;
+  background: #8BE000;
   color: white;
 }
 .msc-bank {
@@ -1753,11 +1929,11 @@ function formatDate(dt: string | null) {
   transition: border-color 0.15s, background 0.15s;
 }
 .upload-zone:hover {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #f0fdfa;
 }
 .upload-zone--has {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #f0fdf4;
 }
 .upload-text {
@@ -1767,7 +1943,7 @@ function formatDate(dt: string | null) {
   margin: 0;
 }
 .upload-text--ok {
-  color: #2eb84b;
+  color: #72B800;
 }
 .upload-hint {
   font-size: 0.74rem;
@@ -1795,7 +1971,7 @@ function formatDate(dt: string | null) {
 }
 .btn-submit-pay {
   padding: 9px 22px;
-  background: #4cd964;
+  background: #8BE000;
   color: white;
   border: none;
   border-radius: 9px;
@@ -1876,4 +2052,40 @@ function formatDate(dt: string | null) {
   opacity: 0;
   transform: translateX(-50%) translateY(12px);
 }
+.inv-branch { margin: 2px 0 0; font-size: 0.78rem; font-weight: 600; color: #4D7C0F; }
+.cov-card {
+  display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: start;
+  padding: 18px 20px; margin-bottom: 18px; border-radius: 16px;
+  border: 1.5px solid #e2e8f0; background: #fff;
+}
+.cov--ok    { border-color: #c8ec8a; background: #f7fdee; }
+.cov--warn  { border-color: #f5d27a; background: #fffbeb; }
+.cov--alert { border-color: #fca5a5; background: #fef2f2; }
+.cov-kicker { margin: 0 0 4px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+.cov-title  { margin: 0 0 6px; font-size: 1.15rem; font-weight: 800; color: #0f172a; }
+.cov-text   { margin: 0; font-size: 0.84rem; color: #334155; line-height: 1.5; max-width: 560px; }
+.cov-stats  { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.cov-stats li { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.8); border: 1px solid #e2e8f0; font-size: 0.76rem; color: #334155; }
+.cov-stats strong { color: #0f172a; }
+.cov-pref { min-width: 240px; }
+.cov-pref-label { display: block; margin-bottom: 6px; font-size: 0.78rem; font-weight: 700; color: #0f172a; }
+.cov-pref-row { display: flex; gap: 8px; }
+.cov-select { flex: 1; padding: 9px 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; font: inherit; font-size: 0.85rem; background: #fff; }
+.cov-save { padding: 9px 16px; border: none; border-radius: 10px; background: #0f172a; color: #fff; font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
+.cov-save:disabled { opacity: 0.4; cursor: default; }
+.cov-pref-hint { margin: 6px 0 0; font-size: 0.74rem; color: #64748b; }
+.inv-cover { margin: 2px 0 0; font-size: 0.76rem; font-weight: 600; color: #4d7c0f; }
+.cov-box { margin: 0 0 18px; padding: 14px 16px; border-radius: 12px; background: #EEF9DC; }
+.cov-box-title { margin: 0 0 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #4d7c0f; }
+.cov-box-range { margin: 0 0 6px; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
+.cov-box-range span { font-size: 0.85rem; font-weight: 600; color: #475569; }
+.cov-box-text { margin: 0; font-size: 0.84rem; color: #334155; line-height: 1.5; }
+@media (max-width: 720px) {
+  .cov-card { grid-template-columns: 1fr; }
+  .cov-pref { min-width: 0; }
+}
+.branch-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.branch-filter-label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+.branch-filter-select { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 0.85rem; }
+.branch-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: #EEF9DC; color: #4D7C0F; font-size: 0.82rem; }
 </style>

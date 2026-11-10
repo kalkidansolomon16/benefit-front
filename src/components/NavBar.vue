@@ -1,60 +1,107 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+withDefaults(defineProps<{ theme?: 'gray' | 'green' | 'black' | 'white' }>(), { theme: 'gray' })
+
+const route      = useRoute()
 const router     = useRouter()
 const isScrolled = ref(false)
 const mobileOpen = ref(false)
+const regOpen    = ref(false)
+const regRef     = ref<HTMLElement | null>(null)
 
-const onScroll = () => { isScrolled.value = window.scrollY > 20 }
-onMounted(() => window.addEventListener('scroll', onScroll))
-onUnmounted(() => window.removeEventListener('scroll', onScroll))
+const onScroll = () => { isScrolled.value = window.scrollY > 10 }
+const onDocClick = (e: MouseEvent) => {
+  if (regRef.value && !regRef.value.contains(e.target as Node)) regOpen.value = false
+}
+onMounted(() => {
+  window.addEventListener('scroll', onScroll)
+  document.addEventListener('click', onDocClick)
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+  document.removeEventListener('click', onDocClick)
+})
+watch(() => route.fullPath, () => { mobileOpen.value = false; regOpen.value = false })
 
 const navLinks = [
-  { label: 'Plans & Pricing', href: '#plans',        route: null },
-  { label: 'How It Works',    href: '#how-it-works', route: null },
-  { label: 'For Companies',   href: null,             route: '/signup/company' },
-  { label: 'For Employees',   href: null,             route: '/signup/employee' },
-  { label: 'For Partners',    href: null,             route: '/signup/partner' },
+  { label: 'For Employers',   to: '/for-employers' },
+  { label: 'For Employees',   to: '/for-employees' },
+  { label: 'For Partners',    to: '/for-partners' },
+  { label: 'Plans', to: '/', hash: '#plans' },
+  { label: 'How It Works',    to: '/', hash: '#how-it-works' },
 ]
 
-function handleNavClick(link: { href: string | null; route: string | null }) {
+const registerOptions = [
+  { label: 'Register as Employer', hint: 'Enrol your company',          page: '/for-employers', form: '/signup/company' },
+  { label: 'Register as Employee', hint: 'Join through your workplace', page: '/for-employees', form: '/signup/employee' },
+  { label: 'Register as Partner',  hint: 'List your gym or facility',   page: '/for-partners',  form: '/signup/partner' },
+]
+
+// Like the inspiration, registering always passes through the audience page
+// first; only from that page does "Register" open the actual form.
+const regTarget = (opt: { page: string; form: string }) => (route.path === opt.page ? opt.form : opt.page)
+
+function goSection(hash: string) {
   mobileOpen.value = false
-  if (link.route) {
-    router.push(link.route)
-  } else if (link.href) {
-    const el = document.querySelector(link.href)
-    if (el) el.scrollIntoView({ behavior: 'smooth' })
-    else window.location.hash = link.href
+  if (route.path === '/') {
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+  } else {
+    router.push({ path: '/', hash })
   }
 }
 </script>
 
 <template>
-  <nav class="navbar" :class="{ scrolled: isScrolled }">
-    <div class="nav-inner container">
+  <nav class="navbar" :class="[`navbar--${theme}`, { scrolled: isScrolled }]">
+    <div class="nav-inner lp-container">
       <!-- Logo -->
-      <a href="/" class="logo">
+      <RouterLink to="/" class="logo">
         <img src="/logo.png" alt="FitAccess" class="logo-img" />
         <span class="logo-text">FitAccess</span>
-      </a>
+      </RouterLink>
 
       <!-- Desktop Links -->
       <ul class="nav-links">
         <li v-for="link in navLinks" :key="link.label">
           <a
+            v-if="link.hash"
+            :href="link.hash"
             class="nav-link"
-            :class="{ 'nav-link-route': link.route }"
-            @click.prevent="handleNavClick(link)"
-            href="#"
+            @click.prevent="goSection(link.hash)"
           >{{ link.label }}</a>
+          <RouterLink v-else :to="link.to" class="nav-link" active-class="active">{{ link.label }}</RouterLink>
         </li>
       </ul>
 
       <!-- Actions -->
       <div class="nav-actions">
         <RouterLink to="/login" class="nav-login">Log in</RouterLink>
-        <RouterLink to="/signup/company" class="btn btn-primary nav-cta">Get Started</RouterLink>
+        <div ref="regRef" class="reg">
+          <button
+            type="button"
+            class="lp-btn lp-btn--primary lp-btn--sm reg-btn"
+            :aria-expanded="regOpen"
+            aria-haspopup="true"
+            @click="regOpen = !regOpen"
+          >
+            Register
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" :class="{ flip: regOpen }"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div v-if="regOpen" class="reg-menu" role="menu">
+            <RouterLink
+              v-for="opt in registerOptions"
+              :key="opt.page"
+              :to="regTarget(opt)"
+              class="reg-item"
+              role="menuitem"
+            >
+              <strong>{{ opt.label }}</strong>
+              <span>{{ opt.hint }}</span>
+            </RouterLink>
+          </div>
+        </div>
       </div>
 
       <!-- Hamburger -->
@@ -69,37 +116,50 @@ function handleNavClick(link: { href: string | null; route: string | null }) {
     <div class="mobile-menu" :class="{ open: mobileOpen }">
       <ul>
         <li v-for="link in navLinks" :key="link.label">
-          <a class="mobile-link" href="#" @click.prevent="handleNavClick(link)">{{ link.label }}</a>
+          <a v-if="link.hash" class="mobile-link" :href="link.hash" @click.prevent="goSection(link.hash)">{{ link.label }}</a>
+          <RouterLink v-else :to="link.to" class="mobile-link" active-class="active">{{ link.label }}</RouterLink>
         </li>
       </ul>
-      <div class="mobile-actions">
-        <RouterLink to="/login" class="btn btn-outline w-full" @click="mobileOpen = false">Log in</RouterLink>
-        <RouterLink to="/signup/company" class="btn btn-primary w-full" @click="mobileOpen = false">Get Started</RouterLink>
+      <p class="mobile-label">Register</p>
+      <div class="mobile-register">
+        <RouterLink v-for="opt in registerOptions" :key="opt.page" :to="regTarget(opt)" class="lp-btn lp-btn--primary lp-btn--sm">
+          {{ opt.label }}
+        </RouterLink>
       </div>
+      <RouterLink to="/login" class="lp-btn lp-btn--outline lp-btn--sm mobile-login">Log in</RouterLink>
     </div>
   </nav>
 </template>
 
 <style scoped>
 .navbar {
-  position: fixed;
-  top: 0; left: 0; right: 0;
+  position: sticky;
+  top: 0;
   z-index: 1000;
-  padding: 18px 0;
-  background: transparent;
-  transition: all 0.3s ease;
+  background: var(--lp-gray);
+  transition: background-color .25s ease, box-shadow .25s ease;
 }
+.navbar--white { background: #ffffff; }
+.navbar--green { background: var(--lp-green); }
+.navbar--black { background: var(--lp-ink); }
+.navbar--black:not(.scrolled) .logo,
+.navbar--black:not(.scrolled) .nav-link,
+.navbar--black:not(.scrolled) .nav-login { color: #fff; }
+.navbar--black:not(.scrolled) .hamburger span { background: #fff; }
+.navbar--green:not(.scrolled) .nav-link::after { background: var(--lp-ink); }
+.navbar--green:not(.scrolled) .nav-login:hover { text-decoration-color: var(--lp-ink); }
+.navbar--green:not(.scrolled) .reg-btn { background: var(--lp-ink); color: #fff; }
 .navbar.scrolled {
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(12px);
-  box-shadow: 0 2px 20px rgba(27, 58, 107, 0.1);
-  padding: 12px 0;
+  box-shadow: 0 2px 20px rgba(11, 12, 16, 0.08);
 }
 
 .nav-inner {
   display: flex;
   align-items: center;
-  gap: 40px;
+  gap: 32px;
+  height: 84px;
 }
 
 .logo {
@@ -108,47 +168,79 @@ function handleNavClick(link: { href: string | null; route: string | null }) {
   gap: 8px;
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--color-white);
+  color: var(--lp-ink);
   flex-shrink: 0;
-  transition: var(--transition);
 }
-.navbar.scrolled .logo { color: var(--color-primary); }
-.logo-img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.logo-img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex: 1;
 }
 .nav-link {
-  padding: 8px 14px;
-  border-radius: var(--radius-full);
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.9);
-  transition: var(--transition);
+  position: relative;
+  display: inline-block;
+  padding: 8px 12px;
+  font-size: 0.97rem;
+  font-weight: 600;
+  color: var(--lp-ink);
+  white-space: nowrap;
 }
-.nav-link:hover { background: rgba(255,255,255,0.15); color: #fff; }
-.navbar.scrolled .nav-link { color: var(--color-text); }
-.navbar.scrolled .nav-link:hover { background: var(--color-bg-light); color: var(--color-primary); }
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 12px; right: 12px; bottom: 2px;
+  height: 4px;
+  border-radius: 50rem;
+  background: var(--lp-green);
+  transform: scaleX(0);
+  transition: transform .2s ease-out;
+}
+.nav-link:hover::after,
+.nav-link.active::after { transform: scaleX(1); }
 
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 .nav-login {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.9);
-  padding: 8px 16px;
-  transition: var(--transition);
+  font-size: 0.97rem;
+  font-weight: 600;
+  color: var(--lp-ink);
+  padding: 8px 14px;
 }
-.nav-login:hover { color: #fff; }
-.navbar.scrolled .nav-login { color: var(--color-text); }
-.nav-cta { padding: 10px 22px; font-size: 0.9rem; }
+.nav-login:hover { text-decoration: underline; text-decoration-color: var(--lp-green); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+
+.reg { position: relative; }
+.reg-btn svg { transition: transform .2s ease; }
+.reg-btn svg.flip { transform: rotate(180deg); }
+.reg-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 270px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 1.25rem;
+  box-shadow: 0 16px 40px rgba(11, 12, 16, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.reg-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  border-radius: 0.9rem;
+  color: var(--lp-ink);
+}
+.reg-item strong { font-size: 0.95rem; }
+.reg-item span { font-size: 0.82rem; }
+.reg-item:hover { background: var(--lp-tint); }
 
 .hamburger {
   display: none;
@@ -161,20 +253,19 @@ function handleNavClick(link: { href: string | null; route: string | null }) {
 .hamburger span {
   display: block;
   width: 24px; height: 2px;
-  background: var(--color-white);
+  background: var(--lp-ink);
   border-radius: 2px;
-  transition: var(--transition);
+  transition: transform .25s ease, opacity .25s ease;
 }
-.navbar.scrolled .hamburger span { background: var(--color-primary); }
 .hamburger span.open:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
 .hamburger span.open:nth-child(2) { opacity: 0; }
 .hamburger span.open:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
 
 .mobile-menu {
   display: none;
-  padding: 16px 24px 24px;
-  background: var(--color-white);
-  border-top: 1px solid var(--color-border);
+  padding: 12px 24px 24px;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
   flex-direction: column;
   gap: 8px;
 }
@@ -183,18 +274,17 @@ function handleNavClick(link: { href: string | null; route: string | null }) {
   display: block;
   padding: 12px 16px;
   font-size: 1rem;
-  font-weight: 500;
-  color: var(--color-text);
-  border-radius: var(--radius-md);
-  transition: var(--transition);
+  font-weight: 600;
+  color: var(--lp-ink);
+  border-radius: 12px;
 }
-.mobile-link:hover { background: var(--color-bg-light); color: var(--color-primary); }
-.mobile-actions { display: flex; gap: 12px; margin-top: 12px; }
-.w-full { flex: 1; text-align: center; }
+.mobile-link:hover, .mobile-link.active { background: var(--lp-tint); }
+.mobile-label { margin-top: 8px; font-size: 0.8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 0 16px; }
+.mobile-register { display: flex; flex-direction: column; gap: 8px; }
+.mobile-login { margin-top: 4px; }
 
-@media (max-width: 900px) {
-  .nav-links { display: none; }
-  .nav-actions { display: none; }
+@media (max-width: 1080px) {
+  .nav-links, .nav-actions { display: none; }
   .hamburger { display: flex; }
 }
 </style>

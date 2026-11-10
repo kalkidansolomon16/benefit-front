@@ -369,7 +369,7 @@ async function remove(m: Method) {
 .method-bank   { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0; }
 .method-holder { font-size: 0.78rem; color: #64748b; margin: 0; }
 .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-.dot-active   { background: #4CD964; }
+.dot-active   { background: #8BE000; }
 .dot-inactive { background: #94a3b8; }
 
 /* Type badge on card */
@@ -377,7 +377,7 @@ async function remove(m: Method) {
   display: inline-block; padding: 2px 8px; border-radius: 20px;
   font-size: 0.68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
 }
-.type-bank     { background: #dbeafe; color: #1d4ed8; }
+.type-bank     { background: #EEF9DC; color: #4D7C0F; }
 .type-telebirr { background: #fef3c7; color: #b45309; }
 .type-cbe_birr { background: #dcfce7; color: #15803d; }
 .type-mpesa    { background: #d1fae5; color: #065f46; }
@@ -392,7 +392,7 @@ async function remove(m: Method) {
 .act-btn { padding: 6px 14px; border-radius: 7px; font-size: 0.76rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; }
 .act-btn:hover { opacity: .8; }
 .act-edit   { background: #f1f5f9; color: #0f172a; }
-.act-toggle { background: #e0f2fe; color: #2EB84B; }
+.act-toggle { background: #EEF9DC; color: #72B800; }
 .act-del    { background: #fee2e2; color: #dc2626; }
 
 /* Modal */
@@ -412,7 +412,7 @@ async function remove(m: Method) {
   font-size: 0.88rem; color: #0f172a; background: #fff; font-family: inherit;
   outline: none; transition: border-color .15s;
 }
-.field input:focus, .field textarea:focus { border-color: #4CD964; }
+.field input:focus, .field textarea:focus { border-color: #8BE000; }
 .field textarea { resize: vertical; min-height: 72px; }
 
 /* Type selector grid */
@@ -427,13 +427,13 @@ async function remove(m: Method) {
   background: #fff; cursor: pointer; transition: all .15s; font-family: inherit;
 }
 .type-option:hover { border-color: #94a3b8; background: #f8fafc; }
-.type-option.selected { border-color: #4CD964; background: #EBFAEE; }
+.type-option.selected { border-color: #8BE000; background: #EBFAEE; }
 .type-opt-icon  { font-size: 1.4rem; line-height: 1; }
 .type-opt-label { font-size: 0.68rem; font-weight: 600; color: #374151; text-align: center; line-height: 1.2; }
 .type-option.selected .type-opt-label { color: #15803d; }
 
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: #374151; cursor: pointer; }
-.check-row input { width: 16px; height: 16px; accent-color: #4CD964; }
+.check-row input { width: 16px; height: 16px; accent-color: #8BE000; }
 .form-error { font-size: 0.8rem; color: #ef4444; margin: 0; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #f1f5f9; }
 .btn-cancel { padding: 9px 20px; background: white; color: #64748b; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.84rem; font-weight: 500; cursor: pointer; }

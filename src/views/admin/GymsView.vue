@@ -74,6 +74,7 @@
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             {{ g.contact_email }}
           </div>
+          <button v-if="g.is_partner" class="gc-reset-2fa" @click="resetTwoFactor(g)">Reset 2FA</button>
         </div>
       </div>
 
@@ -198,7 +199,12 @@
           <div class="app-card-header">
             <div class="app-avatar">{{ app.facility_name.slice(0,2).toUpperCase() }}</div>
             <div class="app-header-info">
-              <h3 class="app-name">{{ app.facility_name }}</h3>
+              <h3 class="app-name">
+                {{ app.facility_name }}<template v-if="app.branch_name"> – {{ app.branch_name }}</template>
+              </h3>
+              <p v-if="app.is_branch_request" class="app-branch-note">
+                New branch request for {{ app.parent_gym_name ?? 'an existing gym' }}
+              </p>
               <p class="app-contact">{{ app.contact_person }} — {{ app.contact_email }}</p>
             </div>
             <span class="status-badge" :class="`status--${app.status}`">
@@ -225,6 +231,15 @@
               </p>
               <p class="app-section-sub">{{ app.woreda }}</p>
               <p v-if="app.landmark" class="app-section-sub">{{ app.landmark }}</p>
+              <button
+                v-if="app.latitude != null && app.longitude != null"
+                type="button"
+                class="map-toggle"
+                @click="toggleMap(app.id)"
+              >
+                {{ openMaps.has(app.id) ? 'Hide map' : 'Show on map' }}
+              </button>
+              <p v-else class="app-section-sub">No map pin provided</p>
             </div>
 
             <!-- Contact -->
@@ -232,6 +247,7 @@
               <p class="app-section-label">Contact</p>
               <p class="app-section-val">{{ app.contact_phone }}</p>
               <p class="app-section-sub">TIN: {{ app.tin_number }}</p>
+              <a v-if="app.website" :href="app.website" target="_blank" rel="noopener noreferrer" class="license-link app-website">{{ app.website }}</a>
             </div>
 
             <!-- Operations -->
@@ -241,6 +257,36 @@
               <p class="app-section-sub">Max {{ app.max_capacity }} members/hr</p>
             </div>
 
+            <!-- Facility standards (answered on the application form) -->
+            <div v-if="app.has_permits !== null && app.has_permits !== undefined" class="app-section">
+              <p class="app-section-label">Facility standards</p>
+              <p v-for="q in STANDARDS" :key="q.key" class="std-row" :class="app[q.key] ? 'std-yes' : 'std-no'">
+                <span class="std-mark">{{ app[q.key] ? '✓' : '✕' }}</span>{{ q.label }}
+              </p>
+            </div>
+
+          </div>
+
+          <div v-if="openMaps.has(app.id) && app.latitude != null && app.longitude != null" class="app-map">
+            <LocationPicker :lat="app.latitude" :lng="app.longitude" readonly height="220px" />
+          </div>
+
+          <!-- Extra branches -->
+          <div v-if="app.branches?.length" class="app-branches">
+            <p class="app-section-label">Branches ({{ app.branches.length }} more)</p>
+            <div v-for="(br, i) in app.branches" :key="i" class="app-branch-row">
+              <strong>{{ br.branch_name }}</strong>
+              <span>{{ [br.sub_city, br.city].filter(Boolean).join(', ') }} · {{ br.woreda }}</span>
+              <span>{{ br.weekday_open }}–{{ br.weekday_close }} · max {{ br.max_capacity }}/hr</span>
+              <a
+                v-if="br.latitude != null && br.longitude != null"
+                :href="mapsLink({ lat: br.latitude, lng: br.longitude })"
+                target="_blank"
+                rel="noopener"
+                class="license-link"
+              >Map pin</a>
+              <span v-else class="no-pin">No map pin</span>
+            </div>
           </div>
 
           <!-- Amenities -->
@@ -267,13 +313,15 @@
           </div>
 
           <!-- Submitted at -->
-          <p class="app-date">Submitted {{ app.submitted_at }}</p>
+          <p class="app-date">
+            <template v-if="app.reference">Application {{ app.reference }} · </template>Submitted {{ app.submitted_at }}
+          </p>
 
           <!-- Actions (only for pending) -->
           <div v-if="app.status === 'pending'" class="app-actions">
             <button class="btn-approve" @click="openApprove(app)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-              Approve & Create Gym
+              {{ app.branches?.length ? `Approve & Create ${app.branches.length + 1} Gyms` : app.is_branch_request ? 'Approve Branch' : 'Approve & Create Gym' }}
             </button>
             <button class="btn-reject" @click="openReject(app)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -303,11 +351,16 @@
 
           <div class="modal-body">
             <p class="modal-subtitle">
-              <strong>{{ selectedApp?.facility_name }}</strong> will be added as an active gym on the platform.
+              <strong>{{ selectedApp?.facility_name }}</strong>
+              <template v-if="selectedApp?.branches?.length"> and its {{ selectedApp.branches.length }} extra branch(es) will each be added as an active gym. Choose a tier for every location.</template>
+              <template v-else> will be added as an active gym on the platform.</template>
             </p>
 
             <div class="field-group">
-              <label class="field-label">Assign Gym Tier <span class="req">*</span></label>
+              <label class="field-label">
+                {{ selectedApp?.branches?.length ? `Tier — ${selectedApp.branch_name || 'Main location'}` : 'Assign Gym Tier' }}
+                <span class="req">*</span>
+              </label>
               <div class="tier-grid">
                 <button
                   v-for="t in tierOptions"
@@ -322,13 +375,30 @@
                 </button>
               </div>
             </div>
+
+            <div v-for="(br, i) in selectedApp?.branches ?? []" :key="i" class="field-group">
+              <label class="field-label">Tier — {{ br.branch_name }} <span class="req">*</span></label>
+              <div class="tier-grid">
+                <button
+                  v-for="t in tierOptions"
+                  :key="t.value"
+                  type="button"
+                  class="tier-btn"
+                  :class="{ selected: branchTiers[i] === t.value }"
+                  @click="branchTiers[i] = t.value"
+                >
+                  <span class="tier-dot" :class="`dot-${t.value}`"></span>
+                  <span>{{ t.label }}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="modal-footer">
             <button class="btn-cancel" @click="approveModal = false">Cancel</button>
             <button
               class="btn-confirm-approve"
-              :disabled="!approveTier || approveLoading"
+              :disabled="!approveTier || !allBranchTiersChosen || approveLoading"
               @click="confirmApprove"
             >
               <span v-if="approveLoading" class="spinner"></span>
@@ -458,6 +528,13 @@
       </Transition>
     </Teleport>
 
+    <CredentialsDialog
+      v-if="issuedLogins.length"
+      title="Partner approved — logins created"
+      :logins="issuedLogins"
+      @close="issuedLogins = []"
+    />
+
   </div>
 </template>
 
@@ -466,6 +543,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useRoute } from 'vue-router'
 import AppPagination from '@/components/AppPagination.vue'
+import LocationPicker from '@/components/LocationPicker.vue'
+import CredentialsDialog from '@/components/CredentialsDialog.vue'
+import type { IssuedLogin } from '@/utils/credentials'
+import { mapsLink } from '@/utils/geo'
 
 const api   = useApi()
 const route = useRoute()
@@ -543,27 +624,68 @@ async function loadGyms() {
 // -- Partner Applications -------------------------------------
 interface Application {
   id: number
+  reference: string | null
   facility_name: string
   categories: string[]
   contact_person: string
   contact_phone: string
   contact_email: string
   tin_number: string
+  website?: string | null
+  has_permits?: boolean | null
+  has_certified_equipment?: boolean | null
+  has_reception?: boolean | null
   business_license_url: string | null
   city: string
   sub_city: string
   woreda: string
   landmark: string
   google_maps_link: string | null
+  latitude: number | null
+  longitude: number | null
   operating_hours_summary: string
   max_capacity: number
   amenities: string[]
+  branch_name: string | null
+  branches: AppBranch[]
+  is_branch_request: boolean
+  parent_gym_name: string | null
   status: 'pending' | 'approved' | 'rejected'
   rejection_reason: string | null
   submitted_at: string
 }
 
+interface AppBranch {
+  branch_name: string
+  city: string
+  sub_city: string | null
+  woreda: string
+  landmark: string | null
+  contact_phone: string | null
+  latitude?: number | null
+  longitude?: number | null
+  weekday_open: string
+  weekday_close: string
+  weekend_open: string | null
+  weekend_close: string | null
+  max_capacity: number
+}
+
+const STANDARDS = [
+  { key: 'has_permits', label: 'Permits to conduct business' },
+  { key: 'has_certified_equipment', label: 'Certified, safe equipment' },
+  { key: 'has_reception', label: 'Staffed reception' },
+] as const
+
 const applications  = ref<Application[]>([])
+// Applications whose map preview is open (mounted on demand)
+const openMaps      = ref<Set<number>>(new Set())
+function toggleMap(id: number) {
+  const next = new Set(openMaps.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  openMaps.value = next
+}
 const loadingApps   = ref(false)
 const pendingCount  = ref(0)
 const appStatus     = ref('all')
@@ -597,10 +719,15 @@ const approveModal   = ref(false)
 const approveLoading = ref(false)
 const approveTier    = ref('')
 const selectedApp    = ref<Application | null>(null)
+const branchTiers    = ref<string[]>([])
+const allBranchTiersChosen = computed(
+  () => (selectedApp.value?.branches ?? []).every((_, i) => !!branchTiers.value[i])
+)
 
 function openApprove(app: Application) {
   selectedApp.value  = app
   approveTier.value  = ''
+  branchTiers.value  = (app.branches ?? []).map(() => '')
   approveModal.value = true
 }
 
@@ -608,9 +735,13 @@ async function confirmApprove() {
   if (!approveTier.value || !selectedApp.value) return
   approveLoading.value = true
   try {
-    const res = await api.post<{ message: string }>(`partner-applications/${selectedApp.value.id}/approve`, { tier: approveTier.value })
+    const res = await api.post<{ message: string; credentials?: IssuedLogin[] }>(`partner-applications/${selectedApp.value.id}/approve`, {
+      tier: approveTier.value,
+      ...(selectedApp.value.branches?.length ? { branch_tiers: branchTiers.value } : {}),
+    })
     approveModal.value = false
     showToast(res.message, 'success')
+    if (res.credentials?.length) issuedLogins.value = res.credentials
     await Promise.all([loadGyms(), loadApplications()])
   } catch (e: unknown) {
     showToast(e instanceof Error ? e.message : 'Approval failed.', 'error')
@@ -618,6 +749,9 @@ async function confirmApprove() {
     approveLoading.value = false
   }
 }
+
+// Logins created on approval (temporary passwords), shown once
+const issuedLogins = ref<IssuedLogin[]>([])
 
 // -- Reject --------------------------------------------------
 const rejectModal   = ref(false)
@@ -648,6 +782,16 @@ async function confirmReject() {
 // -- Toast ----------------------------------------------------
 const toast = ref({ show: false, message: '', type: 'success' })
 let toastTimer: ReturnType<typeof setTimeout>
+async function resetTwoFactor(g: Gym) {
+  if (!confirm(`Reset two-factor authentication for the partner account of ${g.name}? They must scan a new QR code on their next login.`)) return
+  try {
+    const res = await api.post<{ message: string }>(`gyms/${g.id}/reset-2fa`, {})
+    showToast(res.message, 'success')
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Failed to reset two-factor authentication.', 'error')
+  }
+}
+
 function showToast(message: string, type = 'success') {
   clearTimeout(toastTimer)
   toast.value = { show: true, message, type }
@@ -757,10 +901,10 @@ function formatDate(iso: string): string {
 
 // -- Helpers --------------------------------------------------
 const categoryMap: Record<string, string> = {
-  gym: '??? Gym & Fitness', swimming: '?? Swimming Pool',
-  spa: '?? Spa & Hydrotherapy', reflexology: '?? Reflexology & Massage',
-  cinema: '?? Cinema / Theatre', yoga: '?? Yoga & Pilates',
-  sauna: '?? Sauna & Steam', nutrition: '?? Nutrition Clinic',
+  gym: '🏋️ Gym & Fitness', swimming: '🏊 Swimming Pool',
+  spa: '💆 Spa & Hydrotherapy', reflexology: '🦶 Reflexology & Massage',
+  cinema: '🎬 Cinema / Theatre', yoga: '🧘 Yoga & Pilates',
+  sauna: '🧖 Sauna & Steam', nutrition: '🥗 Nutrition Clinic',
 }
 function categoryLabel(c: string): string { return categoryMap[c] ?? c }
 
@@ -834,11 +978,11 @@ onMounted(() => {
 .gc-header     { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .gc-name       { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
 .gc-tier-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
-.tb-platinum   { background: #ede9fe; color: #2EB84B; }
-.tb-plus       { background: #d1fae5; color: #2EB84B; }
+.tb-platinum   { background: #ede9fe; color: #72B800; }
+.tb-plus       { background: #d1fae5; color: #72B800; }
 .tb-basic      { background: #f1f5f9; color: #64748b; }
-.gc-big-num    { font-size: 2rem; font-weight: 800; color: #2EB84B; line-height: 1; }
-.card-plus .gc-big-num { color: #4CD964; }
+.gc-big-num    { font-size: 2rem; font-weight: 800; color: #72B800; line-height: 1; }
+.card-plus .gc-big-num { color: #8BE000; }
 .gc-stats      { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 .gc-stat-label { font-size: 0.72rem; color: #94a3b8; margin: 0 0 3px; }
 .gc-stat-val   { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; }
@@ -846,7 +990,7 @@ onMounted(() => {
 .gc-city       { font-size: 0.75rem; color: #94a3b8; }
 .gc-email      { display: flex; align-items: center; gap: 5px; font-size: 0.74rem; color: #64748b; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .gc-partner-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
-.partner { background: #d1fae5; color: #2EB84B; }
+.partner { background: #d1fae5; color: #72B800; }
 .regular { background: #f1f5f9; color: #94a3b8; }
 
 /* -- Upgrade request cards ---------------------------------- */
@@ -866,7 +1010,7 @@ onMounted(() => {
   display: inline-block; padding: 3px 12px; border-radius: 20px;
   font-size: 0.78rem; font-weight: 700;
 }
-.tb-basic      { background: #eff6ff; color: #3b82f6; }
+.tb-basic      { background: #f1f5f9; color: #0B0C10; }
 .tb-plus       { background: #f0fdf4; color: #16a34a; }
 .tb-premium    { background: #fff7ed; color: #ea580c; }
 .tb-platinum   { background: #faf5ff; color: #9333ea; }
@@ -897,7 +1041,7 @@ onMounted(() => {
 .app-card-header { display: flex; align-items: center; gap: 14px; }
 .app-avatar {
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #16a34a, #4CD964);
+  background: linear-gradient(135deg, #16a34a, #8BE000);
   color: #fff; font-weight: 800; font-size: 1rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -921,17 +1065,32 @@ onMounted(() => {
 .app-section-sub   { font-size: 0.78rem; color: #64748b; margin: 0; }
 
 .cat-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
-.cat-chip  { padding: 3px 9px; background: #EBFAEE; color: #2EB84B; border-radius: 20px; font-size: 0.73rem; font-weight: 600; }
+.cat-chip  { padding: 3px 9px; background: #EBFAEE; color: #72B800; border-radius: 20px; font-size: 0.73rem; font-weight: 600; }
 
 .app-amenities { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-website { display: inline-block; margin-top: 4px; font-size: 0.8rem; word-break: break-all; }
+.std-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: 0.8rem; }
+.std-mark {
+  width: 16px; height: 16px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.62rem; font-weight: 900; flex-shrink: 0;
+}
+.std-yes { color: #0B0C10; }
+.std-yes .std-mark { background: #8BE000; color: #0B0C10; }
+.std-no { color: #b91c1c; font-weight: 600; }
+.std-no .std-mark { background: #fee2e2; color: #b91c1c; }
 .amenity-chip  { padding: 3px 9px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 0.73rem; color: #475569; }
 
 .app-license {
   display: flex; align-items: center; gap: 6px;
   font-size: 0.8rem; color: #64748b;
 }
-.license-link { color: #4CD964; font-weight: 600; text-decoration: none; }
+.license-link { color: #8BE000; font-weight: 600; text-decoration: none; }
 .license-link:hover { text-decoration: underline; }
+.map-toggle { margin-top: 6px; padding: 0; background: none; border: none; color: #16a34a; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.map-toggle:hover { text-decoration: underline; }
+.app-map { margin: 4px 0 12px; }
+.no-pin { color: #94a3b8; font-size: 12px; }
 
 .rejection-note {
   display: flex; align-items: flex-start; gap: 7px;
@@ -986,7 +1145,7 @@ onMounted(() => {
 
 .field-group  { display: flex; flex-direction: column; gap: 8px; }
 .field-label  { font-size: 0.85rem; font-weight: 600; color: #334155; }
-.req          { color: #4CD964; }
+.req          { color: #8BE000; }
 .optional     { color: #94a3b8; font-weight: 400; font-size: 0.78rem; }
 
 /* Tier selector in modal */
@@ -1002,8 +1161,8 @@ onMounted(() => {
 .tier-btn.selected { border-color: #16a34a; background: #f0fdf4; color: #166534; font-weight: 700; }
 .tier-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .dot-basic      { background: #64748b; }
-.dot-basic_plus { background: #2EB84B; }
-.dot-premium    { background: #2EB84B; }
+.dot-basic_plus { background: #72B800; }
+.dot-premium    { background: #72B800; }
 .dot-platinum   { background: #f59e0b; }
 
 .textarea {
@@ -1062,5 +1221,25 @@ onMounted(() => {
 @media (max-width: 700px) {
   .app-body { grid-template-columns: 1fr; }
   .tier-grid { grid-template-columns: 1fr; }
+}
+.gc-reset-2fa {
+  margin-top: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+}
+.gc-reset-2fa:hover { background: #f8fafc; }
+
+.app-branch-note { font-size: 0.78rem; color: #4D7C0F; margin: 2px 0 0; font-weight: 600; }
+.app-branches { padding: 10px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.app-branch-row {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 12px; border-radius: 10px; background: #f8fafc;
+  font-size: 0.8rem; color: #475569;
 }
 </style>

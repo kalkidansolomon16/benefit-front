@@ -48,6 +48,21 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/for-employers',
+      name: 'for-employers',
+      component: () => import('../views/ForEmployersView.vue'),
+    },
+    {
+      path: '/for-employees',
+      name: 'for-employees',
+      component: () => import('../views/ForEmployeesView.vue'),
+    },
+    {
+      path: '/for-partners',
+      name: 'for-partners',
+      component: () => import('../views/ForPartnersView.vue'),
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
@@ -114,6 +129,11 @@ const router = createRouter({
           meta: { requiresPermission: 'gym.facility.view' },
         },
         {
+          path: 'branches',
+          name: 'partner-branches',
+          component: () => import('../views/partner/PartnerBranches.vue'),
+        },
+        {
           path: 'team',
           name: 'partner-team',
           component: () => import('../views/partner/GymTeamView.vue'),
@@ -165,6 +185,12 @@ const router = createRouter({
           meta: { requiresHR: true },
         },
         {
+          path: 'branches',
+          name: 'hr-branches',
+          component: () => import('../views/hr/HRBranches.vue'),
+          meta: {},
+        },
+        {
           path: 'team',
           name: 'hr-team',
           component: () => import('../views/hr/CompanyTeamView.vue'),
@@ -195,6 +221,12 @@ const router = createRouter({
           path: 'companies',
           name: 'admin-companies',
           component: () => import('../views/admin/CompaniesView.vue'),
+          meta: { requiresPermission: 'companies.view' },
+        },
+        {
+          path: 'company-applications',
+          name: 'admin-company-applications',
+          component: () => import('../views/admin/CompanyApplicationsView.vue'),
           meta: { requiresPermission: 'companies.view' },
         },
         {
@@ -283,7 +315,7 @@ const router = createRouter({
       redirect: '/',
     },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to) => (to.hash ? { el: to.hash, top: 90, behavior: 'smooth' } : { top: 0 }),
 })
 
 // ── Navigation guard ────────────────────────────────────────────

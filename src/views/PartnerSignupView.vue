@@ -1,8 +1,16 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
-
-const router = useRouter()
+import { RouterLink } from 'vue-router'
+import BranchFields from '@/components/BranchFields.vue'
+import LocationPicker from '@/components/LocationPicker.vue'
+import { mapsLink as toMapsLink, type PlaceAddress } from '@/utils/geo'
+import {
+  emptyBranch,
+  branchValid,
+  branchMissing,
+  branchPayload,
+  type BranchForm,
+} from '@/utils/branches'
 
 // -- Step state --------------------------------------------------------------
 const step = ref(1)
@@ -17,55 +25,40 @@ const contactPerson = ref('')
 const contactPhone = ref('')
 const contactEmail = ref('')
 const tinNumber = ref('')
-const licenseFile = ref<File | null>(null)
-const licensePreview = ref('')
-const licenseError = ref('')
+const website = ref('')
+
+/** Adds https:// when the partner typed just "www.example.com". */
+function normalizedWebsite(): string {
+  const w = website.value.trim()
+  if (!w) return ''
+  return /^https?:\/\//i.test(w) ? w : 'https://' + w
+}
+const websiteOk = computed(() => {
+  const w = normalizedWebsite()
+  if (!w) return true
+  try {
+    const u = new URL(w)
+    return /\./.test(u.hostname)
+  } catch {
+    return false
+  }
+})
 
 const serviceCategories = [
-  { id: 'gym', label: '??? Gym & Fitness Center' },
-  { id: 'swimming', label: '?? Swimming Pool' },
-  { id: 'spa', label: '?? Spa & Hydrotherapy' },
-  { id: 'reflexology', label: '?? Reflexology & Massage Center' },
-  { id: 'cinema', label: '?? Cinema / Theatre' },
-  { id: 'yoga', label: '?? Yoga & Pilates Studio' },
-  { id: 'sauna', label: '?? Sauna & Steam Room' },
-  { id: 'nutrition', label: '?? Nutrition & Wellness Clinic' },
+  { id: 'gym', label: '🏋️ Gym & Fitness Center' },
+  { id: 'swimming', label: '🏊 Swimming Pool' },
+  { id: 'spa', label: '💆 Spa & Hydrotherapy' },
+  { id: 'reflexology', label: '🦶 Reflexology & Massage Center' },
+  { id: 'cinema', label: '🎬 Cinema / Theatre' },
+  { id: 'yoga', label: '🧘 Yoga & Pilates Studio' },
+  { id: 'sauna', label: '🧖 Sauna & Steam Room' },
+  { id: 'nutrition', label: '🥗 Nutrition & Wellness Clinic' },
 ]
 
 function toggleCategory(id: string) {
   const idx = selectedCategories.value.indexOf(id)
   if (idx === -1) selectedCategories.value.push(id)
   else selectedCategories.value.splice(idx, 1)
-}
-
-function onLicenseFile(e: Event) {
-  licenseError.value = ''
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  if (file.size > 10 * 1024 * 1024) {
-    licenseError.value = 'File must be under 10 MB.'
-    return
-  }
-  const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
-  if (!allowed.includes(file.type)) {
-    licenseError.value = 'Only PDF, JPG, or PNG files are accepted.'
-    return
-  }
-  licenseFile.value = file
-  if (file.type.startsWith('image/')) {
-    const reader = new FileReader()
-    reader.onload = () => {
-      licensePreview.value = reader.result as string
-    }
-    reader.readAsDataURL(file)
-  } else {
-    licensePreview.value = 'pdf'
-  }
-}
-
-function removeLicense() {
-  licenseFile.value = null
-  licensePreview.value = ''
 }
 
 const step1Valid = computed(() => {
@@ -77,7 +70,8 @@ const step1Valid = computed(() => {
     contactPerson.value.trim() &&
     phoneOk &&
     emailOk &&
-    tinNumber.value.trim()
+    tinNumber.value.trim() &&
+    websiteOk.value
   )
 })
 
@@ -121,10 +115,33 @@ const subCitiesMap: Record<string, string[]> = {
 
 const availableSubCities = computed(() => subCitiesMap[city.value] ?? [])
 
-// Reset sub-city when city changes
+// Reset sub-city when city changes (unless it still belongs to the new city,
+// e.g. both were just filled in from the map pin)
 watch(city, () => {
-  subCity.value = ''
+  if (!availableSubCities.value.includes(subCity.value)) subCity.value = ''
 })
+
+// Map pin for the main location (auto-detected, adjustable)
+const latitude = ref<number | null>(null)
+const longitude = ref<number | null>(null)
+
+watch([latitude, longitude], ([lat, lng]) => {
+  mapsLink.value = lat != null && lng != null ? toMapsLink({ lat, lng }) : ''
+})
+
+function onMainAddress(a: PlaceAddress) {
+  if (a.city && cities.includes(a.city)) city.value = a.city
+  const subs = subCitiesMap[a.city] ?? []
+  if (a.sub_city && subs.includes(a.sub_city)) subCity.value = a.sub_city
+  if (a.landmark && !landmark.value.trim()) landmark.value = a.landmark
+}
+
+/** Main location pin, used as the starting point for each branch map */
+const mainPin = computed(() =>
+  latitude.value != null && longitude.value != null
+    ? { lat: latitude.value, lng: longitude.value, label: 'Main location' }
+    : null,
+)
 
 const step2Valid = computed(() => city.value.trim() && woreda.value.trim())
 
@@ -140,14 +157,14 @@ const maxCapacity = ref('')
 const selectedAmenities = ref<string[]>([])
 
 const amenitiesList = [
-  { id: 'locker', label: '?? Locker Rooms' },
-  { id: 'parking', label: '?? Parking' },
-  { id: 'classes', label: '?? Group Classes' },
-  { id: 'personal', label: '?? Personal Training' },
-  { id: 'cafe', label: 'Café / Juice Bar' },
-  { id: 'wifi', label: '?? Free Wi-Fi' },
-  { id: 'shower', label: '?? Showers' },
-  { id: 'ac', label: '?? Air Conditioning' },
+  { id: 'locker', label: '🚪 Locker Rooms' },
+  { id: 'parking', label: '🅿️ Parking' },
+  { id: 'classes', label: '👥 Group Classes' },
+  { id: 'personal', label: '💪 Personal Training' },
+  { id: 'cafe', label: '☕ Café / Juice Bar' },
+  { id: 'wifi', label: '📶 Free Wi-Fi' },
+  { id: 'shower', label: '🚿 Showers' },
+  { id: 'ac', label: '❄️ Air Conditioning' },
 ]
 
 function toggleAmenity(id: string) {
@@ -156,9 +173,62 @@ function toggleAmenity(id: string) {
   else selectedAmenities.value.splice(idx, 1)
 }
 
+// -- Branches (other locations of the same business) ---------------------------
+const hasBranches = ref(false)
+const mainBranchName = ref('')
+const branches = ref<BranchForm[]>([])
+
+function toggleHasBranches() {
+  hasBranches.value = !hasBranches.value
+  if (hasBranches.value && branches.value.length === 0) branches.value.push(emptyBranch())
+}
+function addBranch() {
+  branches.value.push(emptyBranch())
+}
+function removeBranch(i: number) {
+  branches.value.splice(i, 1)
+  if (branches.value.length === 0) hasBranches.value = false
+}
+
+const branchesValid = computed(
+  () => !hasBranches.value || (mainBranchName.value.trim() && branches.value.every((b) => branchValid(b, 'gym', false)))
+)
+
+// Facility standards: each must be answered yes or no (null = not answered yet)
+const standardsQuestions = [
+  { key: 'has_permits', text: 'Does the facility have approval for use and current permits required to conduct business?' },
+  { key: 'has_certified_equipment', text: 'Does the facility have certified equipment and devices ensuring the safety of exercisers?' },
+  { key: 'has_reception', text: 'Does the facility have a permanent reception with staff?' },
+] as const
+type StandardKey = (typeof standardsQuestions)[number]['key']
+const standards = ref<Record<StandardKey, boolean | null>>({
+  has_permits: null,
+  has_certified_equipment: null,
+  has_reception: null,
+})
+const standardsAnswered = computed(() => Object.values(standards.value).every((v) => v !== null))
+
+// Human-readable list of what still blocks the Continue button on step 3
+const step3Missing = computed(() => {
+  const out: string[] = []
+  if (!standardsAnswered.value) out.push('facility standards questions')
+  if (!(Number(maxCapacity.value) > 0)) out.push('main location capacity')
+  if (weekdayClose.value <= weekdayOpen.value) out.push('main weekday hours')
+  if (!weekendClosed.value && weekendClose.value <= weekendOpen.value) out.push('main weekend hours')
+  if (hasBranches.value) {
+    if (!mainBranchName.value.trim()) out.push('name of the main location')
+    branches.value.forEach((b, i) => {
+      if (!branchValid(b, 'gym', false)) out.push(`Branch ${i + 1}: ${branchMissing(b, 'gym', false).join(', ')}`)
+    })
+  }
+  return out
+})
+
 const step3Valid = computed(() => {
   const cap = Number(maxCapacity.value)
   return (
+    standardsAnswered.value &&
+    branchesValid.value &&
     weekdayOpen.value &&
     weekdayClose.value &&
     weekdayClose.value > weekdayOpen.value &&
@@ -169,27 +239,15 @@ const step3Valid = computed(() => {
 })
 
 // ------------------------------------------------------------------------------
-// STEP 4 — Account
+// STEP 4 — Review & submit
+// No password here: once FitAccess approves the application, the partner
+// account is created and the login details (temporary password) are emailed.
 // ------------------------------------------------------------------------------
-const password = ref('')
-const confirmPassword = ref('')
-const showPass = ref(false)
-const showConfirm = ref(false)
 const agreeTerms = ref(false)
 const loading = ref(false)
 const error = ref('')
-
-const passwordRules = computed(() => ({
-  length: password.value.length >= 8,
-  upper: /[A-Z]/.test(password.value),
-  lower: /[a-z]/.test(password.value),
-  number: /\d/.test(password.value),
-}))
-const passStrength = computed(() => Object.values(passwordRules.value).filter(Boolean).length)
-const passwordMatch = computed(
-  () => password.value === confirmPassword.value && password.value.length >= 8
-)
-const step4Valid = computed(() => passwordMatch.value && agreeTerms.value)
+const submittedRef = ref('')
+const step4Valid = computed(() => agreeTerms.value)
 
 // ------------------------------------------------------------------------------
 // Navigation
@@ -226,13 +284,18 @@ async function handleSubmit() {
     fd.append('contact_phone', '+251' + contactPhone.value.replace(/\s/g, ''))
     fd.append('contact_email', contactEmail.value)
     fd.append('tin_number', tinNumber.value)
-    if (licenseFile.value) fd.append('business_license', licenseFile.value)
+    if (normalizedWebsite()) fd.append('website', normalizedWebsite())
+    for (const q of standardsQuestions) fd.append(q.key, standards.value[q.key] ? '1' : '0')
 
     fd.append('city', city.value)
     fd.append('sub_city', subCity.value)
     fd.append('woreda', woreda.value)
     fd.append('landmark', landmark.value)
     fd.append('google_maps_link', mapsLink.value)
+    if (latitude.value != null && longitude.value != null) {
+      fd.append('latitude', String(latitude.value))
+      fd.append('longitude', String(longitude.value))
+    }
 
     const hours = weekendClosed.value
       ? `Weekdays ${weekdayOpen.value}–${weekdayClose.value} | Weekends: Closed`
@@ -244,7 +307,10 @@ async function handleSubmit() {
     fd.append('weekend_close', weekendClosed.value ? '' : weekendClose.value)
     fd.append('max_capacity', maxCapacity.value)
     fd.append('amenities', JSON.stringify(selectedAmenities.value))
-    fd.append('password', password.value)
+    if (hasBranches.value && branches.value.length) {
+      fd.append('branch_name', mainBranchName.value.trim())
+      fd.append('branches', JSON.stringify(branches.value.map((b) => branchPayload(b, 'gym', false))))
+    }
 
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/register/partner`, {
       method: 'POST',
@@ -253,12 +319,23 @@ async function handleSubmit() {
     })
     if (!res.ok) {
       const data = await res.json()
-      const firstErr = data.errors
-        ? (Object.values(data.errors as Record<string, string[]>)[0]?.[0] ?? 'Validation error')
-        : null
-      throw new Error(firstErr || data.message || 'Registration failed.')
+      let firstErr: string | null = null
+      if (data.errors) {
+        const [field, msgs] = Object.entries(data.errors as Record<string, string[]>)[0] ?? []
+        firstErr = msgs?.[0] ?? 'Validation error'
+        // Say which branch an error belongs to (e.g. "branches.0.email")
+        const m = field?.match(/^branches\.(\d+)\./)
+        if (m) {
+          const i = Number(m[1])
+          const name = branches.value[i]?.branch_name.trim()
+          firstErr = `Branch ${i + 1}${name ? ` (${name})` : ''}: ${firstErr}`
+        }
+      }
+      throw new Error(firstErr || data.message || 'Your application could not be sent. Please try again.')
     }
-    router.push('/login?registered=partner')
+    const data = await res.json()
+    submittedRef.value = data.reference ?? 'received'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong.'
   } finally {
@@ -266,21 +343,46 @@ async function handleSubmit() {
   }
 }
 
-const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
+const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
 </script>
 
 <template>
   <div class="signup-page">
     <div class="signup-card">
       <!-- Brand -->
-      <div class="brand">
+      <RouterLink to="/" class="brand" aria-label="FitAccess home">
         <span class="brand-icon">F</span>
         <span class="brand-name">FitAccess</span>
         <span class="brand-tag">Partner Portal</span>
+      </RouterLink>
+
+      <!-- -- Application sent -- -->
+      <div v-if="submittedRef" class="card-body done">
+        <div class="done-icon">
+          <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+        </div>
+        <h1 class="heading done-heading">Thank you!</h1>
+        <p class="subtext">
+          Your application for <strong>{{ facilityName }}</strong> has been registered<template v-if="submittedRef !== 'received'">
+          under number <strong class="done-ref">{{ submittedRef }}</strong></template>. We have sent a
+          confirmation to <strong>{{ contactEmail }}</strong>.
+        </p>
+        <div class="done-steps">
+          <p class="done-steps-title">What now?</p>
+          <ol>
+            <li>Our team will review your application and contact you within 3 business days.</li>
+            <li>We check that your facility meets our terms of cooperation.</li>
+            <li>Once approved, you receive an email with your login details and a temporary password.
+              You will choose your own password when you first sign in.</li>
+          </ol>
+        </div>
+        <div class="actions">
+          <RouterLink to="/" class="btn-next btn-partner active done-btn">Back to the homepage</RouterLink>
+        </div>
       </div>
 
       <!-- Progress -->
-      <div class="progress-wrap">
+      <div v-if="!submittedRef" class="progress-wrap">
         <div class="progress-steps">
           <div
             v-for="n in TOTAL_STEPS"
@@ -314,7 +416,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
       </div>
 
       <!-- -- STEP 1: Business Identity & Category -- -->
-      <div v-if="step === 1" class="card-body">
+      <div v-if="!submittedRef && step === 1" class="card-body">
         <h1 class="heading">Business identity</h1>
         <div class="authority-notice">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -422,75 +524,21 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
             <p class="field-hint">Your 10-digit tax registration number issued by ERCA</p>
           </div>
 
-          <!-- Business License Upload -->
+          <!-- Website (optional) -->
           <div class="field-group">
-            <label class="field-label"
-              >Business License <span class="optional">(PDF or photo, max 10 MB)</span></label
-            >
-
-            <!-- Preview if uploaded -->
-            <div v-if="licenseFile" class="license-preview">
-              <div class="license-preview-inner">
-                <div v-if="licensePreview === 'pdf'" class="pdf-icon">
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#4CD964"
-                    stroke-width="1.8"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="9" y1="13" x2="15" y2="13" />
-                    <line x1="9" y1="17" x2="15" y2="17" />
-                  </svg>
-                </div>
-                <img v-else :src="licensePreview" alt="license" class="license-thumb" />
-                <div class="license-info">
-                  <p class="license-name">{{ licenseFile.name }}</p>
-                  <p class="license-size">{{ (licenseFile.size / 1024).toFixed(1) }} KB</p>
-                </div>
-              </div>
-              <button type="button" class="license-remove" @click="removeLicense">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                >
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Upload zone -->
-            <label v-else class="upload-zone">
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                class="upload-input"
-                @change="onLicenseFile"
-              />
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#94a3b8"
-                stroke-width="1.5"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              <p class="upload-text">Click to upload or drag & drop</p>
-              <p class="upload-hint">PDF, JPG, PNG — max 10 MB</p>
-            </label>
-            <p v-if="licenseError" class="field-hint error-hint">{{ licenseError }}</p>
+            <label class="field-label">Website <span class="optional">(optional)</span></label>
+            <input
+              v-model="website"
+              type="text"
+              inputmode="url"
+              class="input"
+              placeholder="https://www.example.com"
+              maxlength="255"
+              autocomplete="url"
+            />
+            <p v-if="!websiteOk" class="field-hint error-hint">Please enter a valid website address, e.g. www.example.com</p>
           </div>
+
         </div>
         <!-- /fields -->
 
@@ -535,6 +583,22 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
         <p class="subtext">Help FitAccess members find your facility on the map.</p>
 
         <div class="fields">
+          <!-- Map -->
+          <div class="field-group">
+            <label class="field-label">Facility location on the map <span class="optional">(recommended)</span></label>
+            <LocationPicker
+              v-model:lat="latitude"
+              v-model:lng="longitude"
+              auto-locate
+              @address="onMainAddress"
+            />
+            <p class="field-hint">
+              We detect your location automatically. If you are not at the facility right now,
+              search for it or drag the pin to its entrance. City, sub-city and landmark are filled in
+              from the pin.
+            </p>
+          </div>
+
           <!-- City + Sub-City -->
           <div class="field-row">
             <div class="field-group">
@@ -614,22 +678,6 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
               placeholder='e.g. "Behind Edna Mall, next to Commercial Bank"'
             />
             <p class="field-hint">Help members find you easily on foot or by taxi</p>
-          </div>
-
-          <!-- Maps link -->
-          <div class="field-group">
-            <label class="field-label"
-              >Google Maps Link / GPS Coordinates <span class="optional">(optional)</span></label
-            >
-            <input
-              v-model="mapsLink"
-              type="text"
-              class="input"
-              placeholder="https://maps.google.com/... or 9.0123,38.7456"
-            />
-            <p class="field-hint">
-              Used to plot your facility on the employee mobile directory map
-            </p>
           </div>
         </div>
 
@@ -746,6 +794,21 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
             </div>
           </div>
 
+          <!-- Facility standards (required yes/no) -->
+          <div v-for="q in standardsQuestions" :key="q.key" class="field-group">
+            <label class="field-label">{{ q.text }} <span class="req">*</span></label>
+            <div class="yn-row" role="radiogroup" :aria-label="q.text">
+              <label class="yn-opt" :class="{ selected: standards[q.key] === false }">
+                <input v-model="standards[q.key]" type="radio" :name="q.key" :value="false" />
+                <span class="yn-dot"></span> No
+              </label>
+              <label class="yn-opt" :class="{ selected: standards[q.key] === true }">
+                <input v-model="standards[q.key]" type="radio" :name="q.key" :value="true" />
+                <span class="yn-dot"></span> Yes
+              </label>
+            </div>
+          </div>
+
           <!-- Hourly Capacity -->
           <div class="field-group">
             <label class="field-label">Maximum Hourly Capacity <span class="req">*</span></label>
@@ -784,7 +847,53 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
               </button>
             </div>
           </div>
+
+          <!-- Branches -->
+          <div class="field-group branches-box">
+            <label class="field-label">Does your business have other branches?</label>
+            <p class="field-hint">
+              Add every location now. Each branch is listed to members as its own location and, once approved, gets its own login (sent to its email). A branch can only manage itself and sees the other branches read-only; this main location can see and manage them all.
+            </p>
+            <div class="branch-choice">
+              <button type="button" class="amenity-btn" :class="{ selected: !hasBranches }" @click="hasBranches && toggleHasBranches()">
+                No, single location
+              </button>
+              <button type="button" class="amenity-btn" :class="{ selected: hasBranches }" @click="!hasBranches && toggleHasBranches()">
+                Yes, we have branches
+              </button>
+            </div>
+
+            <template v-if="hasBranches">
+              <div class="field-group">
+                <label class="field-label">
+                  Name of this main location <span class="req">*</span>
+                </label>
+                <input
+                  v-model="mainBranchName"
+                  type="text"
+                  class="input"
+                  placeholder="e.g. Head Office, Bole"
+                  maxlength="100"
+                />
+                <p class="field-hint">The location you filled in above. Your other branches go below.</p>
+              </div>
+
+              <div v-for="(br, i) in branches" :key="i" class="branch-card">
+                <div class="branch-card-head">
+                  <span class="branch-card-title">Branch {{ i + 1 }}</span>
+                  <button type="button" class="branch-remove" @click="removeBranch(i)">Remove</button>
+                </div>
+                <BranchFields :model-value="br" :reference="mainPin" :with-password="false" />
+              </div>
+
+              <button type="button" class="branch-add" @click="addBranch">+ Add another branch</button>
+            </template>
+          </div>
         </div>
+
+        <p v-if="!step3Valid && step3Missing.length" class="field-hint error-hint step-missing">
+          Still needed: {{ step3Missing.join(' · ') }}
+        </p>
 
         <div class="actions">
           <button
@@ -809,7 +918,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
       </div>
 
       <!-- -- STEP 4: Create Account -- -->
-      <div v-else class="card-body">
+      <div v-else-if="!submittedRef" class="card-body">
         <button class="back-btn" @click="back">
           <svg
             width="18"
@@ -832,132 +941,44 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
           </div>
         </div>
 
-        <h1 class="heading">Create your account</h1>
+        <h1 class="heading">Review &amp; submit</h1>
         <p class="subtext">
-          Set a secure password for <strong>{{ contactEmail }}</strong>
+          Please check your details. After you submit, our team reviews your facility and creates
+          your partner account. You do not need to choose a password now.
         </p>
 
         <div class="fields">
-          <!-- Password -->
-          <div class="field-group">
-            <label class="field-label">Password <span class="req">*</span></label>
-            <div class="pass-wrap">
-              <input
-                v-model="password"
-                :type="showPass ? 'text' : 'password'"
-                class="input"
-                placeholder="At least 8 characters"
-                autocomplete="new-password"
-              />
-              <button class="toggle-pass" type="button" @click="showPass = !showPass" tabindex="-1">
-                <svg
-                  v-if="!showPass"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <svg
-                  v-else
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
-                  />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              </button>
-            </div>
-            <!-- Strength meter -->
-            <div v-if="password" class="strength-meter">
-              <div class="strength-bars">
-                <div
-                  v-for="i in 4"
-                  :key="i"
-                  class="strength-bar"
-                  :class="passStrength >= i ? `bar-${passStrength}` : ''"
-                ></div>
-              </div>
-              <span class="strength-label" :class="`label-${passStrength}`">
-                {{ ['', 'Weak', 'Fair', 'Good', 'Strong'][passStrength] }}
-              </span>
-            </div>
-            <div v-if="password" class="pass-rules">
-              <span :class="passwordRules.length ? 'rule-ok' : 'rule-fail'"
-                >{{ passwordRules.length ? '✓' : '✗' }} 8+ characters</span
-              >
-              <span :class="passwordRules.upper ? 'rule-ok' : 'rule-fail'"
-                >{{ passwordRules.upper ? '✓' : '✗' }} Uppercase</span
-              >
-              <span :class="passwordRules.lower ? 'rule-ok' : 'rule-fail'"
-                >{{ passwordRules.lower ? '✓' : '✗' }} Lowercase</span
-              >
-              <span :class="passwordRules.number ? 'rule-ok' : 'rule-fail'"
-                >{{ passwordRules.number ? '✓' : '✗' }} Number</span
-              >
-            </div>
+          <div class="review-box">
+            <p class="review-title">Facility</p>
+            <dl class="review-list">
+              <dt>Facility name</dt><dd>{{ facilityName }}</dd>
+              <dt>Services</dt><dd>{{ selectedCategories.length }} selected</dd>
+              <dt>TIN</dt><dd>{{ tinNumber }}</dd>
+              <template v-if="normalizedWebsite()">
+                <dt>Website</dt><dd>{{ normalizedWebsite() }}</dd>
+              </template>
+              <dt>Address</dt><dd>{{ [woreda, subCity, city].filter(Boolean).join(', ') }}</dd>
+              <dt>Max. capacity</dt><dd>{{ maxCapacity }} per hour</dd>
+              <template v-for="q in standardsQuestions" :key="'r' + q.key">
+                <dt>{{ { has_permits: 'Permits', has_certified_equipment: 'Certified equipment', has_reception: 'Staffed reception' }[q.key] }}</dt>
+                <dd>{{ standards[q.key] ? 'Yes' : 'No' }}</dd>
+              </template>
+              <template v-if="hasBranches && branches.length">
+                <dt>Other branches</dt><dd>{{ branches.map((b) => b.branch_name).join(', ') }}</dd>
+              </template>
+            </dl>
           </div>
-
-          <!-- Confirm Password -->
-          <div class="field-group">
-            <label class="field-label">Confirm Password <span class="req">*</span></label>
-            <div class="pass-wrap">
-              <input
-                v-model="confirmPassword"
-                :type="showConfirm ? 'text' : 'password'"
-                class="input"
-                :class="{ 'input-error': confirmPassword && !passwordMatch }"
-                placeholder="Repeat password"
-                autocomplete="new-password"
-              />
-              <button
-                class="toggle-pass"
-                type="button"
-                @click="showConfirm = !showConfirm"
-                tabindex="-1"
-              >
-                <svg
-                  v-if="!showConfirm"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <svg
-                  v-else
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
-                  />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              </button>
-            </div>
-            <p v-if="confirmPassword && !passwordMatch" class="field-hint error-hint">
-              Passwords do not match.
-            </p>
+          <div class="review-box">
+            <p class="review-title">Contact person</p>
+            <dl class="review-list">
+              <dt>Name</dt><dd>{{ contactPerson }}</dd>
+              <dt>Email</dt><dd>{{ contactEmail }}</dd>
+              <dt>Phone</dt><dd>+251 {{ contactPhone }}</dd>
+            </dl>
           </div>
+          <p class="review-note">
+            Your login details will be sent to <strong>{{ contactEmail }}</strong> once your application is approved.
+          </p>
 
           <!-- Terms -->
           <label class="checkbox-row">
@@ -980,7 +1001,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
             @click="handleSubmit"
           >
             <span v-if="loading" class="spinner"></span>
-            <span v-else>Submit Partner Application</span>
+            <span v-else>Submit application</span>
           </button>
         </div>
 
@@ -996,7 +1017,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
             <circle cx="12" cy="12" r="10" />
             <path d="M12 16v-4M12 8h.01" />
           </svg>
-          Applications are reviewed by our team within 2–3 business days.
+          Applications are reviewed by our team within 3 business days.
         </div>
 
         <p class="signin-link">Already a partner? <RouterLink to="/login">Sign in</RouterLink></p>
@@ -1015,6 +1036,23 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 </template>
 
 <style scoped>
+/* -- Review step + thank-you ----------------------------------------- */
+.review-box { border: 1.5px solid #e8e4dc; border-radius: 14px; padding: 16px 18px; background: #faf9f6; }
+.review-title { font-weight: 700; font-size: 0.95rem; margin: 0 0 10px; }
+.review-list { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; margin: 0; font-size: 0.9rem; }
+.review-list dt { color: #57534e; }
+.review-list dd { margin: 0; font-weight: 600; word-break: break-word; }
+.review-note { font-size: 0.88rem; color: #44403c; margin: 0; }
+.done { text-align: center; }
+.done-icon { width: 72px; height: 72px; margin: 8px auto 18px; border-radius: 50%; background: #8BE000; color: #0B0C10; display: flex; align-items: center; justify-content: center; }
+.done-heading { font-size: 2.2rem; }
+.done-ref { white-space: nowrap; }
+.done-steps { text-align: left; margin: 22px 0 6px; padding: 18px 20px; border-radius: 14px; background: #faf9f6; border: 1.5px solid #e8e4dc; }
+.done-steps-title { font-weight: 700; margin: 0 0 8px; }
+.done-steps ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; line-height: 1.5; }
+.done-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+@media (max-width: 520px) { .review-list { grid-template-columns: 1fr; gap: 2px; } .review-list dd { margin-bottom: 8px; } }
+
 /* -- Page & Card ------------------------------------------- */
 .signup-page {
   min-height: 100vh;
@@ -1043,16 +1081,18 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   align-items: center;
   gap: 8px;
   margin-bottom: 28px;
+  text-decoration: none;
+  width: fit-content;
 }
 .brand-icon {
   font-size: 1.6rem;
-  color: #4cd964;
+  color: #8BE000;
   line-height: 1;
 }
 .brand-name {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #4cd964;
+  color: #8BE000;
   letter-spacing: -0.01em;
 }
 .brand-tag {
@@ -1126,7 +1166,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #16a34a, #4cd964);
+  background: linear-gradient(90deg, #16a34a, #8BE000);
   border-radius: 99px;
   transition: width 0.4s ease;
 }
@@ -1361,96 +1401,6 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   flex: 1;
 }
 
-/* -- License Upload ---------------------------------------- */
-.upload-zone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 28px 20px;
-  border: 2px dashed #ddd8d2;
-  border-radius: 12px;
-  background: #f9f7f5;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-}
-.upload-zone:hover {
-  border-color: #16a34a;
-  background: #f0fdf4;
-}
-.upload-input {
-  display: none;
-}
-.upload-text {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #555;
-  margin: 0;
-}
-.upload-hint {
-  font-size: 0.76rem;
-  color: #999;
-  margin: 0;
-}
-
-.license-preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  background: #f0fdf4;
-  border: 1.5px solid #bbf7d0;
-  border-radius: 10px;
-}
-.license-preview-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.pdf-icon {
-  flex-shrink: 0;
-}
-.license-thumb {
-  width: 44px;
-  height: 44px;
-  border-radius: 6px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-.license-info {
-  min-width: 0;
-}
-.license-name {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #166534;
-  margin: 0 0 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.license-size {
-  font-size: 0.75rem;
-  color: #16a34a;
-  margin: 0;
-}
-.license-remove {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  transition: color 0.2s;
-}
-.license-remove:hover {
-  color: #4cd964;
-}
-
 /* -- Operating Hours --------------------------------------- */
 .hours-block {
   background: #f9f7f5;
@@ -1582,6 +1532,37 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   font-weight: 600;
 }
 
+/* -- Yes / No questions ------------------------------------ */
+.yn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.yn-opt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 110px;
+  padding: 12px 22px;
+  border: 1.5px solid #ddd8d2;
+  border-radius: 14px;
+  background: #fff;
+  font-size: 0.9rem;
+  color: #0B0C10;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.yn-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.yn-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #bbb;
+  flex-shrink: 0;
+  transition: border 0.15s;
+}
+.yn-opt:hover { border-color: #8BE000; }
+.yn-opt:has(input:focus-visible) { box-shadow: 0 0 0 3px rgba(139, 224, 0, 0.4); }
+.yn-opt.selected { border-color: #8BE000; background: #F4FBE8; font-weight: 600; }
+.yn-opt.selected .yn-dot { border: 5px solid #8BE000; }
+
 /* -- Password ---------------------------------------------- */
 .pass-wrap {
   position: relative;
@@ -1627,7 +1608,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   background: #ef4444;
 }
 .bar-2 {
-  background: #2eb84b;
+  background: #72B800;
 }
 .bar-3 {
   background: #eab308;
@@ -1645,7 +1626,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   color: #ef4444;
 }
 .label-2 {
-  color: #2eb84b;
+  color: #72B800;
 }
 .label-3 {
   color: #eab308;
@@ -1709,7 +1690,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   height: 44px;
   border-radius: 12px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #16a34a, #4cd964);
+  background: linear-gradient(135deg, #16a34a, #8BE000);
   color: #fff;
   font-weight: 800;
   font-size: 0.95rem;
@@ -1753,14 +1734,14 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
   font-family: inherit;
 }
 .btn-next.active {
-  background: #1b3a6b;
+  background: #0B0C10;
   color: #fff;
   cursor: pointer;
 }
 .btn-next.active:hover {
   background: #162f58;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(27, 58, 107, 0.25);
+  box-shadow: 0 6px 20px rgba(11, 12, 16, 0.25);
 }
 .btn-partner.active {
   background: #16a34a;
@@ -1856,4 +1837,29 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Account']
     display: none;
   }
 }
+
+.branches-box { margin-top: 8px; padding-top: 18px; border-top: 1px solid #e2e8f0; gap: 12px; }
+.branch-choice { display: flex; gap: 8px; flex-wrap: wrap; }
+.branch-card {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  background: #f8fafc;
+}
+.branch-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.branch-card-title { font-weight: 700; font-size: 14px; color: #0f172a; }
+.branch-remove { background: none; border: none; color: #ef4444; font-size: 13px; font-weight: 600; cursor: pointer; }
+.branch-add {
+  padding: 12px;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.branch-add:hover { background: #f1f5f9; }
+
+.step-missing { margin: 12px 0 0; text-align: center; }
 </style>

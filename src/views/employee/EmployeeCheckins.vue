@@ -214,7 +214,7 @@ function tierLabel(t: string): string {
 }
 .spinner {
   width: 34px; height: 34px; border: 3px solid #e2e8f0;
-  border-top-color: #4CD964; border-radius: 50%; animation: spin 0.7s linear infinite;
+  border-top-color: #8BE000; border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .retry-btn {
@@ -246,7 +246,7 @@ function tierLabel(t: string): string {
   font-size: 0.9rem; color: #1e293b; background: #fff;
   outline: none; transition: border-color 0.2s; font-family: inherit;
 }
-.search-input:focus { border-color: #4CD964; }
+.search-input:focus { border-color: #8BE000; }
 .search-input::placeholder { color: #94a3b8; }
 .clear-btn {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
@@ -259,7 +259,7 @@ function tierLabel(t: string): string {
   outline: none; cursor: pointer; font-family: inherit;
   transition: border-color 0.2s;
 }
-.month-select:focus { border-color: #4CD964; }
+.month-select:focus { border-color: #8BE000; }
 
 /* Empty */
 .empty-state {
@@ -308,9 +308,9 @@ function tierLabel(t: string): string {
   display: inline-block; padding: 3px 9px;
   border-radius: 10px; font-size: 0.71rem; font-weight: 600;
 }
-.tier-tag--platinum   { background: #EBFAEE; color: #2EB84B; }
-.tier-tag--premium    { background: #EBFAEE; color: #4CD964; }
-.tier-tag--basic_plus { background: #e0f2fe; color: #2EB84B; }
+.tier-tag--platinum   { background: #EBFAEE; color: #72B800; }
+.tier-tag--premium    { background: #EBFAEE; color: #8BE000; }
+.tier-tag--basic_plus { background: #EEF9DC; color: #72B800; }
 .tier-tag--basic      { background: #f1f5f9; color: #64748b; }
 
 @media (max-width: 700px) {

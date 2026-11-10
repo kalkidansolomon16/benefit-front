@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -14,11 +14,13 @@ const successMsg = computed(() => {
     return '✅ Partner application submitted! Our team will review and contact you within 2–3 business days.'
   if (route.query.registered === 'employee')
     return '✅ Application submitted! Your HR team will review and activate your account shortly.'
+  if (route.query.session === 'expired')
+    return 'Your session has expired. Please sign in again.'
   return ''
 })
 
-// Two-step state
-const step     = ref<'email' | 'password'>('email')
+// Email + password are entered together; MFA (privileged accounts) follows
+const step     = ref<'signin' | 'mfa-setup'>('signin')
 const email    = ref('')
 const password = ref('')
 const showPass = ref(false)
@@ -26,19 +28,41 @@ const loading  = ref(false)
 const error    = ref('')
 
 const emailValid   = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value))
-const canContinue  = computed(() => emailValid.value)
-const canSignIn    = computed(() => password.value.length >= 1)
+const canSignIn    = computed(() => emailValid.value && password.value.length >= 1)
+const passwordEl   = ref<HTMLInputElement | null>(null)
 
-function goToPassword() {
-  if (!canContinue.value) return
-  error.value = ''
-  step.value  = 'password'
+// MFA state
+const totpCode    = ref('')
+const mfaError    = ref('')
+const mfaLoading  = ref(false)
+
+/** Enter in the email field moves on to the password field */
+function focusPassword() {
+  if (password.value) handleSignIn()
+  else passwordEl.value?.focus()
 }
 
-function goBack() {
-  step.value     = 'email'
-  password.value = ''
-  error.value    = ''
+function proceedAfterLogin() {
+  // Force password reset if flagged (router guard also handles this)
+  if (authStore.mustResetPassword) {
+    router.push('/reset-password')
+    return
+  }
+
+  const redirectTo = route.query.redirect as string | undefined
+  if (redirectTo) {
+    router.push(redirectTo)
+  } else if (authStore.isAdmin) {
+    router.push('/admin/dashboard')
+  } else if (authStore.isHR) {
+    router.push('/hr/dashboard')
+  } else if (authStore.isEmployee) {
+    router.push('/employee/dashboard')
+  } else if (authStore.isPartner) {
+    router.push('/partner/dashboard')
+  } else {
+    router.push('/')
+  }
 }
 
 async function handleSignIn() {
@@ -47,31 +71,31 @@ async function handleSignIn() {
   error.value   = ''
   try {
     await authStore.login(email.value, password.value)
-    // Redirect based on role
-    // Force password reset if flagged (router guard also handles this)
-    if (authStore.mustResetPassword) {
-      router.push('/reset-password')
+
+    if (authStore.mfaSetupRequired) {
+      step.value = 'mfa-setup'
       return
     }
 
-    const redirectTo = route.query.redirect as string | undefined
-    if (redirectTo) {
-      router.push(redirectTo)
-    } else if (authStore.isAdmin) {
-      router.push('/admin/dashboard')
-    } else if (authStore.isHR) {
-      router.push('/hr/dashboard')
-    } else if (authStore.isEmployee) {
-      router.push('/employee/dashboard')
-    } else if (authStore.isPartner) {
-      router.push('/partner/dashboard')
-    } else {
-      router.push('/')
-    }
+    proceedAfterLogin()
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong.'
   } finally {
     loading.value = false
+  }
+}
+
+async function handleMfaSetupConfirm() {
+  if (!totpCode.value) return
+  mfaLoading.value = true
+  mfaError.value   = ''
+  try {
+    await authStore.confirmMfaSetup(totpCode.value)
+    proceedAfterLogin()
+  } catch (e: unknown) {
+    mfaError.value = e instanceof Error ? e.message : 'Something went wrong.'
+  } finally {
+    mfaLoading.value = false
   }
 }
 </script>
@@ -79,82 +103,60 @@ async function handleSignIn() {
 <template>
   <div class="login-page">
 
+    <div class="back-row">
+      <RouterLink to="/" class="back-home"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back to home</RouterLink>
+    </div>
+
     <!-- Card -->
     <div class="login-card">
 
-      <!-- Logo -->
-      <div class="brand">
-        <span class="brand-icon">✦</span>
+      <!-- Logo (goes to the home page) -->
+      <RouterLink to="/" class="brand" aria-label="FitAccess home">
+        <img src="/logo.png" alt="FitAccess" class="brand-icon" />
         <span class="brand-name">FitAccess</span>
-      </div>
+      </RouterLink>
 
-      <!-- ── Step 1 : Email ── -->
-      <template v-if="step === 'email'">
-        <div class="card-body">
+      <!-- ── Sign in: email + password on one page ── -->
+      <template v-if="step === 'signin'">
+        <form class="card-body" novalidate @submit.prevent="handleSignIn">
           <div v-if="successMsg" class="success-msg">{{ successMsg }}</div>
-          <h1 class="heading">Enter your email</h1>
-          <p class="subtext">Sign in to your FitAccess Ethiopia account to manage your team's wellness.</p>
+          <h1 class="heading">Sign in</h1>
+          <p class="subtext">Already have an account? Enter your email and password to sign in.</p>
 
           <div class="field-wrap">
+            <label class="field-label" for="login-email">Email address</label>
             <input
+              id="login-email"
               v-model="email"
               type="email"
-              placeholder="Email address"
+              placeholder="you@company.com"
               class="input"
               :class="{ 'input-error': error }"
-              autocomplete="email"
+              autocomplete="username"
               autofocus
-              @keyup.enter="goToPassword"
+              @keydown.enter.prevent="focusPassword"
             />
           </div>
 
-          <p v-if="error" class="error-msg">{{ error }}</p>
-
-          <div class="actions">
-            <button
-              class="btn-continue"
-              :class="{ active: canContinue }"
-              :disabled="!canContinue"
-              @click="goToPassword"
-            >
-              Continue
-            </button>
-            <RouterLink to="/signup/company" class="link-signup">Sign up for free</RouterLink>
-          </div>
-        </div>
-      </template>
-
-      <!-- ── Step 2 : Password ── -->
-      <template v-else>
-        <div class="card-body">
-          <!-- Back -->
-          <button class="back-btn" @click="goBack">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-              <path d="M15 18l-6-6 6-6"/>
-            </svg>
-          </button>
-
-          <h1 class="heading">Welcome back</h1>
-          <p class="subtext email-chip">
-            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M4 4h16v16H4z"/><path d="M4 4l8 8 8-8"/>
-            </svg>
-            {{ email }}
-          </p>
-
           <div class="field-wrap">
+            <label class="field-label" for="login-password">Password</label>
             <div class="pass-wrap">
               <input
+                id="login-password"
+                ref="passwordEl"
                 v-model="password"
                 :type="showPass ? 'text' : 'password'"
                 placeholder="Password"
                 class="input"
                 :class="{ 'input-error': error }"
                 autocomplete="current-password"
-                autofocus
-                @keyup.enter="handleSignIn"
               />
-              <button class="toggle-pass" type="button" @click="showPass = !showPass" tabindex="-1">
+              <button
+                class="toggle-pass"
+                type="button"
+                :aria-label="showPass ? 'Hide password' : 'Show password'"
+                @click="showPass = !showPass"
+              >
                 <svg v-if="!showPass" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                 </svg>
@@ -174,13 +176,60 @@ async function handleSignIn() {
 
           <div class="actions">
             <button
+              type="submit"
               class="btn-continue"
               :class="{ active: canSignIn && !loading }"
               :disabled="!canSignIn || loading"
-              @click="handleSignIn"
             >
               <span v-if="loading" class="spinner"></span>
               <span v-else>Sign in</span>
+            </button>
+          </div>
+
+          <p class="new-row">
+            New to FitAccess?
+            <RouterLink :to="{ path: '/', hash: '#audiences' }" class="link-signup">Create an account</RouterLink>
+          </p>
+        </form>
+      </template>
+
+      <!-- ── Step 3 : MFA setup (every privileged login) ── -->
+      <template v-else-if="step === 'mfa-setup'">
+        <div class="card-body">
+          <h1 class="heading">{{ authStore.mfaEnrolled ? 'Two-factor authentication' : 'Set up two-factor authentication' }}</h1>
+          <p class="subtext">{{ authStore.mfaMessage }}</p>
+
+          <div class="qr-wrap" v-if="authStore.mfaQrCode">
+            <img :src="authStore.mfaQrCode" alt="Scan with an authenticator app" width="180" height="180" />
+          </div>
+          <p v-if="authStore.mfaSecret" class="manual-secret">
+            Can't scan? Enter this key manually: <code>{{ authStore.mfaSecret }}</code>
+          </p>
+
+          <div class="field-wrap">
+            <input
+              v-model="totpCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="Enter the 6-digit code"
+              class="input code-input"
+              autocomplete="one-time-code"
+              @keyup.enter="handleMfaSetupConfirm"
+            />
+          </div>
+
+          <p v-if="mfaError" class="error-msg">{{ mfaError }}</p>
+
+          <div class="actions">
+            <button
+              class="btn-continue"
+              :class="{ active: !mfaLoading && totpCode }"
+              :disabled="mfaLoading || !totpCode"
+              @click="handleMfaSetupConfirm"
+            >
+              <span v-if="mfaLoading" class="spinner"></span>
+              <span v-else>Enable & continue</span>
             </button>
           </div>
         </div>
@@ -230,20 +279,59 @@ async function handleSignIn() {
 
 /* ── Brand ────────────────────────────────────────────── */
 .brand {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 32px;
+  text-decoration: none;
 }
+.back-row { width: 100%; max-width: 580px; }
+/* Field labels + "New to FitAccess?" row */
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0B0C10;
+  margin-bottom: 6px;
+}
+.new-row {
+  margin: 24px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid #ece8e2;
+  font-size: 0.92rem;
+  color: #555;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* "Back to home" link above the card */
+.back-home {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0B0C10;
+  text-decoration: none;
+  padding: 6px 2px;
+}
+.back-home:hover { color: #5E9A00; text-decoration: underline; text-underline-offset: 4px; }
+
 .brand-icon {
-  font-size: 1.6rem;
-  color: #4CD964;
-  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .brand-name {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #4CD964;
+  color: #8BE000;
   letter-spacing: -0.01em;
 }
 
@@ -300,6 +388,7 @@ async function handleSignIn() {
 
 /* ── Inputs ───────────────────────────────────────────── */
 .field-wrap { margin-bottom: 8px; }
+.field-wrap + .field-wrap { margin-top: 18px; }
 
 .input {
   width: 100%;
@@ -319,7 +408,7 @@ async function handleSignIn() {
   background: #fff;
   box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
 }
-.input.input-error { border-color: #4CD964; }
+.input.input-error { border-color: #8BE000; }
 
 /* Password wrap */
 .pass-wrap {
@@ -426,7 +515,7 @@ async function handleSignIn() {
   text-underline-offset: 3px;
   transition: color 0.2s;
 }
-.link-signup:hover { color: #4CD964; }
+.link-signup:hover { color: #8BE000; }
 
 /* Loading spinner */
 .spinner {
@@ -439,6 +528,39 @@ async function handleSignIn() {
   animation: spin 0.65s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── MFA steps ────────────────────────────────────────── */
+.code-input {
+  text-align: center;
+  letter-spacing: 0.3em;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.qr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: #fff;
+  border: 1.5px solid #ddd8d2;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.qr-wrap img { display: block; }
+
+.manual-secret {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.manual-secret code {
+  background: #f5f2ee;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
 
 /* ── Footer ───────────────────────────────────────────── */
 .login-footer {

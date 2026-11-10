@@ -13,11 +13,7 @@
       </div>
       <select v-model="filterRole" class="select-box" @change="page = 1">
         <option value="">All roles</option>
-        <option value="super_admin">Super Admin</option>
-        <option value="fitaccess_admin">Admin</option>
-        <option value="company_hr">Company</option>
-        <option value="employee">Employee</option>
-        <option value="gym_staff">Gym Staff</option>
+        <option v-for="r in roleOptions" :key="r" :value="r">{{ roleLabel(r) }}</option>
       </select>
       <select v-model="filterAction" class="select-box" @change="page = 1">
         <option value="">All actions</option>
@@ -96,6 +92,17 @@ onMounted(async () => {
   }
 })
 
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin', fitaccess_admin: 'Admin', admin_finance: 'Finance', admin_support: 'Support',
+  company_hr: 'Company HR', employee: 'Employee', gym_partner: 'Gym Partner', gym_hr: 'Gym Manager', gym_staff: 'Gym Staff',
+}
+function roleLabel(r: string) {
+  return ROLE_LABELS[r] ?? r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+/** Only roles that actually appear in the log, so every option returns results */
+const roleOptions = computed(() =>
+  [...new Set(logs.value.map(l => l.user?.role).filter((r): r is string => !!r))].sort())
+
 const filtered = computed(() =>
   logs.value.filter(l => {
     if (filterRole.value   && l.user?.role !== filterRole.value) return false
@@ -159,7 +166,7 @@ function actionLabel(action: string, modelType: string) {
   padding: 9px 12px; background: white; border: 1px solid #e2e8f0;
   border-radius: 10px; font-size: 0.84rem; color: #0f172a; outline: none;
 }
-.select-box:focus { border-color: #4CD964; }
+.select-box:focus { border-color: #8BE000; }
 .date-wrap { position: relative; }
 .date-input {
   padding: 9px 38px 9px 13px; background: white; border: 1.5px solid #e2e8f0;
@@ -167,7 +174,7 @@ function actionLabel(action: string, modelType: string) {
   font-family: inherit; cursor: pointer; color-scheme: light;
   transition: border-color .15s, box-shadow .15s;
 }
-.date-input:focus { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(76,217,100,0.1); }
+.date-input:focus { border-color: #8BE000; box-shadow: 0 0 0 3px rgba(139, 224, 0,0.1); }
 .date-icon {
   position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
   color: #94a3b8; pointer-events: none;
@@ -199,9 +206,9 @@ function actionLabel(action: string, modelType: string) {
   font-size: 0.72rem; font-weight: 600; text-transform: lowercase;
 }
 .role-company_hr      { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
-.role-fitaccess_admin { background: #EBFAEE; color: #2EB84B; border: 1px solid #B8F0C0; }
-.role-super_admin     { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
-.role-employee        { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
+.role-fitaccess_admin { background: #EBFAEE; color: #72B800; border: 1px solid #B8F0C0; }
+.role-super_admin     { background: #ede9fe; color: #72B800; border: 1px solid #B8F0C0; }
+.role-employee        { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
 .role-gym_staff       { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
 .role-system          { background: #f1f5f9; color: #64748b; }
 </style>

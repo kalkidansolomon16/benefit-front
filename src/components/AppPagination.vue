@@ -73,7 +73,7 @@ const visiblePages = computed(() => {
   transition: all 0.15s; font-family: inherit;
 }
 .apg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.apg-btn:not(:disabled):hover { border-color: #4CD964; color: #4CD964; }
+.apg-btn:not(:disabled):hover { border-color: #8BE000; color: #8BE000; }
 .apg-num--active {
   background: #0f172a; border-color: #0f172a; color: #fff !important;
   font-weight: 700;

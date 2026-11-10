@@ -143,7 +143,7 @@ function retry() {
 .spinner {
   width: 48px; height: 48px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4CD964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -182,7 +182,7 @@ function retry() {
 
 /* Buttons */
 .btn-primary {
-  padding: 12px 28px; background: #4CD964; color: #fff;
+  padding: 12px 28px; background: #8BE000; color: #fff;
   border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600;
   cursor: pointer; transition: opacity 0.15s; width: 100%;
 }

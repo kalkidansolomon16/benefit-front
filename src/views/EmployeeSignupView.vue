@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -30,7 +30,7 @@ const strengthScore = computed(() => strengthRules.value.filter((r) => r.ok).len
 const strengthLabel = computed(() => {
   const s = strengthScore.value
   if (s <= 1) return { text: 'Very weak', color: '#dc2626' }
-  if (s === 2) return { text: 'Weak', color: '#2EB84B' }
+  if (s === 2) return { text: 'Weak', color: '#72B800' }
   if (s === 3) return { text: 'Fair', color: '#eab308' }
   if (s === 4) return { text: 'Strong', color: '#22c55e' }
   return { text: 'Very strong', color: '#16a34a' }
@@ -74,11 +74,33 @@ function closeDrop() {
   showCompanyDrop.value = false
 }
 
+// Branches of the chosen company (if it has any, the employee must pick one)
+const companyBranches = ref<{ id: number; name: string; city: string | null }[]>([])
+const companyBranchId = ref<number | null>(null)
+
+async function loadCompanyBranches(id: number) {
+  companyBranches.value = []
+  companyBranchId.value = null
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/public/companies/${id}/branches`, {
+      headers: { Accept: 'application/json' },
+    })
+    if (res.ok) companyBranches.value = (await res.json()).data ?? []
+  } catch { /* fall back to the free-text field */ }
+}
+
+function onBranchPick() {
+  const b = companyBranches.value.find((x) => x.id === companyBranchId.value)
+  branch.value = b ? b.name : ''
+}
+
 function selectCompany(c: PublicCompany) {
   companyId.value = c.id
   companyName.value = c.name
   companySearch.value = c.name
   showCompanyDrop.value = false
+  branch.value = ''
+  loadCompanyBranches(c.id)
 }
 
 function clearCompany() {
@@ -86,13 +108,21 @@ function clearCompany() {
   companyName.value = ''
   companySearch.value = ''
   showCompanyDrop.value = false
+  companyBranches.value = []
+  companyBranchId.value = null
+  branch.value = ''
 }
 
-function highlight(text: string): string {
+function highlightSegments(text: string): { text: string; match: boolean }[] {
   const q = companySearch.value.trim()
-  if (!q) return text
+  if (!q) return [{ text, match: false }]
   const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>')
+  const re = new RegExp(`(${escaped})`, 'gi')
+  const parts = text.split(re).filter((p) => p !== '')
+  return parts.map((part) => ({
+    text: part,
+    match: part.toLowerCase() === q.toLowerCase(),
+  }))
 }
 
 function onDocClick(e: MouseEvent) {
@@ -129,7 +159,12 @@ const step1Valid = computed(
     emailRegex.test(email.value) &&
     passwordMatch.value
 )
-const step2Valid = computed(() => companyId.value !== null && staffId.value.trim().length > 0)
+const step2Valid = computed(
+  () =>
+    companyId.value !== null &&
+    staffId.value.trim().length > 0 &&
+    (companyBranches.value.length === 0 || companyBranchId.value !== null)
+)
 const canProceed = computed(() => {
   if (step.value === 1) return step1Valid.value
   if (step.value === 2) return step2Valid.value
@@ -170,6 +205,7 @@ async function handleSubmit() {
         job_position: jobPosition.value,
         department: department.value,
         branch: branch.value,
+        company_branch_id: companyBranchId.value,
         request_note: requestNote.value,
       }),
     })
@@ -193,11 +229,11 @@ async function handleSubmit() {
   <div class="signup-page">
     <div class="signup-card">
       <!-- Brand -->
-      <div class="brand">
+      <RouterLink to="/" class="brand" aria-label="FitAccess home">
         <span class="brand-icon">✦</span>
         <span class="brand-name">FitAccess</span>
         <span class="brand-tag">Employee Portal</span>
-      </div>
+      </RouterLink>
 
       <!-- Progress -->
       <div class="progress-wrap">
@@ -544,7 +580,12 @@ async function handleSubmit() {
                   class="drop-item"
                   @mousedown.prevent="selectCompany(c)"
                 >
-                  <div class="drop-name" v-html="highlight(c.name)"></div>
+                  <div class="drop-name">
+                    <template v-for="(seg, i) in highlightSegments(c.name)" :key="i">
+                      <mark v-if="seg.match">{{ seg.text }}</mark>
+                      <template v-else>{{ seg.text }}</template>
+                    </template>
+                  </div>
                   <div class="drop-meta">{{ c.city }} &nbsp;·&nbsp; {{ c.industry }}</div>
                 </div>
               </div>
@@ -579,7 +620,17 @@ async function handleSubmit() {
             </div>
           </div>
 
-          <div class="field-group">
+          <div v-if="companyBranches.length" class="field-group">
+            <label class="field-label">Branch <span class="req">*</span></label>
+            <select v-model="companyBranchId" class="input" @change="onBranchPick">
+              <option :value="null" disabled>Select your branch</option>
+              <option v-for="b in companyBranches" :key="b.id" :value="b.id">
+                {{ b.name }}<template v-if="b.city"> — {{ b.city }}</template>
+              </option>
+            </select>
+            <p class="field-hint">Your branch's HR team will review your application.</p>
+          </div>
+          <div v-else class="field-group">
             <label class="field-label">Branch</label>
             <input v-model="branch" class="input" placeholder="e.g. Bole Branch, Head Office" />
           </div>
@@ -730,22 +781,24 @@ async function handleSubmit() {
   align-items: center;
   gap: 8px;
   margin-bottom: 28px;
+  text-decoration: none;
+  width: fit-content;
 }
 .brand-icon {
   font-size: 1.6rem;
-  color: #4cd964;
+  color: #8BE000;
 }
 .brand-name {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #4cd964;
+  color: #8BE000;
   letter-spacing: -0.01em;
 }
 .brand-tag {
   margin-left: 6px;
   font-size: 0.7rem;
   font-weight: 700;
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   padding: 3px 9px;
   border-radius: 20px;
@@ -781,7 +834,7 @@ async function handleSubmit() {
   transition: all 0.3s;
 }
 .progress-step.active .step-dot {
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   box-shadow: 0 0 0 4px rgba(224, 56, 106, 0.15);
 }
@@ -796,7 +849,7 @@ async function handleSubmit() {
   transition: color 0.3s;
 }
 .progress-step.active .step-label {
-  color: #4cd964;
+  color: #8BE000;
   font-weight: 600;
 }
 .progress-step.done .step-label {
@@ -811,7 +864,7 @@ async function handleSubmit() {
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #16a34a, #4cd964);
+  background: linear-gradient(90deg, #16a34a, #8BE000);
   border-radius: 99px;
   transition: width 0.4s ease;
 }
@@ -910,7 +963,7 @@ async function handleSubmit() {
   box-sizing: border-box;
 }
 .input:focus {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(224, 56, 106, 0.07);
 }
@@ -943,7 +996,7 @@ async function handleSubmit() {
   transition: border-color 0.2s;
 }
 .phone-wrap:focus-within {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(224, 56, 106, 0.07);
 }
@@ -1215,7 +1268,7 @@ async function handleSubmit() {
   font-family: inherit;
 }
 .btn-next.active {
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   cursor: pointer;
 }
@@ -1231,7 +1284,7 @@ async function handleSubmit() {
   text-align: center;
 }
 .signin-link a {
-  color: #4cd964;
+  color: #8BE000;
   font-weight: 600;
   text-decoration: none;
 }
@@ -1293,7 +1346,7 @@ async function handleSubmit() {
   width: 28px;
   height: 28px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4cd964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -1313,12 +1366,12 @@ async function handleSubmit() {
   background: #f9f7f5;
 }
 .plan-card:hover {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #fff;
   box-shadow: 0 4px 14px rgba(224, 56, 106, 0.12);
 }
 .plan-card--selected {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #fff8fa;
   box-shadow: 0 4px 14px rgba(224, 56, 106, 0.15);
 }
@@ -1336,7 +1389,7 @@ async function handleSubmit() {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   background: #ffe4ec;
-  color: #4cd964;
+  color: #8BE000;
   padding: 2px 8px;
   border-radius: 20px;
   margin-bottom: 4px;
@@ -1360,8 +1413,8 @@ async function handleSubmit() {
   transition: all 0.2s;
 }
 .plan-check--on {
-  background: #4cd964;
-  border-color: #4cd964;
+  background: #8BE000;
+  border-color: #8BE000;
 }
 
 .plan-price-row {
@@ -1378,7 +1431,7 @@ async function handleSubmit() {
 .plan-amount {
   font-size: 1.3rem;
   font-weight: 800;
-  color: #4cd964;
+  color: #8BE000;
   line-height: 1;
 }
 .plan-period {
@@ -1412,7 +1465,7 @@ async function handleSubmit() {
   font-size: 0.72rem !important;
   font-weight: 700;
   background: #ffe4ec;
-  color: #4cd964;
+  color: #8BE000;
   padding: 2px 9px;
   border-radius: 20px;
 }

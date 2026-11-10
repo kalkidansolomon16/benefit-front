@@ -3,7 +3,7 @@
     <div class="auth-card">
       <!-- Logo -->
       <div class="auth-logo">
-        <span class="logo-icon">⚡</span>
+        <img src="/logo.png" alt="FitAccess" class="logo-icon" />
         <span class="logo-text">FitAccess</span>
       </div>
 
@@ -330,7 +330,11 @@ function redirectToDashboard() {
 }
 
 .logo-icon {
-  font-size: 1.6rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .logo-text {
   font-size: 1.4rem;
@@ -387,8 +391,8 @@ function redirectToDashboard() {
 
 .field input:focus {
   outline: none;
-  border-color: #4cd964;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: #8BE000;
+  box-shadow: 0 0 0 3px rgba(139,224,0,0.15);
 }
 
 .pw-wrap {
@@ -443,7 +447,7 @@ function redirectToDashboard() {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -458,7 +462,7 @@ function redirectToDashboard() {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2eb84b;
+  background: #72B800;
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -482,13 +486,13 @@ function redirectToDashboard() {
 
 .back-link {
   text-align: center;
-  color: #4cd964;
+  color: #8BE000;
   font-size: 0.875rem;
   text-decoration: none;
   display: block;
 }
 
 .back-link:hover {
-  color: #4cd964;
+  color: #8BE000;
 }
 </style>

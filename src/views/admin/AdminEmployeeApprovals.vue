@@ -20,10 +20,30 @@
     </div>
 
     <!-- Approval cards -->
-    <div v-else class="approval-list">
-      <div v-for="e in approvalPaginated" :key="e.id" class="approval-card">
+    <BulkActionBar
+      v-if="!loading && employees.length"
+      :total="employees.length"
+      :selected="selected.length"
+      :busy="bulkBusy"
+      approve-label="Approve selected (paid only)"
+      @toggle-all="toggleAll"
+      @approve="bulkApprove"
+      @reject="bulkReject"
+      @clear="selected = []"
+    />
+
+    <div v-if="!loading && employees.length" class="approval-list">
+      <div v-for="e in approvalPaginated" :key="e.id" class="approval-card" :class="{ picked: selected.includes(e.id) }">
         <!-- Left: info -->
         <div class="card-left">
+          <input
+            type="checkbox"
+            class="pick-box"
+            :checked="selected.includes(e.id)"
+            :disabled="bulkBusy"
+            :aria-label="`Select ${e.name}`"
+            @change="toggleOne(e.id)"
+          />
           <div class="emp-avatar" :style="{ background: avatarColor(e.name ?? '') }">{{ initials(e.name ?? '') }}</div>
           <div class="emp-info">
             <p class="emp-name">{{ e.name }}</p>
@@ -61,18 +81,14 @@
 
         <!-- Right: action -->
         <div class="card-actions">
-          <div class="payment-toggle-label">Mark payment as:</div>
-          <div class="payment-toggle">
-            <button
-              class="tog-btn" :class="{ active: paymentMark[e.id] === 'paid' }"
-              @click="paymentMark[e.id] = 'paid'"
-            >Paid</button>
-            <button
-              class="tog-btn" :class="{ active: paymentMark[e.id] !== 'paid' }"
-              @click="paymentMark[e.id] = 'unpaid'"
-            >Unpaid</button>
-          </div>
-          <button class="btn-approve" :disabled="acting === e.id" @click="adminApprove(e)">
+          <p v-if="e.payment_status === 'paid'" class="pay-note pay-note-ok">✓ Payment received</p>
+          <p v-else class="pay-note pay-note-wait">Awaiting payment — can be approved once paid</p>
+          <button
+            class="btn-approve"
+            :disabled="acting === e.id || e.payment_status !== 'paid'"
+            :title="e.payment_status !== 'paid' ? 'This employee has not paid yet' : ''"
+            @click="adminApprove(e)"
+          >
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
             {{ acting === e.id ? 'Approving…' : 'Approve & Activate' }}
           </button>
@@ -102,7 +118,8 @@
               <button class="modal-close" @click="rejectModal.show = false">✕</button>
             </div>
             <div class="modal-body">
-              <p class="modal-sub">Rejecting <strong>{{ rejectModal.employee?.name }}</strong> — they will be notified.</p>
+              <p v-if="rejectModal.bulk" class="modal-sub">Rejecting <strong>{{ selected.length }} employees</strong> — each will be notified.</p>
+              <p v-else class="modal-sub">Rejecting <strong>{{ rejectModal.employee?.name }}</strong> — they will be notified.</p>
               <div class="field">
                 <label>Rejection Reason <span class="req">*</span></label>
                 <textarea v-model="rejectModal.reason" rows="3" placeholder="e.g. Duplicate account, invalid payment, documentation issue…" />
@@ -140,6 +157,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AppPagination from '@/components/AppPagination.vue'
+import BulkActionBar from '@/components/BulkActionBar.vue'
 
 const api = useApi()
 
@@ -161,7 +179,6 @@ const employees  = ref<PendingEmployee[]>([])
 const loading    = ref(true)
 const acting     = ref<number | null>(null)
 const search     = ref('')
-const paymentMark = reactive<Record<number, 'paid' | 'unpaid'>>({})
 
 const approvalPage    = ref(1)
 const approvalPerPage = 10
@@ -170,7 +187,66 @@ const approvalPaginated     = computed(() =>
   employees.value.slice((approvalPage.value - 1) * approvalPerPage, approvalPage.value * approvalPerPage)
 )
 
-const rejectModal = reactive({ show: false, employee: null as PendingEmployee | null, reason: '', error: '', loading: false })
+const rejectModal = reactive({ show: false, bulk: false, employee: null as PendingEmployee | null, reason: '', error: '', loading: false })
+
+// ── Bulk selection ───────────────────────────────────────────
+const selected  = ref<number[]>([])
+const bulkBusy  = ref(false)
+
+function toggleOne(id: number) {
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter(x => x !== id)
+    : [...selected.value, id]
+}
+function toggleAll() {
+  selected.value = selected.value.length === employees.value.length
+    ? []
+    : employees.value.map(e => e.id)
+}
+
+function reportBulk(res: { message: string; done: number; failed: { name: string | null; reason: string }[] }) {
+  const detail = res.failed.length
+    ? ' ' + res.failed.map(f => `${f.name ?? 'Unknown'}: ${f.reason}`).slice(0, 3).join('; ')
+    : ''
+  showToast(res.message + detail, res.done > 0 ? 'success' : 'error')
+}
+
+async function bulkApprove() {
+  if (!selected.value.length || bulkBusy.value) return
+  const paidIds = employees.value
+    .filter(e => selected.value.includes(e.id) && e.payment_status === 'paid')
+    .map(e => e.id)
+  const unpaidCount = selected.value.length - paidIds.length
+  if (!paidIds.length) {
+    showToast('None of the selected employees have paid yet, so none can be approved.', 'error')
+    return
+  }
+  const note = unpaidCount ? ` ${unpaidCount} unpaid employee(s) will be skipped.` : ''
+  if (!window.confirm(`Approve and activate ${paidIds.length} paid employee(s)?${note}`)) return
+  bulkBusy.value = true
+  try {
+    const res = await api.post<{ message: string; done: number; failed: { name: string | null; reason: string }[] }>(
+      'employees/bulk-admin-approve', { ids: paidIds }
+    )
+    reportBulk(res)
+    selected.value = []
+    await load()
+  } catch (err: unknown) {
+    showToast(err instanceof Error ? err.message : 'Bulk approval failed.', 'error')
+  } finally {
+    bulkBusy.value = false
+  }
+}
+
+function bulkReject() {
+  if (!selected.value.length) return
+  rejectModal.bulk     = true
+  rejectModal.employee = null
+  rejectModal.reason   = ''
+  rejectModal.error    = ''
+  rejectModal.loading  = false
+  rejectModal.show     = true
+}
 
 const toast = reactive({ show: false, type: 'success', message: '' })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -193,12 +269,7 @@ async function load() {
     const qs = search.value ? `?search=${encodeURIComponent(search.value)}` : ''
     const res = await api.get<{ data: PendingEmployee[] }>(`employees/pending-admin-approval${qs}`)
     employees.value = res.data
-    // Default all to 'paid' when pay_now, 'unpaid' when pay_later
-    for (const e of res.data) {
-      if (!(e.id in paymentMark)) {
-        paymentMark[e.id] = e.payment_preference === 'pay_now' ? 'paid' : 'unpaid'
-      }
-    }
+    selected.value = selected.value.filter(id => res.data.some(e => e.id === id))
   } finally {
     loading.value = false
   }
@@ -209,11 +280,10 @@ onMounted(load)
 async function adminApprove(e: PendingEmployee) {
   acting.value = e.id
   try {
-    await api.post(`employees/${e.id}/admin-approve`, {
-      payment_status: paymentMark[e.id] ?? 'unpaid',
-    })
+    await api.post(`employees/${e.id}/admin-approve`, {})
     showToast(`${e.name} approved. Account is now active.`)
     employees.value = employees.value.filter(emp => emp.id !== e.id)
+    selected.value = selected.value.filter(id => id !== e.id)
   } catch (err: unknown) {
     showToast(err instanceof Error ? err.message : 'Approval failed.', 'error')
   } finally {
@@ -222,6 +292,7 @@ async function adminApprove(e: PendingEmployee) {
 }
 
 function adminReject(e: PendingEmployee) {
+  rejectModal.bulk     = false
   rejectModal.employee = e
   rejectModal.reason   = ''
   rejectModal.error    = ''
@@ -231,6 +302,23 @@ function adminReject(e: PendingEmployee) {
 
 async function confirmAdminReject() {
   if (!rejectModal.reason.trim()) { rejectModal.error = 'Please provide a rejection reason.'; return }
+  if (rejectModal.bulk) {
+    rejectModal.loading = true
+    try {
+      const res = await api.post<{ message: string; done: number; failed: { name: string | null; reason: string }[] }>(
+        'employees/bulk-admin-reject', { ids: selected.value, reason: rejectModal.reason }
+      )
+      rejectModal.show = false
+      reportBulk(res)
+      selected.value = []
+      await load()
+    } catch {
+      rejectModal.error = 'Bulk rejection failed. Please try again.'
+    } finally {
+      rejectModal.loading = false
+    }
+    return
+  }
   const e = rejectModal.employee!
   rejectModal.loading = true
   try {
@@ -238,6 +326,7 @@ async function confirmAdminReject() {
     rejectModal.show = false
     showToast(`${e.name} rejected.`)
     employees.value = employees.value.filter(emp => emp.id !== e.id)
+    selected.value = selected.value.filter(id => id !== e.id)
   } catch {
     rejectModal.error = 'Rejection failed. Please try again.'
   } finally {
@@ -249,7 +338,7 @@ function levelLabel(level: string) {
   return { chief: 'Platinum', director: 'Basic Plus', manager: 'Basic', staff: 'Basic' }[level] ?? level
 }
 
-const COLORS = ['#3b82f6', '#2EB84B', '#4CD964', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899']
+const COLORS = ['#0B0C10', '#72B800', '#8BE000', '#f59e0b', '#ef4444', '#4D7C0F', '#ec4899']
 function avatarColor(name: string) {
   let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return COLORS[h % COLORS.length]!
@@ -271,7 +360,7 @@ function initials(name: string) {
   width: 100%; padding: 9px 36px 9px 36px; background: white;
   border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.85rem; outline: none;
 }
-.search-input:focus { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(76,217,100,0.1); }
+.search-input:focus { border-color: #8BE000; box-shadow: 0 0 0 3px rgba(139, 224, 0,0.1); }
 .search-clear {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.9rem;
@@ -316,11 +405,11 @@ function initials(name: string) {
 
 .pkg-badge   { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
 .pkb-chief   { background: rgba(168,85,247,0.12); color: #7c3aed; }
-.pkb-director { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+.pkb-director { background: rgba(139,224,0,0.12); color: #4D7C0F; }
 .pkb-manager,.pkb-staff { background: rgba(100,116,139,0.12); color: #475569; }
 
 .pref-badge  { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
-.pref-now    { background: #EBFAEE; color: #2EB84B; }
+.pref-now    { background: #EBFAEE; color: #72B800; }
 .pref-later  { background: #fef3c7; color: #d97706; }
 
 .pay-status  { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
@@ -336,15 +425,15 @@ function initials(name: string) {
   background: white; border: none; cursor: pointer; color: #64748b;
   transition: background .15s, color .15s;
 }
-.tog-btn.active { background: #4CD964; color: #fff; }
+.tog-btn.active { background: #8BE000; color: #fff; }
 
 .btn-approve {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 9px 14px; background: #4CD964; color: #fff;
+  padding: 9px 14px; background: #8BE000; color: #fff;
   border: none; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
   transition: background .15s;
 }
-.btn-approve:hover:not(:disabled) { background: #2EB84B; }
+.btn-approve:hover:not(:disabled) { background: #72B800; }
 .btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-reject {
@@ -426,4 +515,9 @@ function initials(name: string) {
   .payment-toggle-label { width: 100%; }
   .payment-toggle { width: 120px; }
 }
+.approval-card.picked { border-color: #72B800; background: #fbfef6; }
+.pick-box { width: 18px; height: 18px; accent-color: #72B800; cursor: pointer; flex-shrink: 0; margin-top: 4px; }
+.pay-note { font-size: 0.78rem; font-weight: 600; margin: 0; text-align: center; }
+.pay-note-ok { color: #166534; }
+.pay-note-wait { color: #b45309; }
 </style>

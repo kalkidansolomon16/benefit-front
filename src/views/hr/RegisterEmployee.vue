@@ -152,6 +152,14 @@
             <input v-model="form.phone" class="input" placeholder="+251 9xx xxx xxxx" />
           </div>
         </div>
+        <div v-if="!myBranchId && branchOptions.length" class="field">
+          <label class="field-label">BRANCH (OPTIONAL)</label>
+          <select v-model="form.company_branch_id" class="input">
+            <option value="">Head office</option>
+            <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+          </select>
+        </div>
+        <p v-else-if="myBranchId" class="section-hint">Employees you register are added to your branch.</p>
         <div class="two-col">
           <div class="field">
             <label class="field-label">JOB TITLE (OPTIONAL)</label>
@@ -225,6 +233,16 @@ import { useApi } from '@/composables/useApi'
 const auth = useAuthStore()
 const api  = useApi()
 
+// Head office can place a new employee in any branch; a branch login always uses its own
+const myBranchId = useAuthStore().user?.company_branch_id ?? null
+const branchOptions = ref<{ id: number; name: string }[]>([])
+onMounted(async () => {
+  try {
+    branchOptions.value = (await api.get<{ branches: { id: number; name: string; is_active: boolean }[] }>('hr/branches'))
+      .branches.filter((b) => b.is_active)
+  } catch { /* branch list is optional */ }
+})
+
 interface Plan { id: number; name: string; tier: string; is_active: boolean }
 const plans = ref<Plan[]>([])
 onMounted(async () => {
@@ -246,6 +264,7 @@ const form = reactive({
   payment_preference: '' as '' | 'pay_now' | 'pay_later',
   job_title: '',
   department: '',
+  company_branch_id: '',
   phone: '',
   joined_at: new Date().toISOString().slice(0, 10),
 })
@@ -324,6 +343,7 @@ async function submit() {
     fd.append('temp_password',      form.temp_password)
     fd.append('payment_preference', form.payment_preference)
     fd.append('package',            form.package)
+    if (form.company_branch_id) fd.append('company_branch_id', form.company_branch_id)
     if (form.job_title)   fd.append('job_title',   form.job_title)
     if (form.department)  fd.append('department',  form.department)
     if (form.phone)       fd.append('phone',       form.phone)
@@ -367,7 +387,7 @@ function reset() {
     first_name: '', middle_name: '', last_name: '',
     fan_number: '', email: '', temp_password: '', confirm_password: '',
     package: '', payment_preference: '',
-    job_title: '', department: '', phone: '',
+    job_title: '', department: '', phone: '', company_branch_id: '',
     joined_at: new Date().toISOString().slice(0, 10),
   })
   Object.keys(errors).forEach((k) => delete errors[k])
@@ -380,7 +400,7 @@ function reset() {
 
 .banner-success {
   padding: 12px 16px; background: #d1fae5; border: 1px solid #a7f3d0;
-  border-radius: 10px; color: #2eb84b; font-size: 0.88rem; font-weight: 500;
+  border-radius: 10px; color: #72B800; font-size: 0.88rem; font-weight: 500;
 }
 .banner-error {
   padding: 12px 16px; background: #fee2e2; border: 1px solid #fecaca;
@@ -407,7 +427,7 @@ function reset() {
   border-radius: 10px; font-size: 0.875rem; color: #0f172a; outline: none;
   transition: border-color 0.15s; font-family: inherit; width: 100%; box-sizing: border-box;
 }
-.input:focus { border-color: #4cd964; background: white; }
+.input:focus { border-color: #8BE000; background: white; }
 .input-error  { border-color: #ef4444; }
 .input-full   { width: 100%; box-sizing: border-box; }
 .err-msg { font-size: 0.72rem; color: #ef4444; margin: 0; }
@@ -434,10 +454,10 @@ function reset() {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; cursor: pointer; transition: border-color .15s, background .15s; min-height: 160px;
 }
-.photo-zone:hover, .photo-zone--over { border-color: #4cd964; background: #f0fdf9; }
+.photo-zone:hover, .photo-zone--over { border-color: #8BE000; background: #f0fdf9; }
 .photo-zone--filled { padding: 12px; }
 .photo-label { font-size: 0.88rem; color: #64748b; margin: 0; }
-.browse-link { color: #4cd964; font-weight: 600; }
+.browse-link { color: #8BE000; font-weight: 600; }
 .photo-hint  { font-size: 0.72rem; color: #94a3b8; margin: 0; }
 .photo-preview { max-height: 180px; border-radius: 10px; object-fit: cover; }
 .remove-photo { margin-top: 8px; background: none; border: none; color: #ef4444; font-size: 0.78rem; cursor: pointer; }
@@ -453,7 +473,7 @@ function reset() {
   transition: border-color .15s, background .15s; width: 100%;
 }
 .pay-option:hover { border-color: #94a3b8; background: #f8fafc; }
-.pay-option--selected { border-color: #4CD964; background: #EBFAEE; }
+.pay-option--selected { border-color: #8BE000; background: #EBFAEE; }
 .pay-icon  { font-size: 1.5rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
 .pay-info  { flex: 1; }
 .pay-title { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
@@ -463,7 +483,7 @@ function reset() {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   margin-top: 2px; color: white; transition: all .15s;
 }
-.pay-check--on { background: #4CD964; border-color: #4CD964; }
+.pay-check--on { background: #8BE000; border-color: #8BE000; }
 
 /* Submit row */
 .form-actions { display: flex; gap: 12px; justify-content: flex-end; }
@@ -474,7 +494,7 @@ function reset() {
 }
 .btn-cancel:hover { border-color: #94a3b8; }
 .btn-submit {
-  padding: 10px 28px; background: #4cd964; border: none; border-radius: 10px;
+  padding: 10px 28px; background: #8BE000; border: none; border-radius: 10px;
   color: white; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: opacity .15s;
 }
 .btn-submit:disabled { opacity: .6; cursor: default; }

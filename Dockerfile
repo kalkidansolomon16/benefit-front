@@ -9,8 +9,8 @@ RUN npm ci
 COPY . .
 
 # VITE_API_BASE_URL is passed at build time via --build-arg
-ARG VITE_API_BASE_URL=http://localhost:8000/api/v1
-ARG VITE_STORAGE_URL=http://localhost:8000/storage
+ARG VITE_API_BASE_URL=https://fit-access.com/api/v1
+ARG VITE_STORAGE_URL=https://fit-access.com/storage
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_STORAGE_URL=$VITE_STORAGE_URL
 

@@ -13,7 +13,20 @@
           <span v-if="tab.key === 'pending' && pendingCount > 0" class="tab-badge">{{ pendingCount }}</span>
         </button>
       </div>
-      <p class="count-label">{{ total }} {{ activeTab === 'pending' ? 'pending' : activeTab === 'all' ? 'total' : activeTab }}</p>
+      <div class="header-actions">
+        <p class="count-label">{{ total }} {{ activeTab === 'pending' ? 'pending' : activeTab === 'all' ? 'total' : activeTab }}</p>
+        <button type="button" class="btn-template" @click="downloadImportTemplate">Download CSV Template</button>
+        <button type="button" class="btn-import" :disabled="importing" @click="importInput?.click()">
+          {{ importing ? 'Importing…' : '↑ Import CSV' }}
+        </button>
+        <input
+          ref="importInput"
+          type="file"
+          accept=".csv,text/csv"
+          class="hidden-input"
+          @change="onImportFileChange"
+        />
+      </div>
     </div>
 
     <!-- Search -->
@@ -23,12 +36,40 @@
       <button v-if="search" class="search-clear" @click="search = ''; load()">✕</button>
     </div>
 
+    <div v-if="branchOptions.length" class="branch-filter">
+      <label class="branch-filter-label" for="hr-branch-filter">Branch</label>
+      <select id="hr-branch-filter" v-model="branchFilter" class="branch-filter-select" @change="empPage = 1; selected = []; load()">
+        <option value="">All branches</option>
+        <option value="main">Head office</option>
+        <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+      </select>
+      <span v-if="myBranchId" class="branch-filter-note">You can manage your own branch; others are view-only.</span>
+    </div>
+
     <div v-if="loading" class="state-msg">Loading employees…</div>
 
     <!-- Pending tab: approval cards -->
     <div v-else-if="activeTab === 'pending' && employees.length" class="pending-list">
-      <div v-for="e in paginatedEmployees" :key="e.id" class="pending-card">
+      <BulkActionBar
+        :total="selectable.length"
+        :selected="selected.length"
+        :busy="bulkBusy"
+        @toggle-all="toggleAll"
+        @approve="bulkApprove"
+        @reject="bulkReject"
+        @clear="selected = []"
+      />
+      <div v-for="e in paginatedEmployees" :key="e.id" class="pending-card" :class="{ picked: selected.includes(e.id) }">
         <div class="pending-card-left">
+          <input
+            v-if="e.can_manage"
+            type="checkbox"
+            class="pick-box"
+            :checked="selected.includes(e.id)"
+            :disabled="bulkBusy"
+            :aria-label="`Select ${e.name}`"
+            @change="toggleOne(e.id)"
+          />
           <div class="emp-avatar" :style="{ background: avatarColor(e.name) }">{{ initials(e.name) }}</div>
           <div class="emp-info">
             <p class="emp-name">{{ e.name }}</p>
@@ -59,7 +100,10 @@
         </div>
 
         <!-- Actions -->
-        <div class="pending-actions">
+        <div v-if="!e.can_manage" class="pending-actions">
+          <span class="ro-chip">View only — {{ e.branch || 'another branch' }}</span>
+        </div>
+        <div v-else class="pending-actions">
           <button class="btn-approve" :disabled="acting === e.id" @click="approve(e)">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
             {{ acting === e.id ? 'Approving…' : 'Approve' }}
@@ -82,22 +126,46 @@
 
     <!-- All / Approved / Rejected: table -->
     <div v-else class="table-card">
+      <BulkActionBar
+        v-if="selectable.length"
+        class="table-bulk"
+        :total="selectable.length"
+        :selected="selected.length"
+        :busy="bulkBusy"
+        @toggle-all="toggleAll"
+        @approve="bulkApprove"
+        @reject="bulkReject"
+        @clear="selected = []"
+      />
       <table class="data-table">
         <thead>
           <tr>
+            <th v-if="selectable.length" class="th-pick"></th>
             <th>EMPLOYEE</th>
             <th>FAN NUMBER</th>
             <th>EMAIL</th>
             <th>PHONE</th>
             <th>PACKAGE</th>
             <th>DEPARTMENT</th>
+            <th v-if="branchOptions.length">BRANCH</th>
             <th>JOINED</th>
             <th>STATUS</th>
             <th v-if="activeTab === 'all'">ACTION</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="e in paginatedEmployees" :key="e.id">
+          <tr v-for="e in paginatedEmployees" :key="e.id" :class="{ picked: selected.includes(e.id) }">
+            <td v-if="selectable.length" class="td-pick">
+              <input
+                v-if="e.registration_status === 'pending' && e.can_manage"
+                type="checkbox"
+                class="pick-box"
+                :checked="selected.includes(e.id)"
+                :disabled="bulkBusy"
+                :aria-label="`Select ${e.name}`"
+                @change="toggleOne(e.id)"
+              />
+            </td>
             <td class="td-employee">
               <div class="emp-avatar" :style="{ background: avatarColor(e.name) }">{{ initials(e.name) }}</div>
               <div>
@@ -122,20 +190,31 @@
             </td>
             <td><span class="pkg-badge" :class="'pkb-' + e.package">{{ tierLabel(e.package) }}</span></td>
             <td class="td-dept">{{ e.department || '—' }}</td>
+            <td v-if="branchOptions.length" class="td-dept">{{ e.branch || 'Head office' }}</td>
             <td class="td-date">{{ e.enrolled_at }}</td>
             <td>
               <span class="reg-badge" :class="e.registration_status === 'approved' && e.admin_approval_status === 'pending' ? 'reg-admin-pending' : 'reg-' + (e.registration_status ?? 'approved')">
                 {{ regLabel(e.registration_status, e.admin_approval_status) }}
               </span>
+              <p v-if="e.registration_status === 'approved'" class="access-line" :class="'access-' + e.status">
+                {{ accessLine(e) }}
+              </p>
             </td>
             <td v-if="activeTab === 'all'">
               <div class="action-cell">
-                <template v-if="e.registration_status === 'pending'">
+                <span v-if="!e.can_manage" class="ro-chip">View only</span>
+                <template v-if="e.can_manage && e.registration_status === 'pending'">
                   <button class="act-btn act-approve" :disabled="acting === e.id" @click="approve(e)">Approve</button>
                   <button class="act-btn act-reject"  :disabled="acting === e.id" @click="reject(e)">Reject</button>
                 </template>
-                <button v-if="!e.is_banned" class="act-btn act-ban" @click="openBan(e)">Ban</button>
-                <button v-else class="act-btn act-release" @click="doUnban(e)">Release</button>
+                <button
+                  v-if="e.can_manage && e.registration_status === 'approved'"
+                  class="act-btn act-ban"
+                  title="Employee lost their phone or authenticator app"
+                  @click="resetTwoFactor(e)"
+                >Reset 2FA</button>
+                <button v-if="e.can_manage && !e.is_banned" class="act-btn act-ban" @click="openBan(e)">Ban</button>
+                <button v-else-if="e.can_manage" class="act-btn act-release" @click="doUnban(e)">Release</button>
               </div>
               <div v-if="e.is_banned" class="ban-chip">
                 Banned until {{ formatDate(e.banned_until) }}
@@ -162,7 +241,8 @@
             <div class="modal-header">
               <div>
                 <p class="modal-title">Approve Employee</p>
-                <p class="modal-sub">Approving <strong>{{ approvalModal.employee?.name }}</strong> — pending admin final confirmation</p>
+                <p v-if="approvalModal.bulk" class="modal-sub">Approving <strong>{{ selected.length }} employees</strong> with the same plan — pending admin final confirmation</p>
+                <p v-else class="modal-sub">Approving <strong>{{ approvalModal.employee?.name }}</strong> — pending admin final confirmation</p>
               </div>
               <button class="modal-close" @click="approvalModal.show = false">✕</button>
             </div>
@@ -203,7 +283,8 @@
 
             <!-- Step 2: Payment preference -->
             <div v-else-if="approvalModal.step === 2" class="payment-step">
-              <p class="payment-step-label">How will the invoice for <strong>{{ approvalModal.employee?.name }}</strong> be handled?</p>
+              <p v-if="approvalModal.bulk" class="payment-step-label">How will the invoices for <strong>{{ selected.length }} employees</strong> be handled?</p>
+              <p v-else class="payment-step-label">How will the invoice for <strong>{{ approvalModal.employee?.name }}</strong> be handled?</p>
               <div class="payment-options">
                 <button
                   class="payment-option"
@@ -256,11 +337,11 @@
               <button
                 v-else
                 class="btn-confirm"
-                :disabled="!approvalModal.paymentPreference || acting === approvalModal.employee?.id"
+                :disabled="!approvalModal.paymentPreference || bulkBusy || (!approvalModal.bulk && acting === approvalModal.employee?.id)"
                 @click="confirmApprove"
               >
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                {{ acting === approvalModal.employee?.id ? 'Submitting…' : approvalModal.paymentPreference === 'pay_now' ? 'Approve & Notify Admin' : 'Approve & Pay Later' }}
+                {{ (bulkBusy || (!approvalModal.bulk && acting === approvalModal.employee?.id)) ? 'Submitting…' : approvalModal.paymentPreference === 'pay_now' ? 'Approve & Notify Admin' : 'Approve & Pay Later' }}
               </button>
             </div>
           </div>
@@ -327,7 +408,8 @@
             <div class="modal-header">
               <div>
                 <p class="modal-title">Reject Employee Application</p>
-                <p class="modal-sub">Rejecting <strong>{{ hrRejectModal.employee?.name }}</strong> — they will be notified.</p>
+                <p v-if="hrRejectModal.bulk" class="modal-sub">Rejecting <strong>{{ selected.length }} employees</strong> — each will be notified.</p>
+                <p v-else class="modal-sub">Rejecting <strong>{{ hrRejectModal.employee?.name }}</strong> — they will be notified.</p>
               </div>
               <button class="modal-close" @click="hrRejectModal.show = false">✕</button>
             </div>
@@ -343,6 +425,64 @@
               <button class="btn-reject-confirm" :disabled="hrRejectModal.loading" @click="confirmHrReject">
                 {{ hrRejectModal.loading ? 'Rejecting…' : 'Confirm Reject' }}
               </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Import results modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="importResult.show" class="modal-backdrop" @click.self="importResult.show = false">
+          <div class="modal modal-wide">
+            <div class="modal-header">
+              <div>
+                <p class="modal-title">Import Results</p>
+                <p class="modal-sub">
+                  {{ importResult.created.length }} employee(s) imported,
+                  {{ importResult.failed.length }} row(s) failed.
+                </p>
+              </div>
+              <button class="modal-close" @click="importResult.show = false">✕</button>
+            </div>
+            <div class="modal-body import-result-body">
+              <div v-if="importResult.created.length" class="import-section">
+                <div class="import-section-head">
+                  <p class="import-section-title">Created ({{ importResult.created.length }})</p>
+                  <button type="button" class="btn-template" @click="downloadImportedCredentials">
+                    ↓ Download Credentials
+                  </button>
+                </div>
+                <div class="import-table-wrap">
+                  <table class="import-table">
+                    <thead>
+                      <tr><th>Name</th><th>Email</th><th>FAN Number</th><th>Temp Password</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="c in importResult.created" :key="c.row">
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.email }}</td>
+                        <td class="mono">{{ c.fan_number }}</td>
+                        <td class="mono">{{ c.temp_password }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="pw-note">Share each password with its employee. They must set a new password on first login.</p>
+              </div>
+
+              <div v-if="importResult.failed.length" class="import-section">
+                <p class="import-section-title import-section-title--error">Failed rows ({{ importResult.failed.length }})</p>
+                <ul class="import-error-list">
+                  <li v-for="f in importResult.failed" :key="f.row">
+                    <strong>Row {{ f.row }}:</strong> {{ f.errors.join(' ') }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-cancel" @click="importResult.show = false">Close</button>
             </div>
           </div>
         </div>
@@ -366,16 +506,31 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useAuthStore } from '@/stores/auth'
 import AppPagination from '@/components/AppPagination.vue'
+import BulkActionBar from '@/components/BulkActionBar.vue'
 
-const api = useApi()
+const api  = useApi()
+const auth = useAuthStore()
+
+/** Whether the company has paid for this employee's access today */
+function accessLine(e: { status: string; paid_until?: string | null }): string {
+  const day = e.paid_until
+    ? new Date(e.paid_until + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : ''
+  if (e.status === 'expired') return `Access ended ${day}`
+  if (e.status === 'unpaid') return 'Access not paid yet'
+  if (e.status === 'inactive') return 'Not enrolled'
+  return day ? `Access until ${day}` : 'Access active'
+}
 
 interface Emp {
   id: number; name: string; email: string; phone: string
-  fan_number: string; package: string; status: string
+  fan_number: string; package: string; status: string; paid_until?: string | null
   job_title: string; department: string; branch: string
   request_note: string; registration_status: string; enrolled_at: string
   admin_approval_status: string | null; payment_preference: string | null
+  company_branch_id: number | null; can_manage: boolean
   is_banned: boolean; banned_until: string | null; ban_reason: string | null
 }
 
@@ -391,7 +546,33 @@ const loading      = ref(true)
 const search       = ref('')
 const activeTab    = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
 const acting       = ref<number | null>(null)
-const hrRejectModal = reactive({ show: false, employee: null as Emp | null, reason: '', error: '', loading: false })
+const hrRejectModal = reactive({ show: false, bulk: false, employee: null as Emp | null, reason: '', error: '', loading: false })
+
+// ── Bulk selection (pending tab) ─────────────────────────────
+const selected = ref<number[]>([])
+const bulkBusy = ref(false)
+
+function toggleOne(id: number) {
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter(x => x !== id)
+    : [...selected.value, id]
+}
+// Only employees still waiting for HR review can be bulk approved / rejected
+const selectable = computed(() => employees.value.filter(e => e.registration_status === 'pending' && e.can_manage))
+
+function toggleAll() {
+  selected.value = selected.value.length === selectable.value.length
+    ? []
+    : selectable.value.map(e => e.id)
+}
+
+interface BulkResult { message: string; done: number; failed: { name: string | null; reason: string }[] }
+function reportBulk(res: BulkResult) {
+  const detail = res.failed.length
+    ? ' ' + res.failed.map(f => `${f.name ?? 'Unknown'}: ${f.reason}`).slice(0, 3).join('; ')
+    : ''
+  showToast(res.message + detail, res.done > 0 ? 'success' : 'error')
+}
 
 const empPage    = ref(1)
 const empPerPage = 10
@@ -403,11 +584,12 @@ const plans       = ref<Plan[]>([])
 const plansLoading = ref(false)
 const approvalModal = reactive<{
   show: boolean
+  bulk: boolean
   step: number
   employee: Emp | null
   selectedPlan: string
   paymentPreference: 'pay_now' | 'pay_later' | ''
-}>({ show: false, step: 1, employee: null, selectedPlan: '', paymentPreference: '' })
+}>({ show: false, bulk: false, step: 1, employee: null, selectedPlan: '', paymentPreference: '' })
 
 const tabs = [
   { key: 'all',      label: 'All' },
@@ -415,6 +597,12 @@ const tabs = [
   { key: 'approved', label: 'Approved' },
   { key: 'rejected', label: 'Rejected' },
 ] as const
+
+// The server explains why an action was refused (e.g. another branch's employee):
+// show that text instead of a generic failure.
+function errMsg(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message && !/^HTTP \d+$/.test(err.message) ? err.message : fallback
+}
 
 // ── Toast ────────────────────────────────────────────────────
 const toast = reactive({ show: false, type: 'success', message: '' })
@@ -439,11 +627,13 @@ async function load() {
     const params = new URLSearchParams()
     if (search.value)           params.set('search', search.value)
     if (activeTab.value !== 'all') params.set('status', activeTab.value)
+    if (branchFilter.value)        params.set('branch_id', branchFilter.value)
     const qs = params.toString()
     const res = await api.get<{ data: Emp[]; total: number; pending_count: number }>(
       `hr/employees${qs ? '?' + qs : ''}`
     )
     employees.value    = res.data
+    selected.value     = selected.value.filter(id => res.data.some(e => e.id === id && e.registration_status === 'pending' && e.can_manage))
     total.value        = res.total
     pendingCount.value = res.pending_count ?? 0
   } finally {
@@ -453,6 +643,7 @@ async function load() {
 
 function switchTab(tab: typeof activeTab.value) {
   activeTab.value = tab
+  selected.value  = []
   search.value    = ''
   empPage.value   = 1
   load()
@@ -460,7 +651,17 @@ function switchTab(tab: typeof activeTab.value) {
 
 watch(employees, () => { empPage.value = 1 })
 
-onMounted(load)
+// Branch list for the filter (head office and branch logins both see it)
+const branchOptions = ref<{ id: number; name: string }[]>([])
+const branchFilter  = ref('')
+const myBranchId    = auth.user?.company_branch_id ?? null
+async function loadBranchOptions() {
+  try {
+    branchOptions.value = (await api.get<{ branches: { id: number; name: string }[] }>('hr/branches')).branches
+  } catch { /* the filter is optional */ }
+}
+
+onMounted(() => { loadBranchOptions(); load() })
 
 // ── Ban / Unban ───────────────────────────────────────────────
 const durationOptions = [
@@ -521,10 +722,26 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+async function resetTwoFactor(e: Emp) {
+  if (!window.confirm(`Reset two-factor authentication for ${e.name}? They will be signed out and must scan a new QR code on their next login.`)) return
+  try {
+    const res = await api.post<{ message: string }>(`hr/employees/${e.id}/reset-2fa`, {})
+    showToast(res.message)
+  } catch (err: unknown) {
+    showToast(errMsg(err, 'Failed to reset two-factor authentication.'), 'error')
+  }
+}
+
 // ── Approve / Reject ──────────────────────────────────────────
-async function approve(e: Emp) {
+function bulkApprove() {
+  if (!selected.value.length) return
+  approve(null, true)
+}
+
+async function approve(e: Emp | null, bulk = false) {
   // Fetch plans and open modal (step 1)
   plansLoading.value = true
+  approvalModal.bulk              = bulk
   approvalModal.employee          = e
   approvalModal.selectedPlan      = ''
   approvalModal.paymentPreference = ''
@@ -547,6 +764,26 @@ async function approve(e: Emp) {
 }
 
 async function confirmApprove() {
+  if (approvalModal.bulk) {
+    if (!selected.value.length || !approvalModal.selectedPlan || !approvalModal.paymentPreference) return
+    bulkBusy.value = true
+    try {
+      const res = await api.post<BulkResult>('hr/employees/bulk-approve', {
+        ids:                selected.value,
+        plan:               approvalModal.selectedPlan,
+        payment_preference: approvalModal.paymentPreference,
+      })
+      approvalModal.show = false
+      reportBulk(res)
+      selected.value = []
+      await load()
+    } catch (err: unknown) {
+      showToast(errMsg(err, 'Failed to approve the selected employees. Please try again.'), 'error')
+    } finally {
+      bulkBusy.value = false
+    }
+    return
+  }
   const e = approvalModal.employee
   if (!e || !approvalModal.selectedPlan || !approvalModal.paymentPreference) return
 
@@ -562,14 +799,26 @@ async function confirmApprove() {
       : `${e.name} approved — pending admin confirmation before activation.`
     showToast(msg)
     await load()
-  } catch {
-    showToast('Failed to approve. Please try again.', 'error')
+  } catch (err: unknown) {
+    approvalModal.show = false
+    showToast(errMsg(err, 'Failed to approve. Please try again.'), 'error')
   } finally {
     acting.value = null
   }
 }
 
+function bulkReject() {
+  if (!selected.value.length) return
+  hrRejectModal.bulk     = true
+  hrRejectModal.employee = null
+  hrRejectModal.reason   = ''
+  hrRejectModal.error    = ''
+  hrRejectModal.loading  = false
+  hrRejectModal.show     = true
+}
+
 function reject(e: Emp) {
+  hrRejectModal.bulk     = false
   hrRejectModal.employee = e
   hrRejectModal.reason   = ''
   hrRejectModal.error    = ''
@@ -579,6 +828,23 @@ function reject(e: Emp) {
 
 async function confirmHrReject() {
   if (!hrRejectModal.reason.trim()) { hrRejectModal.error = 'Please provide a rejection reason.'; return }
+  if (hrRejectModal.bulk) {
+    hrRejectModal.loading = true
+    try {
+      const res = await api.post<BulkResult>('hr/employees/bulk-reject', {
+        ids: selected.value, reason: hrRejectModal.reason,
+      })
+      hrRejectModal.show = false
+      reportBulk(res)
+      selected.value = []
+      await load()
+    } catch (err: unknown) {
+      hrRejectModal.error = errMsg(err, 'Failed to reject. Please try again.')
+    } finally {
+      hrRejectModal.loading = false
+    }
+    return
+  }
   const e = hrRejectModal.employee!
   hrRejectModal.loading = true
   acting.value = e.id
@@ -587,8 +853,8 @@ async function confirmHrReject() {
     hrRejectModal.show = false
     showToast(`${e.name}'s application rejected.`)
     await load()
-  } catch {
-    hrRejectModal.error = 'Failed to reject. Please try again.'
+  } catch (err: unknown) {
+    hrRejectModal.error = errMsg(err, 'Failed to reject. Please try again.')
   } finally {
     hrRejectModal.loading = false
     acting.value = null
@@ -609,13 +875,88 @@ function regLabel(s: string, adminStatus?: string | null) {
   if (s === 'approved' && adminStatus === 'rejected') return 'Admin Rejected'
   return { pending: 'Pending HR', approved: 'Active', rejected: 'Rejected' }[s] ?? s
 }
-const COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
+const COLORS = ['#0B0C10','#72B800','#8BE000','#f59e0b','#ef4444','#4D7C0F','#ec4899']
 function avatarColor(name: string) {
   let h = 0; for (const c of (name ?? '')) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return COLORS[h % COLORS.length]
 }
 function initials(name: string) {
   return (name ?? '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
+
+// ── CSV Import ──────────────────────────────────────────────
+interface ImportCreated { row: number; name: string; email: string; fan_number: string; temp_password: string }
+interface ImportFailed  { row: number; errors: string[] }
+
+const importInput  = ref<HTMLInputElement | null>(null)
+const importing    = ref(false)
+const importResult = reactive<{ show: boolean; created: ImportCreated[]; failed: ImportFailed[] }>({
+  show: false, created: [], failed: [],
+})
+
+function downloadCsv(rows: (string | number)[][], filename: string) {
+  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const a    = document.createElement('a')
+  a.href     = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+}
+
+async function downloadImportTemplate() {
+  let exampleTier = 'basic'
+  try {
+    const res  = await api.get<Plan[]>('membership-plans')
+    const list = Array.isArray(res) ? res : (res as any).data ?? []
+    if (list.length) exampleTier = list[0].tier
+  } catch {
+    // fall back to placeholder tier if plans can't be fetched
+  }
+  downloadCsv([
+    ['first_name', 'middle_name', 'last_name', 'email', 'fan_number', 'package', 'job_title', 'department', 'phone', 'joined_at'],
+    ['Abebe', 'Girma', 'Haile', 'abebe.haile@example.com', '1234567890123', exampleTier, 'Accountant', 'Finance', '0912345678', '2026-01-15'],
+  ], 'employee_import_template.csv')
+}
+
+function downloadImportedCredentials() {
+  downloadCsv([
+    ['Name', 'Email', 'FAN Number', 'Temp Password'],
+    ...importResult.created.map(c => [c.name, c.email, c.fan_number, c.temp_password]),
+  ], `imported_employees_credentials_${new Date().toISOString().slice(0, 10)}.csv`)
+}
+
+async function onImportFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file  = input.files?.[0]
+  if (!file) return
+
+  importing.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/hr/employees/import`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: formData,
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      showToast(data.message ?? 'Import failed.', 'error')
+      return
+    }
+    importResult.created = data.created ?? []
+    importResult.failed  = data.failed ?? []
+    importResult.show    = true
+    await load()
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : 'Import failed.', 'error')
+  } finally {
+    importing.value = false
+    input.value = ''
+  }
 }
 </script>
 
@@ -625,6 +966,22 @@ function initials(name: string) {
 /* ── Header & Tabs ──────────────────────────────────────────── */
 .page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .count-label { font-size: 0.82rem; color: #94a3b8; margin: 0; }
+
+.header-actions { display: flex; align-items: center; gap: 12px; }
+.hidden-input { display: none; }
+.btn-template {
+  padding: 8px 14px; background: white; color: #64748b;
+  border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.btn-template:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+.btn-import {
+  padding: 8px 16px; background: #8BE000; color: white; border: none;
+  border-radius: 9px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: opacity .15s;
+}
+.btn-import:hover:not(:disabled) { opacity: .85; }
+.btn-import:disabled { opacity: .55; cursor: default; }
 
 .tabs { display: flex; gap: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 4px; }
 .tab {
@@ -683,7 +1040,7 @@ function initials(name: string) {
 .pending-actions { display: flex; gap: 10px; }
 .btn-approve {
   display: flex; align-items: center; gap: 6px;
-  padding: 9px 20px; background: #4CD964; color: white;
+  padding: 9px 20px; background: #8BE000; color: white;
   border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }
@@ -737,13 +1094,13 @@ function initials(name: string) {
 /* Package badges */
 .pkg-badge   { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
 .pkb-basic      { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.pkb-basic_plus { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
-.pkb-platinum   { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
+.pkb-basic_plus { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
+.pkb-platinum   { background: #ede9fe; color: #72B800; border: 1px solid #B8F0C0; }
 
 /* Registration status badges */
 .reg-badge  { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
 .reg-pending  { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
-.reg-approved { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
+.reg-approved { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
 .reg-rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 
 /* Action cell */
@@ -754,8 +1111,8 @@ function initials(name: string) {
 }
 .act-btn:hover:not(:disabled) { opacity: .8; }
 .act-btn:disabled { opacity: .5; cursor: default; }
-.act-approve { background: #d1fae5; color: #2EB84B; }
-.act-approve:hover:not(:disabled) { background: #2EB84B; color: white; }
+.act-approve { background: #d1fae5; color: #72B800; }
+.act-approve:hover:not(:disabled) { background: #72B800; color: white; }
 .act-reject  { background: #fee2e2; color: #dc2626; }
 .act-reject:hover:not(:disabled)  { background: #dc2626; color: white; }
 .act-ban     { background: #fef3c7; color: #b45309; }
@@ -898,20 +1255,20 @@ function initials(name: string) {
   border-radius: 14px; padding: 16px 14px 14px; text-align: left;
   cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px;
 }
-.plan-card:hover { border-color: #4CD964; background: #f0fdfa; }
-.plan-card--selected { border-color: #4CD964; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(20,184,166,.15); }
+.plan-card:hover { border-color: #8BE000; background: #f0fdfa; }
+.plan-card--selected { border-color: #8BE000; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(20,184,166,.15); }
 .plan-check {
   position: absolute; top: 10px; right: 10px;
   width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0;
   display: flex; align-items: center; justify-content: center;
 }
-.plan-card--selected .plan-check { background: #4CD964; color: white; }
+.plan-card--selected .plan-check { background: #8BE000; color: white; }
 .plan-name  { font-size: 0.92rem; font-weight: 700; color: #0f172a; margin: 0; }
-.plan-price { font-size: 0.82rem; font-weight: 600; color: #4CD964; margin: 0; }
+.plan-price { font-size: 0.82rem; font-weight: 600; color: #8BE000; margin: 0; }
 .plan-price span { font-size: 0.72rem; color: #94a3b8; font-weight: 400; }
 .plan-features { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 3px; }
 .plan-features li { font-size: 0.73rem; color: #64748b; padding-left: 12px; position: relative; }
-.plan-features li::before { content: '•'; position: absolute; left: 0; color: #4CD964; }
+.plan-features li::before { content: '•'; position: absolute; left: 0; color: #8BE000; }
 
 .modal-footer {
   display: flex; justify-content: flex-end; gap: 10px;
@@ -925,7 +1282,7 @@ function initials(name: string) {
 .btn-cancel:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
 .btn-confirm {
   display: flex; align-items: center; gap: 6px;
-  padding: 9px 22px; background: #4CD964; color: white;
+  padding: 9px 22px; background: #8BE000; color: white;
   border: none; border-radius: 9px; font-size: 0.84rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }
@@ -962,16 +1319,16 @@ function initials(name: string) {
   display: flex; align-items: center; gap: 8px;
   font-size: 0.82rem; font-weight: 500; color: #94a3b8;
 }
-.modal-step.active { color: #4CD964; font-weight: 700; }
-.modal-step.done   { color: #2EB84B; }
+.modal-step.active { color: #8BE000; font-weight: 700; }
+.modal-step.done   { color: #72B800; }
 .step-num {
   width: 22px; height: 22px; border-radius: 50%;
   background: #f1f5f9; color: #64748b;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.75rem; font-weight: 700;
 }
-.modal-step.active .step-num { background: #4CD964; color: #fff; }
-.modal-step.done   .step-num { background: #2EB84B; color: #fff; }
+.modal-step.active .step-num { background: #8BE000; color: #fff; }
+.modal-step.done   .step-num { background: #72B800; color: #fff; }
 .step-line { flex: 1; height: 2px; background: #e2e8f0; margin: 0 12px; }
 
 .payment-step { padding: 0 24px 8px; }
@@ -984,17 +1341,52 @@ function initials(name: string) {
   transition: border-color .15s, box-shadow .15s;
 }
 .payment-option:hover { border-color: #b8f0c0; }
-.payment-option.selected { border-color: #4CD964; background: #EBFAEE; }
+.payment-option.selected { border-color: #8BE000; background: #EBFAEE; }
 .pay-option-icon {
   width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.pay-option-icon.pay-now    { background: #EBFAEE; color: #2EB84B; }
+.pay-option-icon.pay-now    { background: #EBFAEE; color: #72B800; }
 .pay-option-icon.pay-later  { background: #fef3c7; color: #d97706; }
 .pay-option-body { flex: 1; }
 .pay-option-title { font-size: 0.92rem; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
 .pay-option-desc  { font-size: 0.8rem; color: #64748b; margin: 0; line-height: 1.5; }
-.pay-option-check { color: #4CD964; flex-shrink: 0; margin-top: 2px; }
+.pay-option-check { color: #8BE000; flex-shrink: 0; margin-top: 2px; }
 
 .reg-admin-pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+
+/* ── Import results modal ───────────────────────────────────── */
+.import-result-body { display: flex; flex-direction: column; gap: 20px; max-height: 60vh; overflow-y: auto; }
+.import-section { display: flex; flex-direction: column; gap: 8px; }
+.import-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.import-section-title { font-size: 0.85rem; font-weight: 700; color: #0f172a; margin: 0; }
+.import-section-title--error { color: #dc2626; }
+.import-table-wrap { border: 1px solid #e2e8f0; border-radius: 10px; overflow: auto; max-height: 260px; }
+.import-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.import-table th {
+  position: sticky; top: 0; background: #f8fafc; text-align: left;
+  padding: 8px 12px; font-size: 0.68rem; font-weight: 600; color: #94a3b8;
+  letter-spacing: .05em; text-transform: uppercase; border-bottom: 1px solid #e2e8f0;
+}
+.import-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.import-table tr:last-child td { border-bottom: none; }
+.import-error-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.import-error-list li {
+  font-size: 0.8rem; color: #7f1d1d; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 8px; padding: 8px 12px;
+}
+.pw-note { font-size: 0.76rem; color: #94a3b8; margin: 0; }
+.pending-card.picked { border-color: #72B800; background: #fbfef6; }
+.pick-box { width: 18px; height: 18px; accent-color: #72B800; cursor: pointer; flex-shrink: 0; margin-top: 4px; }
+.table-bulk { margin: 0 0 10px; }
+.th-pick, .td-pick { width: 36px; }
+.data-table tr.picked td { background: #fbfef6; }
+.branch-filter { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.branch-filter-label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+.branch-filter-select { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 0.85rem; }
+.branch-filter-note { font-size: 0.78rem; color: #64748b; }
+.ro-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; background: #EEF9DC; color: #4D7C0F; font-size: 0.72rem; font-weight: 700; }
+.access-line { margin: 4px 0 0; font-size: 0.72rem; font-weight: 600; color: #4d7c0f; white-space: nowrap; }
+.access-line.access-expired, .access-line.access-unpaid { color: #dc2626; }
+.access-line.access-inactive, .access-line.access-suspended { color: #94a3b8; }
 </style>

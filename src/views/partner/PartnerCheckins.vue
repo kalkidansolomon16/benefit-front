@@ -115,7 +115,7 @@
             </div>
             <div class="visitor-info">
               <p class="visitor-name">{{ v.name }}</p>
-              <p class="visitor-fan">{{ v.fan_number }}</p>
+              <p class="visitor-fan">{{ v.fan_number }}<template v-if="showBranch && v.branch"> · <span class="branch-chip">{{ v.branch }}</span></template></p>
             </div>
             <div class="visitor-meta">
               <p class="visitor-time">
@@ -136,19 +136,19 @@
       <div class="stat-strip">
         <div class="stat-tile">
           <p class="tile-label">Total</p>
-          <p class="tile-value">{{ allCheckins.length }}</p>
+          <p class="tile-value">{{ dashStats?.total_checkins ?? allCheckins.length }}</p>
         </div>
         <div class="stat-tile">
           <p class="tile-label">This Month</p>
-          <p class="tile-value emerald">{{ monthCount }}</p>
+          <p class="tile-value emerald">{{ dashStats?.month_checkins ?? monthCount }}</p>
         </div>
         <div class="stat-tile">
           <p class="tile-label">This Week</p>
-          <p class="tile-value blue">{{ weekCount }}</p>
+          <p class="tile-value blue">{{ dashStats?.week_checkins ?? weekCount }}</p>
         </div>
         <div class="stat-tile">
           <p class="tile-label">Avg Duration</p>
-          <p class="tile-value violet">{{ avgDur ?? '—' }}<span v-if="avgDur" class="tile-unit"> min</span></p>
+          <p class="tile-value violet">{{ dashStats?.avg_duration_min ?? avgDur ?? '—' }}<span v-if="dashStats?.avg_duration_min ?? avgDur" class="tile-unit"> min</span></p>
         </div>
       </div>
 
@@ -158,6 +158,10 @@
           <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="search" class="search-input" placeholder="Search by member name or FAN…" />
         </div>
+        <select v-if="showBranch" v-model="branchScope" class="filter-select" @change="onScopeChange">
+          <option value="current">This branch</option>
+          <option value="all">All branches</option>
+        </select>
         <select v-model="monthFilter" class="filter-select">
           <option value="">All months</option>
           <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
@@ -182,6 +186,7 @@
                 <th>#</th>
                 <th>Member</th>
                 <th>FAN</th>
+                <th v-if="showBranch">Branch</th>
                 <th>Checked In</th>
                 <th>Checked Out</th>
                 <th>Duration</th>
@@ -198,6 +203,7 @@
                   </div>
                 </td>
                 <td class="fan-cell">{{ c.fan_number ?? '—' }}</td>
+                <td v-if="showBranch"><span class="branch-chip">{{ c.branch ?? '—' }}</span></td>
                 <td class="time-cell">{{ c.checked_in_at ?? '—' }}</td>
                 <td class="time-cell">{{ c.checked_out_at ?? '—' }}</td>
                 <td class="dur-cell">{{ c.duration_min != null ? c.duration_min + ' min' : '—' }}</td>
@@ -238,6 +244,7 @@ interface CheckinRow {
   checked_out_at: string | null
   duration_min: number | null
   status: 'active' | 'completed'
+  branch?: string | null
 }
 
 interface ExpectedVisitor {
@@ -246,10 +253,23 @@ interface ExpectedVisitor {
   fan_number: string
   checked_in: boolean
   selected_at: string   // HH:mm
+  branch?: string | null
 }
 
 const loading    = ref(true)
 const allCheckins = ref<CheckinRow[]>([])
+
+// Multi-branch gyms: show one branch (the one being viewed) or all branches together
+const branchesCount = ref(1)
+const branchScope   = ref<'current' | 'all'>('current')
+const showBranch    = computed(() => branchesCount.value > 1)
+const scopeQuery    = () => (branchScope.value === 'all' ? 'scope=all' : '')
+
+function onScopeChange() {
+  partnerPage.value = 1
+  load()
+  loadExpectedVisitors()
+}
 const search     = ref('')
 const monthFilter = ref('')
 const statusFilter = ref('')
@@ -331,11 +351,19 @@ async function submitScan() {
   }
 }
 
+interface DashboardStats {
+  total_checkins: number
+  month_checkins: number
+  week_checkins: number
+  avg_duration_min: number | null
+}
+const dashStats = ref<DashboardStats | null>(null)
+
 // Cache the partner's gym id from the dashboard endpoint
 let myGymId: number | null = null
 async function resolveMyGymId(): Promise<number> {
   if (myGymId) return myGymId
-  const res = await api.get<{ gym?: { id: number } }>('partner/dashboard')
+  const res = await api.get<{ gym?: { id: number } }>('partner-portal/dashboard')
   myGymId = res.gym?.id ?? 0
   return myGymId
 }
@@ -343,8 +371,12 @@ async function resolveMyGymId(): Promise<number> {
 async function load() {
   loading.value = true
   try {
-    const res = await api.get<{ recent_checkins: CheckinRow[]; stats: { total_checkins: number } }>('partner/dashboard')
+    const res = await api.get<{ recent_checkins: CheckinRow[]; stats: DashboardStats; branches_count?: number }>(
+      `partner-portal/dashboard${scopeQuery() ? '?' + scopeQuery() : ''}`
+    )
+    branchesCount.value = res.branches_count ?? 1
     allCheckins.value = res.recent_checkins ?? []
+    dashStats.value   = res.stats ?? null
   } finally {
     loading.value = false
   }
@@ -355,7 +387,7 @@ async function loadExpectedVisitors() {
   try {
     const gymId = await resolveMyGymId()
     const res = await api.get<{ visitors: ExpectedVisitor[] }>(
-      `partner/expected-visitors${gymId ? `?gym_id=${gymId}` : ''}`
+      `partner-portal/expected-visitors?${[gymId ? `gym_id=${gymId}` : '', scopeQuery()].filter(Boolean).join('&')}`
     )
     expectedVisitors.value = res.visitors ?? []
   } catch {
@@ -451,7 +483,7 @@ function initials(name: string): string {
 }
 .spinner {
   width: 30px; height: 30px;
-  border: 3px solid #e2e8f0; border-top-color: #4CD964;
+  border: 3px solid #e2e8f0; border-top-color: #8BE000;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -471,7 +503,7 @@ function initials(name: string): string {
 .visitors-title-wrap {
   display: flex; align-items: center; gap: 8px;
 }
-.visitors-icon { color: #4CD964; flex-shrink: 0; }
+.visitors-icon { color: #8BE000; flex-shrink: 0; }
 .visitors-title {
   margin: 0; font-size: 0.92rem; font-weight: 700; color: #0f172a;
 }
@@ -488,7 +520,7 @@ function initials(name: string): string {
   cursor: pointer; color: #64748b; transition: border-color .15s, color .15s;
   padding: 0;
 }
-.refresh-btn:hover:not(:disabled) { border-color: #4CD964; color: #4CD964; }
+.refresh-btn:hover:not(:disabled) { border-color: #8BE000; color: #8BE000; }
 .refresh-btn:disabled { opacity: .5; cursor: not-allowed; }
 .spin-anim { animation: spin .7s linear infinite; }
 
@@ -498,7 +530,7 @@ function initials(name: string): string {
 }
 .spinner-sm {
   width: 16px; height: 16px;
-  border: 2px solid #e2e8f0; border-top-color: #4CD964;
+  border: 2px solid #e2e8f0; border-top-color: #8BE000;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 
@@ -522,7 +554,7 @@ function initials(name: string): string {
 
 .visitor-av {
   width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-  background: linear-gradient(135deg, #4CD964, #2EB84B);
+  background: linear-gradient(135deg, #8BE000, #72B800);
   color: #fff; font-weight: 700; font-size: 0.72rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -566,9 +598,9 @@ function initials(name: string): string {
 }
 .tile-label { font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px; }
 .tile-value { font-size: 1.8rem; font-weight: 800; margin: 0; color: #0f172a; }
-.tile-value.emerald { color: #4CD964; }
-.tile-value.blue    { color: #3b82f6; }
-.tile-value.violet  { color: #4CD964; }
+.tile-value.emerald { color: #8BE000; }
+.tile-value.blue    { color: #4D7C0F; }
+.tile-value.violet  { color: #8BE000; }
 .tile-unit { font-size: 0.85rem; font-weight: 500; color: #94a3b8; }
 
 /* ── Filters ────────────────────────────────────────────────────── */
@@ -587,13 +619,13 @@ function initials(name: string): string {
   border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 0.87rem;
   color: #334155; outline: none; background: #fff;
 }
-.search-input:focus { border-color: #4CD964; }
+.search-input:focus { border-color: #8BE000; }
 .filter-select {
   padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px;
   font-size: 0.87rem; color: #334155; background: #fff; outline: none;
   min-width: 140px; cursor: pointer;
 }
-.filter-select:focus { border-color: #4CD964; }
+.filter-select:focus { border-color: #8BE000; }
 
 /* ── Card ───────────────────────────────────────────────────────── */
 .card {
@@ -625,7 +657,7 @@ function initials(name: string): string {
 .member-cell { display: flex; align-items: center; gap: 10px; }
 .member-av {
   width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(135deg, #4CD964, #2EB84B);
+  background: linear-gradient(135deg, #8BE000, #72B800);
   color: #fff; font-weight: 700; font-size: 0.72rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -691,13 +723,13 @@ function initials(name: string): string {
   color: #0f172a; background: #fff; outline: none;
   text-transform: uppercase;
 }
-.scan-input:focus { border-color: #4CD964; }
+.scan-input:focus { border-color: #8BE000; }
 .scan-btn {
   padding: 11px 22px; border-radius: 9px; border: none;
-  background: #4CD964; color: #fff; font-weight: 700; font-size: 0.88rem;
+  background: #8BE000; color: #fff; font-weight: 700; font-size: 0.88rem;
   cursor: pointer; transition: background .15s;
 }
-.scan-btn:hover:not(:disabled) { background: #2EB84B; }
+.scan-btn:hover:not(:disabled) { background: #72B800; }
 .scan-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
 
 @media (max-width: 700px) {
@@ -705,4 +737,5 @@ function initials(name: string): string {
   .visitor-row { flex-wrap: wrap; }
   .visitor-meta { display: none; }
 }
+.branch-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #EEF9DC; color: #4D7C0F; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 </style>

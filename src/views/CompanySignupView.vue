@@ -1,8 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
+import BranchFields from '@/components/BranchFields.vue'
+import { emptyBranch, branchValid, branchMissing, branchPayload, type BranchForm } from '@/utils/branches'
 
 // -- Step state -------------------------------------------------------------
 const step = ref(1)
@@ -14,41 +13,6 @@ const industry = ref('')
 const companySize = ref('')
 const tin = ref('')
 const preferredPayment = ref('')
-const licenseFile = ref<File | null>(null)
-const licensePreview = ref('')
-const licenseError = ref('')
-
-function onLicenseChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  licenseError.value = ''
-  if (!file) {
-    licenseFile.value = null
-    licensePreview.value = ''
-    return
-  }
-
-  const allowed = ['application/pdf', 'image/jpeg', 'image/png']
-  if (!allowed.includes(file.type)) {
-    licenseError.value = 'Only PDF, JPG, or PNG files are accepted.'
-    input.value = ''
-    return
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    licenseError.value = 'File must be under 5 MB.'
-    input.value = ''
-    return
-  }
-
-  licenseFile.value = file
-  licensePreview.value = file.type === 'application/pdf' ? 'pdf' : URL.createObjectURL(file)
-}
-
-function removeLicense() {
-  licenseFile.value = null
-  licensePreview.value = ''
-  licenseError.value = ''
-}
 
 const industries = [
   { value: 'banking', label: 'Banking & Finance' },
@@ -81,53 +45,54 @@ const jobTitle = ref('')
 const workEmail = ref('')
 const phone = ref('')
 
-// -- Step 3: Account ---------------------------------------------------------
-const password = ref('')
-const confirmPassword = ref('')
-const showPass = ref(false)
-const showConfirm = ref(false)
+// -- Step 3: Review & submit -------------------------------------------------
+// No password here: once FitAccess verifies the application, the account is
+// created and the login details (temporary password) are emailed.
 const agreeTerms = ref(false)
 const loading = ref(false)
 const error = ref('')
+const submittedRef = ref('')
 
-// -- Password strength rules --------------------------------------------------
-const strengthRules = computed(() => [
-  { id: 'len', label: 'At least 8 characters', ok: password.value.length >= 8 },
-  { id: 'upper', label: 'One uppercase letter (A–Z)', ok: /[A-Z]/.test(password.value) },
-  { id: 'lower', label: 'One lowercase letter (a–z)', ok: /[a-z]/.test(password.value) },
-  { id: 'number', label: 'One number (0–9)', ok: /[0-9]/.test(password.value) },
-  { id: 'special', label: 'One special character (!@#…)', ok: /[^A-Za-z0-9]/.test(password.value) },
-])
+// -- Branches (other locations of the company) -------------------------------
+const hasBranches = ref(false)
+const branches = ref<BranchForm[]>([])
 
-const strengthScore = computed(() => strengthRules.value.filter((r) => r.ok).length) // 0–5
-
-const strengthLabel = computed(() => {
-  const s = strengthScore.value
-  if (s <= 1) return { text: 'Very weak', color: '#dc2626' }
-  if (s === 2) return { text: 'Weak', color: '#2EB84B' }
-  if (s === 3) return { text: 'Fair', color: '#eab308' }
-  if (s === 4) return { text: 'Strong', color: '#22c55e' }
-  return { text: 'Very strong', color: '#16a34a' }
-})
-
-const passwordStrong = computed(() => strengthScore.value === 5)
+function setHasBranches(v: boolean) {
+  hasBranches.value = v
+  if (v && branches.value.length === 0) branches.value.push(emptyBranch())
+}
+function removeBranch(i: number) {
+  branches.value.splice(i, 1)
+  if (branches.value.length === 0) hasBranches.value = false
+}
+const branchesOk = computed(
+  () => !hasBranches.value || branches.value.every((b) => branchValid(b, 'company', false))
+)
+const branchesMissing = computed(() =>
+  hasBranches.value
+    ? branches.value.flatMap((b, i) =>
+        branchValid(b, 'company', false) ? [] : [`Branch ${i + 1}: ${branchMissing(b, 'company', false).join(', ')}`]
+      )
+    : []
+)
 
 // -- Validation --------------------------------------------------------------
 const step1Valid = computed(
-  () => companyName.value.trim() && industry.value && companySize.value && !!licenseFile.value
+  () =>
+    companyName.value.trim() &&
+    industry.value &&
+    companySize.value &&
+    tin.value.trim() &&
+    branchesOk.value
 )
 const step2Valid = computed(() => {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.value)
   const phoneOk = /^\d{9}$/.test(phone.value.replace(/\s/g, ''))
   return fullName.value.trim() && jobTitle.value.trim() && emailOk && phoneOk
 })
-const passwordMatch = computed(
-  () =>
-    passwordStrong.value &&
-    confirmPassword.value.length > 0 &&
-    password.value === confirmPassword.value
-)
-const step3Valid = computed(() => passwordMatch.value && agreeTerms.value)
+const step3Valid = computed(() => agreeTerms.value)
+
+const industryLabel = computed(() => industries.find((i) => i.value === industry.value)?.label ?? industry.value)
 
 const canProceed = computed(() => {
   if (step.value === 1) return step1Valid.value
@@ -150,20 +115,18 @@ async function handleSubmit() {
   loading.value = true
   error.value = ''
   try {
-    // Use FormData so the binary licence file is included in the upload
     const fd = new FormData()
     fd.append('company_name', companyName.value)
     fd.append('industry', industry.value)
     fd.append('company_size', companySize.value)
-    fd.append('tin', tin.value)
+    fd.append('tin', tin.value.trim())
     if (preferredPayment.value) fd.append('preferred_payment_method', preferredPayment.value)
     fd.append('contact_name', fullName.value)
     fd.append('job_title', jobTitle.value)
     fd.append('email', workEmail.value)
     fd.append('phone', '+251' + phone.value.replace(/\s/g, ''))
-    fd.append('password', password.value)
-    if (licenseFile.value) {
-      fd.append('business_license', licenseFile.value)
+    if (hasBranches.value && branches.value.length) {
+      fd.append('branches', JSON.stringify(branches.value.map((b) => branchPayload(b, 'company', false))))
     }
 
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/register/company`, {
@@ -177,9 +140,11 @@ async function handleSubmit() {
       const firstError = data.errors
         ? (Object.values(data.errors as Record<string, string[]>)[0]?.[0] ?? 'Validation error')
         : data.message
-      throw new Error(firstError || 'Registration failed. Please try again.')
+      throw new Error(firstError || 'Your application could not be sent. Please try again.')
     }
-    router.push('/login?registered=company')
+    const data = await res.json()
+    submittedRef.value = data.reference ?? 'received'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong.'
   } finally {
@@ -192,12 +157,37 @@ async function handleSubmit() {
   <div class="signup-page">
     <div class="signup-card">
       <!-- Brand -->
-      <div class="brand">
+      <RouterLink to="/" class="brand" aria-label="FitAccess home">
         <span class="brand-name">FitAccess</span>
+      </RouterLink>
+
+      <!-- -- Application sent -- -->
+      <div v-if="submittedRef" class="card-body done">
+        <div class="done-icon">
+          <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+        </div>
+        <h1 class="heading done-heading">Thank you!</h1>
+        <p class="subtext">
+          Your application has been registered<template v-if="submittedRef !== 'received'"> under number
+          <strong class="done-ref">{{ submittedRef }}</strong></template>. We have sent a confirmation to
+          <strong>{{ workEmail }}</strong>.
+        </p>
+        <div class="done-steps">
+          <p class="done-steps-title">What now?</p>
+          <ol>
+            <li>Our team will contact you within the next 2 business days to discuss the details.</li>
+            <li>We verify your company information, including your TIN.</li>
+            <li>Once approved, you receive an email with your login details and a temporary password.
+              You will choose your own password when you first sign in.</li>
+          </ol>
+        </div>
+        <div class="actions">
+          <RouterLink to="/" class="btn-next active done-btn">Back to the homepage</RouterLink>
+        </div>
       </div>
 
       <!-- Progress Bar -->
-      <div class="progress-wrap">
+      <div v-if="!submittedRef" class="progress-wrap">
         <div class="progress-steps">
           <div
             v-for="n in TOTAL_STEPS"
@@ -220,7 +210,7 @@ async function handleSubmit() {
               <span v-else>{{ n }}</span>
             </div>
             <span class="step-label">
-              {{ ['Company Info', 'Contact', 'Account'][n - 1] }}
+              {{ ['Company Info', 'Contact', 'Review'][n - 1] }}
             </span>
           </div>
         </div>
@@ -233,7 +223,7 @@ async function handleSubmit() {
       </div>
 
       <!-- -- STEP 1: Company Info -- -->
-      <div v-if="step === 1" class="card-body">
+      <div v-if="!submittedRef && step === 1" class="card-body">
         <h1 class="heading">Register your company</h1>
         <div class="authority-notice">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -297,8 +287,8 @@ async function handleSubmit() {
               </div>
             </div>
             <div class="field-group">
-              <label class="field-label">TIN Number <span class="optional">(optional)</span></label>
-              <input v-model="tin" type="text" class="input" placeholder="Tax ID Number" />
+              <label class="field-label">TIN Number <span class="req">*</span></label>
+              <input v-model="tin" type="text" class="input" placeholder="Tax ID Number" required />
             </div>
           </div>
 
@@ -328,104 +318,33 @@ async function handleSubmit() {
             </div>
           </div>
 
-          <!-- -- Business Licence Upload -- -->
-          <div class="field-group">
-            <label class="field-label">
-              Business Licence <span class="req">*</span>
-              <span class="field-hint-inline">PDF, JPG or PNG · max 5 MB</span>
-            </label>
-
-            <!-- Empty state: drop zone -->
-            <div
-              v-if="!licenseFile"
-              class="upload-zone"
-              :class="{ 'upload-zone-error': licenseError }"
-              @click="($refs.licenseInput as HTMLInputElement).click()"
-              @dragover.prevent
-              @drop.prevent="e => { ($refs.licenseInput as HTMLInputElement).files = e.dataTransfer?.files ?? null; onLicenseChange({ target: $refs.licenseInput } as unknown as Event) }"
-            >
-              <div class="upload-icon">
-                <svg
-                  width="28"
-                  height="28"
-                  fill="none"
-                  stroke="#94a3b8"
-                  stroke-width="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <polyline points="16 16 12 12 8 16" />
-                  <line x1="12" y1="12" x2="12" y2="21" />
-                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
-                </svg>
-              </div>
-              <div class="upload-text">
-                <span class="upload-cta">Click to upload</span> or drag & drop
-              </div>
-              <div class="upload-sub">
-                Renewed business licence — issued by Addis Ababa Trade Bureau
-              </div>
-              <input
-                ref="licenseInput"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                class="upload-input-hidden"
-                @change="onLicenseChange"
-              />
-            </div>
-
-            <!-- Filled state: preview -->
-            <div v-else class="upload-preview">
-              <!-- PDF preview -->
-              <div v-if="licensePreview === 'pdf'" class="preview-pdf">
-                <span class="preview-pdf-icon"
-                  ><svg
-                    width="28"
-                    height="28"
-                    fill="none"
-                    stroke="#94a3b8"
-                    stroke-width="1.5"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                    <polyline points="10 9 9 9 8 9" /></svg
-                ></span>
-                <div class="preview-info">
-                  <span class="preview-name">{{ licenseFile.name }}</span>
-                  <span class="preview-size"
-                    >{{ (licenseFile.size / 1024).toFixed(0) }} KB · PDF</span
-                  >
-                </div>
-              </div>
-              <!-- Image preview -->
-              <img v-else :src="licensePreview" alt="Licence preview" class="preview-img" />
-
-              <button
-                type="button"
-                class="preview-remove"
-                @click="removeLicense"
-                aria-label="Remove file"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+          <!-- Branches -->
+          <div class="field-group branches-box">
+            <label class="field-label">Does your company have other branches?</label>
+            <p class="field-hint">
+              Add them now. Once approved, each branch gets its own login (sent to its email) and can manage only
+              its own employees, while seeing the other branches read-only. The main account can see and manage every branch.
+            </p>
+            <div class="branch-choice">
+              <button type="button" class="choice-btn" :class="{ selected: !hasBranches }" @click="setHasBranches(false)">
+                No, single location
+              </button>
+              <button type="button" class="choice-btn" :class="{ selected: hasBranches }" @click="setHasBranches(true)">
+                Yes, we have branches
               </button>
             </div>
 
-            <p v-if="licenseError" class="field-hint error-hint">{{ licenseError }}</p>
-            <p v-else class="field-hint">
-              Your licence will be reviewed by the FitAccess team (2–3 business days) before your
-              account is activated.
-            </p>
+            <template v-if="hasBranches">
+              <div v-for="(br, i) in branches" :key="i" class="branch-card">
+                <div class="branch-card-head">
+                  <span class="branch-card-title">Branch {{ i + 1 }}</span>
+                  <button type="button" class="branch-remove" @click="removeBranch(i)">Remove</button>
+                </div>
+                <BranchFields :model-value="br" kind="company" :with-password="false" />
+              </div>
+              <button type="button" class="branch-add" @click="branches.push(emptyBranch())">+ Add another branch</button>
+              <p v-if="branchesMissing.length" class="field-hint error-hint">Still needed: {{ branchesMissing.join(' · ') }}</p>
+            </template>
           </div>
         </div>
 
@@ -537,7 +456,7 @@ async function handleSubmit() {
       </div>
 
       <!-- -- STEP 3: Create Account -- -->
-      <div v-else class="card-body">
+      <div v-else-if="!submittedRef" class="card-body">
         <button class="back-btn" @click="back">
           <svg
             width="18"
@@ -550,170 +469,36 @@ async function handleSubmit() {
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h1 class="heading">Create your password</h1>
+        <h1 class="heading">Review &amp; submit</h1>
         <p class="subtext">
-          Almost done! Set a secure password for <strong>{{ workEmail }}</strong>
+          Please check your details. After you submit, our team verifies them and creates your
+          account. You do not need to choose a password now.
         </p>
 
         <div class="fields">
-          <!-- Password field -->
-          <div class="field-group">
-            <label class="field-label">Password <span class="req">*</span></label>
-            <div class="pass-wrap">
-              <input
-                v-model="password"
-                :type="showPass ? 'text' : 'password'"
-                class="input"
-                :class="{ 'input-error': password && !passwordStrong, 'input-ok': passwordStrong }"
-                placeholder="Create a strong password"
-                autocomplete="new-password"
-              />
-              <button class="toggle-pass" type="button" @click="showPass = !showPass" tabindex="-1">
-                <svg
-                  v-if="!showPass"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <svg
-                  v-else
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
-                  />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Strength meter (visible once user starts typing) -->
-            <div v-if="password.length > 0" class="strength-wrap">
-              <!-- Coloured bar segments -->
-              <div class="strength-bar">
-                <div
-                  v-for="n in 5"
-                  :key="n"
-                  class="strength-segment"
-                  :style="{
-                    background: n <= strengthScore ? strengthLabel.color : '#e5e7eb',
-                    transition: `background 0.25s ease ${(n - 1) * 0.05}s`,
-                  }"
-                ></div>
-              </div>
-              <!-- Score label -->
-              <span class="strength-score-label" :style="{ color: strengthLabel.color }">
-                {{ strengthLabel.text }}
-              </span>
-
-              <!-- Requirement checklist -->
-              <ul class="strength-rules">
-                <li
-                  v-for="rule in strengthRules"
-                  :key="rule.id"
-                  class="strength-rule"
-                  :class="{ 'rule-ok': rule.ok, 'rule-fail': !rule.ok }"
-                >
-                  <span class="rule-icon">
-                    <svg
-                      v-if="rule.ok"
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                    <svg
-                      v-else
-                      width="13"
-                      height="13"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle cx="12" cy="12" r="9" />
-                    </svg>
-                  </span>
-                  {{ rule.label }}
-                </li>
-              </ul>
-            </div>
+          <div class="review-box">
+            <p class="review-title">Company</p>
+            <dl class="review-list">
+              <dt>Company name</dt><dd>{{ companyName }}</dd>
+              <dt>Industry</dt><dd>{{ industryLabel }}</dd>
+              <dt>Number of employees</dt><dd>{{ companySize }}</dd>
+              <dt>TIN number</dt><dd>{{ tin }}</dd>
+              <template v-if="hasBranches && branches.length">
+                <dt>Other branches</dt><dd>{{ branches.map((b) => b.branch_name).join(', ') }}</dd>
+              </template>
+            </dl>
           </div>
-
-          <!-- Confirm password -->
-          <div class="field-group">
-            <label class="field-label">Confirm Password <span class="req">*</span></label>
-            <div class="pass-wrap">
-              <input
-                v-model="confirmPassword"
-                :type="showConfirm ? 'text' : 'password'"
-                class="input"
-                :class="{
-                  'input-error': confirmPassword && password !== confirmPassword,
-                  'input-ok': confirmPassword && password === confirmPassword && passwordStrong,
-                }"
-                placeholder="Repeat your password"
-                autocomplete="new-password"
-              />
-              <button
-                class="toggle-pass"
-                type="button"
-                @click="showConfirm = !showConfirm"
-                tabindex="-1"
-              >
-                <svg
-                  v-if="!showConfirm"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <svg
-                  v-else
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"
-                  />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              </button>
-            </div>
-            <p v-if="confirmPassword && password !== confirmPassword" class="field-hint error-hint">
-              Passwords do not match.
-            </p>
-            <p
-              v-else-if="confirmPassword && password === confirmPassword && passwordStrong"
-              class="field-hint ok-hint"
-            >
-              ? Passwords match
-            </p>
+          <div class="review-box">
+            <p class="review-title">Contact person</p>
+            <dl class="review-list">
+              <dt>Name</dt><dd>{{ fullName }}<template v-if="jobTitle"> ({{ jobTitle }})</template></dd>
+              <dt>Work email</dt><dd>{{ workEmail }}</dd>
+              <dt>Phone</dt><dd>+251 {{ phone }}</dd>
+            </dl>
           </div>
+          <p class="review-note">
+            Your login details will be sent to <strong>{{ workEmail }}</strong> once your application is approved.
+          </p>
 
           <label class="checkbox-row">
             <input v-model="agreeTerms" type="checkbox" class="checkbox" />
@@ -734,7 +519,7 @@ async function handleSubmit() {
             @click="handleSubmit"
           >
             <span v-if="loading" class="spinner"></span>
-            <span v-else>Create Company Account</span>
+            <span v-else>Submit application</span>
           </button>
         </div>
 
@@ -757,6 +542,23 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
+/* -- Review step + thank-you ----------------------------------------- */
+.review-box { border: 1.5px solid #e8e4dc; border-radius: 14px; padding: 16px 18px; background: #faf9f6; }
+.review-title { font-weight: 700; font-size: 0.95rem; margin: 0 0 10px; }
+.review-list { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; margin: 0; font-size: 0.9rem; }
+.review-list dt { color: #57534e; }
+.review-list dd { margin: 0; font-weight: 600; word-break: break-word; }
+.review-note { font-size: 0.88rem; color: #44403c; margin: 0; }
+.done { text-align: center; }
+.done-icon { width: 72px; height: 72px; margin: 8px auto 18px; border-radius: 50%; background: #8BE000; color: #0B0C10; display: flex; align-items: center; justify-content: center; }
+.done-heading { font-size: 2.2rem; }
+.done-ref { white-space: nowrap; }
+.done-steps { text-align: left; margin: 22px 0 6px; padding: 18px 20px; border-radius: 14px; background: #faf9f6; border: 1.5px solid #e8e4dc; }
+.done-steps-title { font-weight: 700; margin: 0 0 8px; }
+.done-steps ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; line-height: 1.5; }
+.done-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+@media (max-width: 520px) { .review-list { grid-template-columns: 1fr; gap: 2px; } .review-list dd { margin-bottom: 8px; } }
+
 /* -- Page -------------------------------------------------- */
 .signup-page {
   min-height: 100vh;
@@ -787,16 +589,18 @@ async function handleSubmit() {
   align-items: center;
   gap: 8px;
   margin-bottom: 28px;
+  text-decoration: none;
+  width: fit-content;
 }
 .brand-icon {
   font-size: 1.6rem;
-  color: #4cd964;
+  color: #8BE000;
   line-height: 1;
 }
 .brand-name {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #4cd964;
+  color: #8BE000;
   letter-spacing: -0.01em;
 }
 
@@ -830,9 +634,9 @@ async function handleSubmit() {
   transition: all 0.3s;
 }
 .progress-step.active .step-dot {
-  background: #1b3a6b;
+  background: #0B0C10;
   color: #fff;
-  box-shadow: 0 0 0 4px rgba(27, 58, 107, 0.12);
+  box-shadow: 0 0 0 4px rgba(11, 12, 16, 0.12);
 }
 .progress-step.done .step-dot {
   background: #16a34a;
@@ -846,7 +650,7 @@ async function handleSubmit() {
   transition: color 0.3s;
 }
 .progress-step.active .step-label {
-  color: #1b3a6b;
+  color: #0B0C10;
   font-weight: 600;
 }
 .progress-step.done .step-label {
@@ -862,7 +666,7 @@ async function handleSubmit() {
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #16a34a, #1b3a6b);
+  background: linear-gradient(90deg, #16a34a, #0B0C10);
   border-radius: 99px;
   transition: width 0.4s ease;
 }
@@ -970,9 +774,9 @@ async function handleSubmit() {
   color: #aaa;
 }
 .input:focus {
-  border-color: #1b3a6b;
+  border-color: #0B0C10;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(27, 58, 107, 0.07);
+  box-shadow: 0 0 0 3px rgba(11, 12, 16, 0.07);
 }
 .input.input-error {
   border-color: #ef4444;
@@ -1082,9 +886,9 @@ async function handleSubmit() {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .phone-wrap:focus-within {
-  border-color: #1b3a6b;
+  border-color: #0B0C10;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(27, 58, 107, 0.07);
+  box-shadow: 0 0 0 3px rgba(11, 12, 16, 0.07);
 }
 .phone-prefix {
   display: flex;
@@ -1155,118 +959,12 @@ async function handleSubmit() {
   width: 16px;
   height: 16px;
   margin-top: 2px;
-  accent-color: #1b3a6b;
+  accent-color: #0B0C10;
   flex-shrink: 0;
 }
 .link {
-  color: #1b3a6b;
+  color: #0B0C10;
   text-decoration: underline;
-}
-
-/* -- Upload zone ------------------------------------------- */
-.field-hint-inline {
-  font-weight: 400;
-  color: #aaa;
-  font-size: 0.78rem;
-  margin-left: 6px;
-}
-
-.upload-zone {
-  border: 2px dashed #ddd8d2;
-  border-radius: 10px;
-  padding: 28px 20px;
-  text-align: center;
-  cursor: pointer;
-  background: #f9f7f5;
-  transition: all 0.2s;
-}
-.upload-zone:hover {
-  border-color: #1b3a6b;
-  background: #ebfaee;
-}
-.upload-zone-error {
-  border-color: #4cd964;
-  background: #fff8f9;
-}
-
-.upload-icon {
-  font-size: 2rem;
-  margin-bottom: 8px;
-}
-.upload-text {
-  font-size: 0.92rem;
-  color: #555;
-  margin-bottom: 4px;
-}
-.upload-cta {
-  font-weight: 600;
-  color: #1b3a6b;
-  text-decoration: underline;
-}
-.upload-sub {
-  font-size: 0.78rem;
-  color: #aaa;
-}
-.upload-input-hidden {
-  display: none;
-}
-
-.upload-preview {
-  position: relative;
-  border: 1.5px solid #c8e6c9;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #f0fdf4;
-}
-.preview-pdf {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-}
-.preview-pdf-icon {
-  font-size: 2rem;
-}
-.preview-info {
-  display: flex;
-  flex-direction: column;
-}
-.preview-name {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #166534;
-  word-break: break-all;
-}
-.preview-size {
-  font-size: 0.75rem;
-  color: #16a34a;
-  margin-top: 2px;
-}
-.preview-img {
-  width: 100%;
-  max-height: 180px;
-  object-fit: contain;
-  display: block;
-  background: #fff;
-}
-.preview-remove {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-.preview-remove:hover {
-  background: #4cd964;
 }
 
 /* -- Actions ----------------------------------------------- */
@@ -1291,14 +989,14 @@ async function handleSubmit() {
   font-family: inherit;
 }
 .btn-next.active {
-  background: #1b3a6b;
+  background: #0B0C10;
   color: #fff;
   cursor: pointer;
 }
 .btn-next.active:hover {
   background: #162f58;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(27, 58, 107, 0.3);
+  box-shadow: 0 6px 20px rgba(11, 12, 16, 0.3);
 }
 
 .signin-link {
@@ -1307,7 +1005,7 @@ async function handleSubmit() {
   text-align: center;
 }
 .signin-link a {
-  color: #1b3a6b;
+  color: #0B0C10;
   font-weight: 600;
   text-decoration: none;
 }
@@ -1370,4 +1068,20 @@ async function handleSubmit() {
     display: none;
   }
 }
+.branches-box { margin-top: 8px; padding-top: 18px; border-top: 1px solid #e2e8f0; gap: 12px; }
+.branch-choice { display: flex; gap: 8px; flex-wrap: wrap; }
+.choice-btn {
+  padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff;
+  font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;
+}
+.choice-btn.selected { border-color: #72B800; background: #f7fee7; color: #3f6212; }
+.branch-card { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #f8fafc; }
+.branch-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.branch-card-title { font-weight: 700; font-size: 14px; color: #0f172a; }
+.branch-remove { background: none; border: none; color: #ef4444; font-size: 13px; font-weight: 600; cursor: pointer; }
+.branch-add {
+  padding: 12px; border: 1.5px dashed #94a3b8; border-radius: 12px; background: #fff;
+  color: #334155; font-weight: 600; font-size: 14px; cursor: pointer;
+}
+.branch-add:hover { background: #f1f5f9; }
 </style>

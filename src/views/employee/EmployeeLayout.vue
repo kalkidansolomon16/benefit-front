@@ -180,7 +180,7 @@ async function handleLogout() {
 }
 .logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #8BE000; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* Employee chip */
 .emp-chip {
@@ -193,7 +193,7 @@ async function handleLogout() {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .chip-plan {
-  font-size: 0.72rem; color: #4CD964; font-weight: 600; margin: 0;
+  font-size: 0.72rem; color: #8BE000; font-weight: 600; margin: 0;
   text-transform: uppercase; letter-spacing: 0.05em;
 }
 
@@ -210,7 +210,7 @@ async function handleLogout() {
   transition: color .15s, background .15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.1); }
+.nav-item--active { color: #8BE000; background: rgba(139, 224, 0,0.1); }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; }
 

@@ -3,7 +3,7 @@
     <!-- -- Loading ----------------------------------------------- -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
-      <p>Loading your dashboard�</p>
+      <p>Loading your dashboard…</p>
     </div>
 
     <template v-else-if="data">
@@ -21,15 +21,21 @@
             <div v-else class="avatar-initials">{{ initials }}</div>
           </div>
           <div class="profile-info">
-            <h2 class="profile-name">{{ data.profile.name }}</h2>
+            <div class="profile-name-row">
+              <h2 class="profile-name">{{ data.profile.name }}</h2>
+              <button class="edit-btn" @click="openEdit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+            </div>
             <p class="profile-meta">
               <span v-if="data.profile.job_title">{{ data.profile.job_title }}</span>
-              <span v-if="data.profile.department" class="dot">�</span>
+              <span v-if="data.profile.department" class="dot">·</span>
               <span v-if="data.profile.department">{{ data.profile.department }}</span>
-              <span v-if="data.profile.branch" class="dot">�</span>
+              <span v-if="data.profile.branch" class="dot">·</span>
               <span v-if="data.profile.branch">{{ data.profile.branch }}</span>
             </p>
-            <p class="profile-company">{{ data.company.name }} � {{ data.company.city }}</p>
+            <p class="profile-company">{{ data.company.name }} · {{ data.company.city }}</p>
 
             <div class="profile-contacts">
               <span v-if="data.profile.email" class="contact-item">
@@ -66,6 +72,10 @@
         </div>
 
         <!-- Membership pass card -->
+        <div v-if="data.pass.access_message" class="access-banner">
+          <strong>Your gym access is paused.</strong> {{ data.pass.access_message }}
+          Please contact your HR team.
+        </div>
         <div class="card pass-card" :class="`pass-card--${data.pass.plan_key}`">
           <div class="pass-header">
             <div>
@@ -77,6 +87,10 @@
             </div>
           </div>
 
+          <div v-if="data.profile.card_number" class="pass-fan">
+            <p class="fan-label">FitAccess Card Number</p>
+            <p class="fan-number">{{ formatCard(data.profile.card_number) }}</p>
+          </div>
           <div class="pass-fan">
             <p class="fan-label">FAN Number</p>
             <p class="fan-number">{{ data.profile.fan_number }}</p>
@@ -87,7 +101,7 @@
               <p class="pass-meta-label">Plan type</p>
               <p class="pass-meta-val">
                 {{
-                  data.pass.plan_key === 'platinum'
+                  ['premium', 'platinum'].includes(data.pass.plan_key)
                     ? 'Premium Access'
                     : data.pass.plan_key === 'basic_plus'
                     ? 'Plus Access'
@@ -187,7 +201,7 @@
           </div>
           <div class="stat-body">
             <p class="stat-value">
-              {{ data.stats.last_visit ? formatDate(data.stats.last_visit) : '�' }}
+              {{ data.stats.last_visit ? formatDate(data.stats.last_visit) : '—' }}
             </p>
             <p class="stat-label">Last Visit</p>
           </div>
@@ -299,6 +313,44 @@
       <button class="retry-btn" @click="loadDashboard">Retry</button>
     </div>
   </div>
+
+  <!-- Edit Profile Modal -->
+  <div v-if="editOpen" class="modal-overlay" @click.self="editOpen = false">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Profile</h3>
+        <button class="modal-close" @click="editOpen = false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Phone</label>
+          <input v-model="editForm.phone" type="text" placeholder="+251..." />
+        </div>
+        <div class="field">
+          <label>Job Title</label>
+          <input v-model="editForm.job_title" type="text" placeholder="e.g. Software Engineer" />
+        </div>
+        <div class="field">
+          <label>Department</label>
+          <input v-model="editForm.department" type="text" placeholder="e.g. IT" />
+        </div>
+        <div class="field">
+          <label>Branch</label>
+          <input v-model="editForm.branch" type="text" placeholder="e.g. Head Office" />
+        </div>
+        <p v-if="editError" class="edit-error">{{ editError }}</p>
+        <p v-if="editSuccess" class="edit-success">{{ editSuccess }}</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" @click="editOpen = false">Cancel</button>
+        <button class="btn-save" :disabled="editSaving" @click="saveEdit">
+          {{ editSaving ? 'Saving…' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -332,6 +384,7 @@ interface DashboardData {
     email: string
     phone: string
     fan_number: string
+    card_number?: string | null
     job_title: string
     department: string
     branch: string
@@ -343,6 +396,7 @@ interface DashboardData {
     plan_key: string
     status: string
     valid_until: string | null
+    access_message?: string | null
   }
   stats: {
     total_checkins: number
@@ -354,12 +408,57 @@ interface DashboardData {
   accessible_gyms: Gym[]
 }
 
+/** "123456789012" -> "1234 5678 9012" */
+function formatCard(n: string): string {
+  return n.replace(/(\d{4})(?=\d)/g, '$1 ')
+}
+
 const STORAGE_URL: string = import.meta.env.VITE_STORAGE_URL
 
 const api = useApi()
 const loading = ref(true)
 const error = ref('')
 const data = ref<DashboardData | null>(null)
+
+const editOpen    = ref(false)
+const editSaving  = ref(false)
+const editError   = ref('')
+const editSuccess = ref('')
+const editForm    = ref({ phone: '', job_title: '', department: '', branch: '' })
+
+function openEdit() {
+  if (!data.value) return
+  editForm.value = {
+    phone:      data.value.profile.phone ?? '',
+    job_title:  data.value.profile.job_title ?? '',
+    department: data.value.profile.department ?? '',
+    branch:     data.value.profile.branch ?? '',
+  }
+  editError.value   = ''
+  editSuccess.value = ''
+  editOpen.value    = true
+}
+
+async function saveEdit() {
+  editSaving.value  = true
+  editError.value   = ''
+  editSuccess.value = ''
+  try {
+    await api.patch('employee/profile', editForm.value)
+    editSuccess.value = 'Profile updated successfully.'
+    if (data.value) {
+      data.value.profile.phone      = editForm.value.phone
+      data.value.profile.job_title  = editForm.value.job_title
+      data.value.profile.department = editForm.value.department
+      data.value.profile.branch     = editForm.value.branch
+    }
+    setTimeout(() => { editOpen.value = false }, 900)
+  } catch (e: unknown) {
+    editError.value = e instanceof Error ? e.message : 'Failed to save changes.'
+  } finally {
+    editSaving.value = false
+  }
+}
 
 const initials = computed(() => {
   const name = data.value?.profile.name ?? ''
@@ -387,7 +486,7 @@ onMounted(loadDashboard)
 
 /* -- Helpers ---------------------------------------------------- */
 function formatDate(d: string | null): string {
-  if (!d) return '�'
+  if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -396,7 +495,7 @@ function formatDate(d: string | null): string {
 }
 
 function formatDateTime(d: string | null): string {
-  if (!d) return '�'
+  if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -412,6 +511,10 @@ function statusLabel(s: string): string {
     ? 'Suspended'
     : s === 'inactive'
     ? 'Inactive'
+    : s === 'expired'
+    ? 'Expired'
+    : s === 'unpaid'
+    ? 'Not paid yet'
     : s
 }
 
@@ -454,7 +557,7 @@ function tierLabel(t: string): string {
   width: 36px;
   height: 36px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4cd964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -504,7 +607,7 @@ function tierLabel(t: string): string {
   height: 72px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, #4cd96422, #2eb84b22);
+  background: linear-gradient(135deg, #8BE00022, #72B80022);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -517,7 +620,7 @@ function tierLabel(t: string): string {
 .avatar-initials {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #4cd964;
+  color: #8BE000;
   letter-spacing: -0.02em;
 }
 .profile-info {
@@ -570,11 +673,12 @@ function tierLabel(t: string): string {
   overflow: hidden;
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
 }
-.pass-card--platinum {
-  background: linear-gradient(135deg, #2eb84b 0%, #2eb84b 100%);
+.pass-card--platinum,
+.pass-card--premium {
+  background: linear-gradient(135deg, #72B800 0%, #72B800 100%);
 }
 .pass-card--basic_plus {
-  background: linear-gradient(135deg, #2eb84b 0%, #1a9e38 100%);
+  background: linear-gradient(135deg, #72B800 0%, #1a9e38 100%);
 }
 .pass-card--basic {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -616,6 +720,22 @@ function tierLabel(t: string): string {
   background: rgba(251, 191, 36, 0.2);
   color: #fde68a;
   border: 1px solid rgba(253, 230, 138, 0.3);
+}
+.badge--expired,
+.badge--unpaid {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(252, 165, 165, 0.3);
+}
+.access-banner {
+  grid-column: 1 / -1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  color: #78350f;
+  font-size: 0.86rem;
+  line-height: 1.5;
 }
 .badge--inactive {
   background: rgba(239, 68, 68, 0.2);
@@ -709,7 +829,7 @@ function tierLabel(t: string): string {
 }
 .stat-icon--month {
   background: #ebfaee;
-  color: #4cd964;
+  color: #8BE000;
 }
 .stat-icon--week {
   background: #fef9ec;
@@ -717,7 +837,7 @@ function tierLabel(t: string): string {
 }
 .stat-icon--last {
   background: #fdf2f8;
-  color: #4cd964;
+  color: #8BE000;
 }
 .stat-value {
   font-size: 1.5rem;
@@ -882,13 +1002,13 @@ function tierLabel(t: string): string {
 
 /* Tier dot colors */
 .dot--platinum {
-  background: #2eb84b;
+  background: #72B800;
 }
 .dot--premium {
-  background: #2eb84b;
+  background: #72B800;
 }
 .dot--basic_plus {
-  background: #2eb84b;
+  background: #72B800;
 }
 .dot--basic {
   background: #64748b;
@@ -905,15 +1025,15 @@ function tierLabel(t: string): string {
 }
 .tier-badge--platinum {
   background: #ebfaee;
-  color: #2eb84b;
+  color: #72B800;
 }
 .tier-badge--premium {
   background: #ebfaee;
-  color: #4cd964;
+  color: #8BE000;
 }
 .tier-badge--basic_plus {
   background: #ebfaee;
-  color: #2eb84b;
+  color: #72B800;
 }
 .tier-badge--basic {
   background: #f8fafc;
@@ -932,15 +1052,15 @@ function tierLabel(t: string): string {
 }
 .tier-tag--platinum {
   background: #ebfaee;
-  color: #2eb84b;
+  color: #72B800;
 }
 .tier-tag--premium {
   background: #ebfaee;
-  color: #4cd964;
+  color: #8BE000;
 }
 .tier-tag--basic_plus {
-  background: #e0f2fe;
-  color: #2eb84b;
+  background: #EEF9DC;
+  color: #72B800;
 }
 .tier-tag--basic {
   background: #f1f5f9;
@@ -963,5 +1083,121 @@ function tierLabel(t: string): string {
   .stats-row {
     grid-template-columns: 1fr 1fr;
   }
+}
+/* -- Edit button & modal --------------------------------------- */
+.profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #4D7C0F;
+  background: #EEF9DC;
+  border: 1px solid #D9F2AE;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.edit-btn:hover { background: #EEF9DC; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.modal-header h3 { font-size: 1rem; font-weight: 600; color: #0f172a; margin: 0; }
+.modal-close {
+  background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px;
+  display: flex; align-items: center;
+}
+.modal-close:hover { color: #475569; }
+
+.modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 0.78rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.field input {
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus { border-color: #4D7C0F; }
+
+.edit-error   { font-size: 0.83rem; color: #ef4444; margin: 0; }
+.edit-success { font-size: 0.83rem; color: #22c55e; margin: 0; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid #f1f5f9;
+}
+.btn-cancel {
+  padding: 8px 18px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  color: #475569;
+}
+.btn-cancel:hover { background: #f8fafc; }
+.btn-save {
+  padding: 8px 20px;
+  background: #4D7C0F;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-save:hover:not(:disabled) { background: #4D7C0F; }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (prefers-color-scheme: dark) {
+  .modal { background: #1e293b; }
+  .modal-header { border-color: #334155; }
+  .modal-header h3 { color: #f1f5f9; }
+  .field label { color: #94a3b8; }
+  .field input { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+  .field input:focus { border-color: #4D7C0F; }
+  .modal-footer { border-color: #334155; }
+  .btn-cancel { background: #1e293b; border-color: #334155; color: #94a3b8; }
+  .btn-cancel:hover { background: #334155; }
+  .edit-btn { background: #1F2A0E; border-color: #4D7C0F; color: #8BE000; }
+  .edit-btn:hover { background: #4D7C0F; }
 }
 </style>

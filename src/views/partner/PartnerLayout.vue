@@ -22,6 +22,15 @@
         }}</p>
         <p class="chip-name" :title="gymName">{{ gymName }}</p>
         <span class="chip-tier" :class="`tier--${gymTier}`">{{ tierLabel }}</span>
+        <select
+          v-if="branchOptions.length > 1"
+          v-model="activeBranchId"
+          class="branch-select"
+          aria-label="Switch branch"
+          @change="onBranchChange"
+        >
+          <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+        </select>
       </div>
 
       <!-- Nav -->
@@ -71,6 +80,11 @@
         </div>
       </header>
 
+      <div v-if="readOnlyView" class="readonly-banner">
+        <span>👁 Read-only view of <strong>{{ viewingBranch?.name }}</strong> — you can look but not change anything.</span>
+        <button class="readonly-back" @click="backToMine">Back to my branch</button>
+      </div>
+
       <main class="page-content">
         <RouterView />
       </main>
@@ -84,6 +98,7 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useApi } from '@/composables/useApi'
+import { getActiveGymId, setActiveGymId } from '@/utils/activeGym'
 
 const auth   = useAuthStore()
 const router = useRouter()
@@ -94,7 +109,47 @@ const mobileOpen = ref(false)
 const gymName    = ref('Loading…')
 const gymTier    = ref('')
 
+interface BranchOption { id: number; name: string; is_main: boolean; can_write: boolean }
+const branchOptions = ref<BranchOption[]>([])
+const activeBranchId = ref<string>('')
+
+async function loadBranches() {
+  // Staff are pinned to one branch; the owner and branch logins get a switcher
+  if (auth.user?.role !== 'gym_partner') return
+  try {
+    const res = await api.get<{ branches: BranchOption[] }>('partner-portal/branches')
+    branchOptions.value = res.branches
+    const saved = getActiveGymId()
+    const valid = res.branches.some(b => String(b.id) === saved)
+    const own = auth.user?.gym_id ?? res.branches[0]?.id
+    activeBranchId.value = valid ? String(saved) : String(own ?? '')
+    if (!valid) setActiveGymId(null)
+  } catch {
+    /* switcher is optional — portal still works on the main branch */
+  }
+}
+
+// The branch this login lands on by default (main for the owner, own branch for a branch login)
+function defaultBranchId(): number | null {
+  return auth.user?.gym_id ?? branchOptions.value.find(b => b.is_main)?.id ?? null
+}
+
+function onBranchChange() {
+  const chosen = branchOptions.value.find(b => String(b.id) === activeBranchId.value)
+  setActiveGymId(chosen && chosen.id !== defaultBranchId() ? chosen.id : null)
+  window.location.href = '/partner/dashboard'
+}
+
+const viewingBranch = computed(() => branchOptions.value.find(b => String(b.id) === activeBranchId.value) ?? null)
+const readOnlyView = computed(() => !!viewingBranch.value && !viewingBranch.value.can_write)
+
+function backToMine() {
+  setActiveGymId(null)
+  window.location.href = '/partner/dashboard'
+}
+
 onMounted(async () => {
+  loadBranches()
   try {
     const res = await api.get<{ gym: { name: string; tier: string } }>('partner/dashboard')
     gymName.value = res.gym?.name ?? auth.user?.name ?? 'My Gym'
@@ -145,6 +200,14 @@ const navItems = computed(() => {
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     },
     {
+      name: 'branches',
+      label: 'Branches',
+      to: '/partner/branches',
+      permission: 'gym.team.view',
+      ownerOnly: true,
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    },
+    {
       name: 'settings',
       label: 'Settings',
       to: '/partner/settings',
@@ -153,7 +216,9 @@ const navItems = computed(() => {
     },
   ]
 
-  return all.filter(item => item.permission === null || auth.hasPermission(item.permission))
+  return all
+    .filter(item => !('ownerOnly' in item) || auth.user?.role === 'gym_partner')
+    .filter(item => item.permission === null || auth.hasPermission(item.permission))
 })
 
 const pageMeta: Record<string, { title: string; sub?: string }> = {
@@ -161,6 +226,7 @@ const pageMeta: Record<string, { title: string; sub?: string }> = {
   'partner-checkins':  { title: 'Check-ins',      sub: 'All member visits to your gym' },
   'partner-facility':  { title: 'Facility Info',  sub: 'Your gym profile & details' },
   'partner-team':      { title: 'Staff',          sub: 'Manage check-in staff members' },
+  'partner-branches':  { title: 'Branches',       sub: 'All your locations in one place' },
 }
 
 const currentTitle = computed(() => {
@@ -170,6 +236,7 @@ const currentTitle = computed(() => {
 const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub ?? '')
 
 async function handleLogout() {
+  setActiveGymId(null)
   await auth.logout()
   router.push('/login')
 }
@@ -203,7 +270,7 @@ async function handleLogout() {
 }
 .logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
 .logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+.logo-sub  { font-size: 0.65rem; color: #8BE000; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
 
 /* Gym chip */
 .gym-chip {
@@ -221,8 +288,8 @@ async function handleLogout() {
   letter-spacing: 0.08em; padding: 2px 8px; border-radius: 20px;
 }
 .tier--basic        { background: rgba(100,116,139,0.2); color: #94a3b8; }
-.tier--basic_plus   { background: rgba(59,130,246,0.2);  color: #60a5fa; }
-.tier--premium      { background: rgba(76,217,100,0.2);  color: #34d399; }
+.tier--basic_plus   { background: rgba(139,224,0,0.2);  color: #8BE000; }
+.tier--premium      { background: rgba(139, 224, 0,0.2);  color: #34d399; }
 .tier--platinum     { background: rgba(168,85,247,0.2);  color: #c084fc; }
 
 /* Nav */
@@ -243,7 +310,7 @@ async function handleLogout() {
   transition: color 0.15s, background 0.15s;
 }
 .nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.08); }
+.nav-item--active { color: #8BE000; background: rgba(139, 224, 0,0.08); }
 .nav-icon { flex-shrink: 0; display: flex; align-items: center; }
 .nav-label { white-space: nowrap; }
 
@@ -294,5 +361,27 @@ async function handleLogout() {
   .mobile-overlay { display: block; }
   .main-wrap { margin-left: 0; }
   .hamburger { display: block; }
+}
+
+.branch-select {
+  margin-top: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+}
+.branch-select option { color: #0f172a; }
+.readonly-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 0 24px; padding: 10px 14px; border-radius: 10px;
+  background: #EEF9DC; color: #4D7C0F; font-size: 13px;
+}
+.readonly-back {
+  border: none; background: #4D7C0F; color: #fff; padding: 6px 12px;
+  border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 </style>

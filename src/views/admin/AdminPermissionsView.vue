@@ -120,8 +120,8 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 
 const PALETTE = [
-  { accent: '#4CD964', bg: '#EBFAEE', text: '#1A9E38' },
-  { accent: '#3b82f6', bg: '#eff6ff', text: '#1d4ed8' },
+  { accent: '#8BE000', bg: '#EBFAEE', text: '#1A9E38' },
+  { accent: '#0B0C10', bg: '#EEF9DC', text: '#4D7C0F' },
   { accent: '#f59e0b', bg: '#fffbeb', text: '#b45309' },
   { accent: '#8b5cf6', bg: '#f5f3ff', text: '#6d28d9' },
   { accent: '#ec4899', bg: '#fdf2f8', text: '#be185d' },
@@ -262,12 +262,12 @@ async function savePermissions() {
 /* ── Save button ────────────────────────────────────────── */
 .btn-save {
   display: flex; align-items: center; gap: 8px; padding: 10px 22px;
-  background: #4CD964; color: #fff; border: none; border-radius: 10px;
+  background: #8BE000; color: #fff; border: none; border-radius: 10px;
   font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.18s;
-  box-shadow: 0 2px 8px rgba(76,217,100,0.28); white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(139, 224, 0,0.28); white-space: nowrap;
 }
 .btn-save svg { width: 16px; height: 16px; }
-.btn-save:hover:not(:disabled) { background: #2EB84B; transform: translateY(-1px); }
+.btn-save:hover:not(:disabled) { background: #72B800; transform: translateY(-1px); }
 .btn-save:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Toast ──────────────────────────────────────────────── */
@@ -292,14 +292,14 @@ async function savePermissions() {
   font-size: 0.84rem; font-weight: 600; color: #64748b;
   cursor: pointer; transition: all 0.15s;
 }
-.scope-tab:hover { border-color: #4CD964; color: #1A9E38; }
-.scope-tab--active { background: #EBFAEE; border-color: #4CD964; color: #1A9E38; }
+.scope-tab:hover { border-color: #8BE000; color: #1A9E38; }
+.scope-tab--active { background: #EBFAEE; border-color: #8BE000; color: #1A9E38; }
 .scope-tab-icon { display: flex; align-items: center; color: inherit; }
 .scope-tab-count {
   font-size: 0.7rem; font-weight: 700; padding: 1px 7px;
   background: #f1f5f9; color: #94a3b8; border-radius: 99px;
 }
-.scope-tab--active .scope-tab-count { background: rgba(76,217,100,0.15); color: #1A9E38; }
+.scope-tab--active .scope-tab-count { background: rgba(139, 224, 0,0.15); color: #1A9E38; }
 
 /* ── Role legend ────────────────────────────────────────── */
 .role-legend { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -335,7 +335,7 @@ async function savePermissions() {
 }
 .group-icon {
   width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-  background: #EBFAEE; border-radius: 6px; color: #4CD964;
+  background: #EBFAEE; border-radius: 6px; color: #8BE000;
 }
 .group-icon svg { width: 14px; height: 14px; }
 .group-count {
@@ -386,7 +386,7 @@ async function savePermissions() {
   gap: 16px; padding: 100px 0; color: #94a3b8; font-size: 0.875rem;
 }
 .spinner-lg {
-  width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #4CD964;
+  width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #8BE000;
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 .spinner {
