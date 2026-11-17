@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import BranchFields from '@/components/BranchFields.vue'
 import LocationPicker from '@/components/LocationPicker.vue'
 import { CITIES, type PlaceAddress } from '@/utils/geo'
@@ -115,7 +116,7 @@ async function toggleActive(b: Branch) {
 }
 
 async function remove(b: Branch) {
-  if (!window.confirm(`Remove the branch "${b.name}" and its login? This cannot be undone.`)) return
+  if (!(await confirmDialog({ title: 'Remove branch?', message: `Remove the branch "${b.name}" and its login? This cannot be undone.`, confirmText: 'Remove', danger: true }))) return
   message.value = null
   try {
     const res = await api.del<{ message: string }>(`hr/branches/${b.id}`)
@@ -127,7 +128,7 @@ async function remove(b: Branch) {
 }
 
 async function resetPassword(b: Branch) {
-  if (!window.confirm(`Issue a new temporary password for "${b.name}"? Their current password stops working.`)) return
+  if (!(await confirmDialog({ title: 'Reset password?', message: `Issue a new temporary password for "${b.name}"? Their current password stops working.`, confirmText: 'Issue new password', danger: true }))) return
   message.value = null
   try {
     const res = await api.post<{ temp_password: string; email: string }>(`hr/branches/${b.id}/reset-password`, {})

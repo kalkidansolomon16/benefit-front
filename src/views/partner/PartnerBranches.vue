@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import { useAuthStore } from '@/stores/auth'
 import BranchFields from '@/components/BranchFields.vue'
 import { emptyBranch, branchValid, branchMissing, branchPayload } from '@/utils/branches'
@@ -123,7 +124,7 @@ async function submit() {
 }
 
 async function resetPassword(b: Branch) {
-  if (!window.confirm(`Issue a new temporary password for "${b.name}"? Their current password stops working.`)) return
+  if (!(await confirmDialog({ title: 'Reset password?', message: `Issue a new temporary password for "${b.name}"? Their current password stops working.`, confirmText: 'Issue new password', danger: true }))) return
   message.value = null
   try {
     const res = await api.post<{ temp_password: string; email: string }>(

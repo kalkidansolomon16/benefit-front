@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="admin-shell">
 
     <!-- ── Sidebar ─────────────────────────────────────────────── -->
@@ -294,9 +294,24 @@ const navItems = computed(() => {
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
     },
     {
+      name: 'partner-statements', label: 'Partner Statements', to: '/admin/billing/partner-statements',
+      permission: 'billing.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 9.5v5M21 9.5v5M6.5 4v16M17.5 4v16"/></svg>`,
+    },
+    {
       name: 'billing-payment-methods', label: 'Payment Methods', to: '/admin/billing/payment-methods',
       permission: 'payment_methods.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    },
+    {
+      name: 'rules', label: 'Rules & Documents', to: '/admin/rules',
+      permission: 'billing.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>`,
+    },
+    {
+      name: 'content', label: 'News & Trainings', to: '/admin/content',
+      permission: 'content.view',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="m10 8.5 5 2.5-5 2.5z"/><path d="M7 21h10"/></svg>`,
     },
     {
       name: 'team', label: 'Team', to: '/admin/team',
@@ -340,6 +355,9 @@ const pageMeta: Record<string, { title: string; sub?: string }> = {
   'admin-roles':              { title: 'Custom Roles', sub: 'Add custom roles for specific companies or gyms' },
   'admin-employee-approvals': { title: 'Employee Approvals', sub: 'Final approval for HR-approved employees' },
   'admin-settings':           { title: 'Settings', sub: 'Account preferences and integrations' },
+  'admin-content':            { title: 'News & Trainings', sub: 'Content shown on the employee portal' },
+  'admin-partner-statements': { title: 'Partner Statements', sub: 'Monthly visits per gym, gym invoices and payments' },
+  'admin-rules':              { title: 'Rules & Documents', sub: 'Payment calendar, late fee, deadlines and the employee contract' },
 }
 
 const currentTitle    = computed(() => pageMeta[route.name as string]?.title ?? 'Admin')

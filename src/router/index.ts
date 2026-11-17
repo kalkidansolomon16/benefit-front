@@ -18,6 +18,12 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
       path: '/forgot-password',
       name: 'forgot-password',
       component: () => import('../views/ForgotPasswordView.vue'),
@@ -45,6 +51,13 @@ const router = createRouter({
       path: '/signup/employee',
       name: 'signup-employee',
       component: () => import('../views/EmployeeSignupView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      // Employees imported by their company create their account from the invitation link
+      path: '/join',
+      name: 'join',
+      component: () => import('../views/JoinView.vue'),
       meta: { guestOnly: true },
     },
     {
@@ -81,9 +94,29 @@ const router = createRouter({
           component: () => import('../views/employee/EmployeeDashboard.vue'),
         },
         {
+          path: 'cards',
+          name: 'employee-cards',
+          component: () => import('../views/employee/EmployeeCards.vue'),
+        },
+        {
           path: 'gyms',
           name: 'employee-gyms',
           component: () => import('../views/employee/EmployeeGyms.vue'),
+        },
+        {
+          path: 'trainings',
+          name: 'employee-trainings',
+          component: () => import('../views/employee/EmployeeTrainings.vue'),
+        },
+        {
+          path: 'news',
+          name: 'employee-news',
+          component: () => import('../views/employee/EmployeeNews.vue'),
+        },
+        {
+          path: 'help',
+          name: 'employee-help',
+          component: () => import('../views/employee/EmployeeHelp.vue'),
         },
         {
           path: 'checkins',
@@ -121,6 +154,11 @@ const router = createRouter({
           name: 'partner-checkins',
           component: () => import('../views/partner/PartnerCheckins.vue'),
           meta: { requiresPermission: 'gym.checkins.view' },
+        },
+        {
+          path: 'statements',
+          name: 'partner-statements',
+          component: () => import('../views/partner/PartnerStatementsView.vue'),
         },
         {
           path: 'facility',
@@ -161,10 +199,10 @@ const router = createRouter({
           meta: {},
         },
         {
+          // Employees are added by importing the company's Excel list; old links open the import
           path: 'register',
           name: 'hr-register',
-          component: () => import('../views/hr/RegisterEmployee.vue'),
-          meta: { requiresPermission: 'co.employees.register' },
+          redirect: { path: '/hr/employees', query: { import: '1' } },
         },
         {
           path: 'employees',
@@ -276,6 +314,24 @@ const router = createRouter({
           name: 'admin-payment-methods',
           component: () => import('../views/admin/PaymentMethodsView.vue'),
           meta: { requiresPermission: 'payment_methods.view' },
+        },
+        {
+          path: 'billing/partner-statements',
+          name: 'admin-partner-statements',
+          component: () => import('../views/admin/AdminPartnerStatementsView.vue'),
+          meta: { requiresPermission: 'billing.view' },
+        },
+        {
+          path: 'content',
+          name: 'admin-content',
+          component: () => import('../views/admin/AdminContentView.vue'),
+          meta: { requiresPermission: 'content.view' },
+        },
+        {
+          path: 'rules',
+          name: 'admin-rules',
+          component: () => import('../views/admin/AdminRulesView.vue'),
+          meta: { requiresPermission: 'billing.view' },
         },
         {
           path: 'team',

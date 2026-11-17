@@ -541,6 +541,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import { useRoute } from 'vue-router'
 import AppPagination from '@/components/AppPagination.vue'
 import LocationPicker from '@/components/LocationPicker.vue'
@@ -783,7 +784,7 @@ async function confirmReject() {
 const toast = ref({ show: false, message: '', type: 'success' })
 let toastTimer: ReturnType<typeof setTimeout>
 async function resetTwoFactor(g: Gym) {
-  if (!confirm(`Reset two-factor authentication for the partner account of ${g.name}? They must scan a new QR code on their next login.`)) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for the partner account of ${g.name}? They must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
   try {
     const res = await api.post<{ message: string }>(`gyms/${g.id}/reset-2fa`, {})
     showToast(res.message, 'success')

@@ -1,5 +1,6 @@
 <template>
   <div class="page">
+    <h1 class="visits-h1">Your visits</h1>
 
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
@@ -205,6 +206,8 @@ function tierLabel(t: string): string {
 </script>
 
 <style scoped>
+.visits-h1 { margin: 0 0 22px; font-family: var(--font-heading); font-size: 42px; font-weight: 600; color: #1f2937; }
+@media (max-width: 600px) { .visits-h1 { font-size: 30px; } }
 .page { display: flex; flex-direction: column; gap: 20px; font-family: 'Inter', system-ui, sans-serif; }
 
 /* Loading / Error */

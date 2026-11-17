@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="partner-shell">
 
     <!-- ── Sidebar ──────────────────────────────────────────────── -->
@@ -186,6 +186,13 @@ const navItems = computed(() => {
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
     },
     {
+      name: 'statements',
+      label: 'Statements',
+      to: '/partner/statements',
+      permission: null,
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>`,
+    },
+    {
       name: 'facility',
       label: 'Facility Info',
       to: '/partner/facility',
@@ -224,6 +231,7 @@ const navItems = computed(() => {
 const pageMeta: Record<string, { title: string; sub?: string }> = {
   'partner-dashboard': { title: 'Dashboard',      sub: 'Your gym performance overview' },
   'partner-checkins':  { title: 'Check-ins',      sub: 'All member visits to your gym' },
+  'partner-statements': { title: 'Statements', sub: 'Monthly visits, your invoices and FitAccess payments' },
   'partner-facility':  { title: 'Facility Info',  sub: 'Your gym profile & details' },
   'partner-team':      { title: 'Staff',          sub: 'Manage check-in staff members' },
   'partner-branches':  { title: 'Branches',       sub: 'All your locations in one place' },

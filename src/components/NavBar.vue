@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { newTab } from '@/utils/newTab'
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
@@ -77,7 +78,7 @@ function goSection(hash: string) {
 
       <!-- Actions -->
       <div class="nav-actions">
-        <RouterLink to="/login" class="nav-login">Log in</RouterLink>
+        <RouterLink to="/login" class="nav-login" target="_blank" rel="noopener">Log in</RouterLink>
         <div ref="regRef" class="reg">
           <button
             type="button"
@@ -94,6 +95,7 @@ function goSection(hash: string) {
               v-for="opt in registerOptions"
               :key="opt.page"
               :to="regTarget(opt)"
+              v-bind="newTab(regTarget(opt))"
               class="reg-item"
               role="menuitem"
             >
@@ -122,11 +124,11 @@ function goSection(hash: string) {
       </ul>
       <p class="mobile-label">Register</p>
       <div class="mobile-register">
-        <RouterLink v-for="opt in registerOptions" :key="opt.page" :to="regTarget(opt)" class="lp-btn lp-btn--primary lp-btn--sm">
+        <RouterLink v-for="opt in registerOptions" :key="opt.page" :to="regTarget(opt)" v-bind="newTab(regTarget(opt))" class="lp-btn lp-btn--primary lp-btn--sm">
           {{ opt.label }}
         </RouterLink>
       </div>
-      <RouterLink to="/login" class="lp-btn lp-btn--outline lp-btn--sm mobile-login">Log in</RouterLink>
+      <RouterLink to="/login" class="lp-btn lp-btn--outline lp-btn--sm mobile-login" target="_blank" rel="noopener">Log in</RouterLink>
     </div>
   </nav>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import { useAuthStore } from '@/stores/auth'
 
 const api = useApi()
@@ -106,7 +107,7 @@ function copyCode() {
 }
 
 async function unlink() {
-  if (!confirm('Disconnect your Telegram account?')) return
+  if (!(await confirmDialog({ title: 'Disconnect Telegram?', message: 'Disconnect your Telegram account?', confirmText: 'Disconnect', danger: true }))) return
   unlinkLoading.value = true
   try {
     await api.delete('telegram/unlink')

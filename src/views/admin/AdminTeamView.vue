@@ -82,12 +82,6 @@
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                 </button>
-                <button class="btn-icon" title="Reset 2FA" @click="resetTwoFactor(m)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="5" y="2" width="14" height="20" rx="2" />
-                    <path d="M12 18h.01" />
-                  </svg>
-                </button>
                 <button class="btn-icon btn-danger" title="Remove" @click="confirmRemove(m)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6" />
@@ -343,6 +337,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { confirmDialog, alertDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 
 const auth = useAuthStore()
@@ -478,7 +473,7 @@ async function submitRemove() {
     })
     if (!res.ok) {
       const data = await res.json()
-      alert(data.message || 'Failed to remove member.')
+      await alertDialog({ title: 'Something went wrong', message: data.message || 'Failed to remove member.', tone: 'error' })
       return
     }
     removeModal.value.show = false
@@ -490,13 +485,13 @@ async function submitRemove() {
 
 /* ── Reset 2FA ──────────────────────────────────────────── */
 async function resetTwoFactor(m: Member) {
-  if (!confirm(`Reset two-factor authentication for ${m.name}? They will be signed out and must scan a new QR code on their next login.`)) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for ${m.name}? They will be signed out and must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
   const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${m.id}/reset-2fa`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
   })
   const data = await res.json().catch(() => ({}))
-  alert(data.message || (res.ok ? 'Two-factor authentication reset.' : 'Failed to reset two-factor authentication.'))
+  await alertDialog({ title: res.ok ? 'Done' : 'Something went wrong', message: data.message || (res.ok ? 'Two-factor authentication reset.' : 'Failed to reset two-factor authentication.'), tone: res.ok ? 'success' : 'error' })
 }
 
 /* ── Reset temp password ────────────────────────────────── */

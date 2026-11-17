@@ -61,7 +61,7 @@ const socials = [
         <h4 class="footer-col-heading">{{ col.heading }}</h4>
         <ul class="footer-col-links">
           <li v-for="link in col.links" :key="link.label">
-            <RouterLink :to="link.to" class="footer-link">{{ link.label }}</RouterLink>
+            <RouterLink :to="link.to" class="footer-link" v-bind="link.to === '/login' ? { target: '_blank', rel: 'noopener' } : {}">{{ link.label }}</RouterLink>
           </li>
         </ul>
       </div>

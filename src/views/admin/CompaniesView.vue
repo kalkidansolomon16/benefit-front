@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <!-- Header -->
     <div class="page-actions">
@@ -29,12 +29,6 @@
         />
         <button v-if="search" class="search-clear" @click="clearSearch" title="Clear">✕</button>
       </div>
-      <select v-model="filterTier" class="select-box" @change="resetAndLoad">
-        <option value="">All Tiers</option>
-        <option value="basic">Basic</option>
-        <option value="basic_plus">Basic Plus</option>
-        <option value="premium">Premium</option>
-      </select>
       <select v-model="filterLicense" class="select-box" @change="resetAndLoad">
         <option value="">All License States</option>
         <option value="pending">Pending</option>
@@ -92,7 +86,6 @@
             {{ c.contact_email ?? '—' }}
           </p>
           <div class="cc-badges">
-            <span class="badge tier-badge" :class="'tier-' + c.tier">{{ tierLabel(c.tier) }}</span>
             <span class="badge lic-badge" :class="'lic-' + c.business_license_status">{{
               c.business_license_status ?? 'No License'
             }}</span>
@@ -136,9 +129,6 @@
           <button class="act-btn toggle" @click="toggleActive(c)">
             {{ c.is_active ? 'Deactivate' : 'Activate' }}
           </button>
-          <button class="act-btn toggle" title="Reset the HR account's authenticator" @click.stop="resetTwoFactor(c)">
-            Reset 2FA
-          </button>
         </div>
         <svg
           class="cc-chevron"
@@ -178,7 +168,7 @@
                 <div>
                   <h2 class="drawer-title">{{ drawer.company?.name }}</h2>
                   <p class="drawer-sub">
-                    {{ drawer.company?.city }} · {{ tierLabel(drawer.company?.tier ?? '') }}
+                    {{ drawer.company?.city }}
                   </p>
                 </div>
               </div>
@@ -196,6 +186,16 @@
               </button>
             </div>
 
+            <!-- Onboarding: contract pack + bulk card numbers -->
+            <div v-if="drawer.company" class="drawer-onb">
+              <button type="button" class="onb-btn" :disabled="onbBusy !== ''" @click="sendContract">
+                {{ onbBusy === 'contract' ? 'Sending…' : 'Send consent form & Excel template' }}
+              </button>
+              <button type="button" class="onb-btn lime" :disabled="onbBusy !== ''" @click="sendAllCards">
+                {{ onbBusy === 'cards' ? 'Sending…' : 'E-mail all new cards to employees' }}
+              </button>
+            </div>
+
             <!-- Stat strip -->
             <div class="drawer-stats">
               <div class="ds-stat">
@@ -205,7 +205,7 @@
               <div class="ds-divider"></div>
               <div class="ds-stat">
                 <p class="ds-val teal">
-                  {{ drawer.employees.filter((e) => e.is_enrolled).length }}
+                  {{ drawer.employees.filter((e) => e.is_enrolled && !e.is_banned).length }}
                 </p>
                 <p class="ds-lbl">Enrolled</p>
               </div>
@@ -236,7 +236,6 @@
                   </span>
                   <span class="drawer-branch-meta">Login: {{ b.login_email ?? '—' }}</span>
                 </div>
-                <button class="act-btn toggle" @click="resetBranchTwoFactor(b)">Reset 2FA</button>
               </div>
             </div>
 
@@ -294,6 +293,10 @@
                     <span v-if="emp.department">{{ emp.department }}</span>
                   </p>
                   <p class="emp-fan">FAN: {{ emp.fan_number ?? '—' }}</p>
+                  <p v-if="emp.card_number" class="emp-card">Card: {{ emp.card_number }}</p>
+                  <p v-if="emp.is_banned" class="emp-ban">
+                    ⛔ {{ emp.ban_indefinite ? 'Banned until lifted' : `Banned until ${fmtBanDate(emp.banned_until)}` }} · card blocked
+                  </p>
                 </div>
 
                 <!-- Badges -->
@@ -397,16 +400,6 @@
                 </div>
               </div>
               <div class="form-row">
-                <div class="field">
-                  <label class="field-label">Package Tier *</label>
-                  <select v-model="form.tier" class="input" :class="{ err: fe.tier }">
-                    <option value="">Select tier…</option>
-                    <option value="basic">Basic</option>
-                    <option value="basic_plus">Basic Plus</option>
-                    <option value="platinum">Platinum</option>
-                  </select>
-                  <p v-if="fe.tier" class="err-msg">{{ fe.tier }}</p>
-                </div>
                 <div class="field">
                   <label class="field-label">TIN Number</label>
                   <input v-model="form.tin_number" class="input" placeholder="Optional" />
@@ -606,6 +599,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import { useAuthStore } from '@/stores/auth'
 import AppPagination from '@/components/AppPagination.vue'
 
@@ -755,7 +749,7 @@ async function toggleActive(c: Company) {
 }
 
 async function resetTwoFactor(c: Company) {
-  if (!confirm(`Reset two-factor authentication for the HR account of ${c.name}? They must scan a new QR code on their next login.`)) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for the HR account of ${c.name}? They must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
   try {
     const res = await api.post<{ message: string }>(`companies/${c.id}/reset-2fa`, {})
     showToast(res.message)
@@ -791,6 +785,14 @@ interface Employee {
   membership_status: string
   is_enrolled: boolean
   enrolled_at: string
+  is_banned?: boolean
+  banned_until?: string | null
+  ban_indefinite?: boolean
+  card_number?: string | null
+}
+
+function fmtBanDate(d?: string | null): string {
+  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 }
 
 interface CompanyBranchRow {
@@ -812,6 +814,33 @@ const drawer = reactive<{
 }>({ open: false, loading: false, company: null, employees: [], branches: [] })
 
 const drawerSearch = ref('')
+
+// ── Onboarding actions (contract pack, bulk card issue) ──────
+const onbBusy = ref<'' | 'contract' | 'cards'>('')
+async function sendContract() {
+  const c = drawer.company
+  if (!c) return
+  if (!(await confirmDialog({ title: 'Send contract & template?', message: `Email the employee contract and the Excel template to ${c.name}? A new import deadline is set from today.`, confirmText: 'Send' }))) return
+  onbBusy.value = 'contract'
+  try {
+    const r = await api.post<{ message: string }>(`companies/${c.id}/send-contract`)
+    showToast(r.message)
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : 'Could not send.', 'error')
+  } finally { onbBusy.value = '' }
+}
+async function sendAllCards() {
+  const c = drawer.company
+  if (!c) return
+  if (!(await confirmDialog({ title: 'E-mail all new cards?', message: `E-mail every approved employee of ${c.name} whose card number has not been sent yet? Each employee receives their own number.`, confirmText: 'Send cards' }))) return
+  onbBusy.value = 'cards'
+  try {
+    const r = await api.post<{ message: string }>('employees/issue-cards', { company_id: c.id })
+    showToast(r.message)
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : 'Could not send the cards.', 'error')
+  } finally { onbBusy.value = '' }
+}
 
 const filteredDrawerEmployees = computed(() => {
   if (!drawerSearch.value) return drawer.employees
@@ -847,7 +876,7 @@ async function openDrawer(c: Company) {
 
 async function resetBranchTwoFactor(b: CompanyBranchRow) {
   if (!drawer.company) return
-  if (!confirm(`Reset two-factor authentication for the "${b.name}" branch login? They must scan a new QR code on their next login.`)) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for the "${b.name}" branch login? They must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
   try {
     const res = await api.post<{ message: string }>(`companies/${drawer.company.id}/branches/${b.id}/reset-2fa`, {})
     showToast(res.message)
@@ -942,7 +971,6 @@ async function submitForm() {
   // Client-side validation
   if (!form.name) fe.name = 'Company name is required.'
   if (!form.industry) fe.industry = 'Industry is required.'
-  if (!form.tier) fe.tier = 'Tier is required.'
   if (!form.contact_person) fe.contact_person = 'Contact person is required.'
   if (!form.contact_email) fe.contact_email = 'Email is required.'
   if (!form.contact_phone) fe.contact_phone = 'Phone is required.'
@@ -1697,6 +1725,14 @@ async function submitForm() {
 }
 
 /* Stat strip */
+.drawer-onb { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px; border-bottom: 1px solid #f1f5f9; }
+.onb-btn {
+  padding: 8px 14px; border-radius: 999px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a;
+  font-size: 0.76rem; font-weight: 700; cursor: pointer;
+}
+.onb-btn:hover:not(:disabled) { border-color: #0b0c10; }
+.onb-btn.lime { background: #8BE000; border-color: #8BE000; color: #0b0c10; }
+.onb-btn:disabled { opacity: .6; cursor: default; }
 .drawer-stats {
   display: flex;
   align-items: center;
@@ -1928,6 +1964,22 @@ async function submitForm() {
 .mem-suspended {
   background: #fff7ed;
   color: #c2410c;
+}
+.mem-banned {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.emp-card {
+  margin: 2px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  color: #475569;
+}
+.emp-ban {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #dc2626;
 }
 
 /* Drawer slide transition */

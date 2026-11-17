@@ -87,30 +87,24 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
 
 // -- Approve ---------------------------------------------------
-const tiers = [
-  { value: 'basic', label: 'Basic' },
-  { value: 'basic_plus', label: 'Basic Plus' },
-  { value: 'platinum', label: 'Platinum' },
-]
+// No company-wide plan: each employee's plan is chosen in the Excel import
 const approving = ref<CompanyApp | null>(null)
-const approveTier = ref('')
 const approveBusy = ref(false)
 const approveError = ref('')
 const issued = ref<IssuedLogin[]>([])
 
 function openApprove(a: CompanyApp) {
   approving.value = a
-  approveTier.value = ''
   approveError.value = ''
 }
 async function confirmApprove() {
-  if (!approving.value || !approveTier.value) return
+  if (!approving.value) return
   approveBusy.value = true
   approveError.value = ''
   try {
     const res = await api.post<{ message: string; credentials: IssuedLogin[] }>(
       `company-applications/${approving.value.id}/approve`,
-      { tier: approveTier.value },
+      {},
     )
     approving.value = null
     flash(res.message)
@@ -253,16 +247,10 @@ function flash(msg: string) {
             <template v-if="approving.branches?.length"> and {{ approving.branches.length }} branch login(s)</template>,
             each with a temporary password sent by email.
           </p>
-          <p class="ca-label">Plan tier</p>
-          <div class="ca-tiers">
-            <button
-              v-for="t in tiers"
-              :key="t.value"
-              type="button"
-              class="ca-tier"
-              :class="{ selected: approveTier === t.value }"
-              @click="approveTier = t.value"
-            >{{ t.label }}</button>
+          <div class="ca-next">
+            <strong>What happens next</strong>
+            The company also receives the employee contract and the Excel template. Plans are chosen
+            <em>per employee</em> when the company imports its employee list, so no plan is set here.
           </div>
           <p v-if="approveError" class="ca-err">{{ approveError }}</p>
           <div class="ca-modal-actions">
@@ -270,7 +258,7 @@ function flash(msg: string) {
             <button
               type="button"
               class="ca-btn ca-btn--approve"
-              :disabled="!approveTier || approveBusy"
+              :disabled="approveBusy"
               @click="confirmApprove"
             >{{ approveBusy ? 'Creating…' : 'Approve' }}</button>
           </div>
@@ -354,6 +342,11 @@ function flash(msg: string) {
 .ca-modal h3 { margin: 0; font-size: 1.15rem; color: #0B0C10; }
 .ca-modal p { margin: 0; font-size: 0.88rem; line-height: 1.5; color: #44403c; }
 .ca-modal textarea { width: 100%; }
+.ca-next {
+  margin: 4px 0 16px; padding: 12px 14px; border-radius: 12px; background: #f3fce6; border: 1px solid #d9f2a8;
+  font-size: 0.86rem; line-height: 1.5; color: #3f6b00;
+}
+.ca-next strong { display: block; margin-bottom: 2px; color: #0B0C10; }
 .ca-tiers { display: flex; gap: 8px; flex-wrap: wrap; }
 .ca-tier { flex: 1; min-width: 110px; padding: 12px; border-radius: 12px; border: 1.5px solid #e7e5e4; background: #fff; font-weight: 700; cursor: pointer; color: #0B0C10; }
 .ca-tier.selected { border-color: #0B0C10; background: #0B0C10; color: #fff; }

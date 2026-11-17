@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <!-- Coverage + billing preference -->
     <section v-if="coverage && !detailInv" class="cov-card" :class="coverageTone">
@@ -151,7 +151,7 @@
       </button>
 
       <!-- OVERDUE ALERT BANNER -->
-      <div v-if="detailInv.status === 'overdue'" class="overdue-banner">
+      <div v-if="detailInv.status === 'overdue' || detailInv.status === 'closed'" class="overdue-banner">
         <div class="overdue-banner-icon">
           <svg
             width="20"
@@ -167,11 +167,16 @@
           </svg>
         </div>
         <div class="overdue-banner-body">
-          <p class="overdue-banner-title">Payment Overdue</p>
+          <p class="overdue-banner-title">{{ detailInv.status === 'closed' ? 'Invoice closed: staff access paused' : 'Payment overdue: grace period' }}</p>
           <p class="overdue-banner-text">
-            The due date for invoice <strong>{{ detailInv.invoice_number }}</strong> passed on
-            <strong>{{ detailInv.due_date }}</strong
-            >. Please proceed with payment immediately or request an extension below.
+            <template v-if="detailInv.status === 'closed'">
+              Invoice <strong>{{ detailInv.invoice_number }}</strong> was not paid by <strong>{{ fmtDay(detailInv.closes_on) }}</strong> and is now closed.
+              Your employees can be paid for in the next payment window, or you can request an exception below.
+            </template>
+            <template v-else>
+              The payment for <strong>{{ detailInv.invoice_number }}</strong> was due on <strong>{{ fmtDay(detailInv.due_date) }}</strong>.
+              Pay by <strong>{{ fmtDay(detailInv.closes_on) }}</strong> (end of the grace period) to keep your employees' access.
+            </template>
           </p>
         </div>
       </div>
@@ -389,8 +394,13 @@
             This invoice has been paid and verified. Your employees have full service access.
           </div>
 
-          <!-- Normal sent: pay now -->
-          <template v-else-if="detailInv.status === 'sent'">
+          <!-- Payable: in the window (sent) or late with the fee (overdue) -->
+          <template v-else-if="detailInv.status === 'sent' || detailInv.status === 'overdue'">
+            <div v-if="detailInv.status === 'overdue'" class="late-note">
+              <strong>Payment overdue: grace period</strong>
+              The payment was due on {{ fmtDay(detailInv.due_date) }}.<template v-if="Number(detailInv.late_fee_amount) > 0"> A late fee of ETB {{ Number(detailInv.late_fee_amount).toLocaleString() }} was added.</template>
+              Please pay by <strong>{{ fmtDay(detailInv.closes_on) }}</strong>. After that the invoice closes and your employees' access is paused.
+            </div>
             <div class="pay-options">
               <!-- Chapa online payment -->
               <button class="btn-chapa" :disabled="chapaLoading" @click="payWithChapa">
@@ -413,144 +423,43 @@
               </button>
             </div>
             <p v-if="chapaError" class="form-error" style="margin-top:8px">{{ chapaError }}</p>
+            <p v-if="detailInv.status === 'sent' && detailInv.due_date" class="pay-window-hint">
+              Payment is due on {{ fmtDay(detailInv.due_date) }}, in advance.
+              <template v-if="detailInv.closes_on">Grace period until {{ fmtDay(detailInv.closes_on) }}; staff access is paused after that.</template>
+            </p>
+            <button
+              v-if="detailInv.status === 'overdue' && detailInv.can_negotiate && !detailInv.negotiation"
+              class="btn-negotiate btn-negotiate--subtle" @click="negModal.show = true"
+            >Exceptional situation? Request an exception</button>
           </template>
 
-          <!-- OVERDUE state — Pay Now is locked until admin re-issues the invoice -->
-          <template v-else-if="detailInv.status === 'overdue'">
+          <!-- CLOSED: the payment period ended; only an approved exception reopens it -->
+          <template v-else-if="detailInv.status === 'closed'">
             <div class="overdue-actions">
-              <!-- No negotiation yet: Pay Now disabled, must request extension -->
-              <template v-if="!detailInv.negotiation">
-                <div class="locked-pay-wrap">
-                  <button class="btn-proceed btn-proceed--locked" disabled>
-                    <svg
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <rect x="3" y="11" width="18" height="11" rx="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    Pay Now
-                  </button>
-                  <p class="locked-hint">
-                    Payment is locked. Submit an extension request and wait for the admin to
-                    re-issue your invoice before paying.
-                  </p>
-                </div>
-                <button class="btn-negotiate" @click="negModal.show = true">
-                  <svg
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <div class="locked-pay-wrap">
+                <button class="btn-proceed btn-proceed--locked" disabled>
+                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
-                  Request Extension
+                  Payment closed
                 </button>
-              </template>
-
-              <!-- Pending negotiation: Pay Now locked, waiting for admin -->
-              <template v-else-if="detailInv.negotiation.status === 'pending'">
-                <div class="locked-pay-wrap">
-                  <button class="btn-proceed btn-proceed--locked" disabled>
-                    <svg
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <rect x="3" y="11" width="18" height="11" rx="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    Pay Now
-                  </button>
-                  <p class="locked-hint">
-                    Your extension request is under admin review. Payment will be unlocked once the
-                    admin approves and re-issues the invoice.
-                  </p>
-                </div>
-              </template>
-
-              <!-- Approved: Pay Now still locked — admin must re-send invoice first (status changes to 'sent') -->
-              <template v-else-if="detailInv.negotiation.status === 'approved'">
-                <div class="locked-pay-wrap">
-                  <button class="btn-proceed btn-proceed--locked" disabled>
-                    <svg
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <rect x="3" y="11" width="18" height="11" rx="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    Pay Now
-                  </button>
-                  <div class="approved-hint">
-                    <svg
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="#15803d"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                    <p>
-                      Extension approved! Waiting for the admin to re-issue the invoice. You will be
-                      able to pay once the new invoice is sent.
-                    </p>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Rejected: Pay Now locked, allow re-submitting negotiation -->
-              <template v-else-if="detailInv.negotiation.status === 'rejected'">
-                <div class="locked-pay-wrap">
-                  <button class="btn-proceed btn-proceed--locked" disabled>
-                    <svg
-                      width="15"
-                      height="15"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <rect x="3" y="11" width="18" height="11" rx="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    Pay Now
-                  </button>
-                  <p class="locked-hint locked-hint--danger">
-                    Your extension request was rejected. Contact the admin directly or submit a new
-                    request with more details.
-                  </p>
-                </div>
-                <button class="btn-negotiate" @click="negModal.show = true">
-                  <svg
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  Re-submit Request
-                </button>
-              </template>
+                <p v-if="detailInv.negotiation?.status === 'pending'" class="locked-hint">
+                  Your exception request is being reviewed by FitAccess. If it is approved, this invoice reopens and you can pay.
+                </p>
+                <p v-else-if="detailInv.negotiation?.status === 'rejected'" class="locked-hint locked-hint--danger">
+                  Your exception request was not approved. Your employees can be paid for in the next payment window.
+                </p>
+                <p v-else class="locked-hint">
+                  This invoice was not paid by {{ fmtDay(detailInv.closes_on) }}, so it closed and your employees' access is paused. They can be included again on next month's invoice. If there is an exceptional reason, request an exception.
+                </p>
+              </div>
+              <button v-if="detailInv.can_negotiate" class="btn-negotiate" @click="negModal.show = true">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {{ detailInv.negotiation?.status === 'rejected' ? 'Submit a new request' : 'Request an exception' }}
+              </button>
             </div>
           </template>
         </div>
@@ -800,7 +709,12 @@ interface Invoice {
   period_start?: string | null
   period_end?: string | null
   total_amount: number
+  late_fee_amount?: number
   due_date: string | null
+  closes_on?: string | null
+  closed_at?: string | null
+  can_pay?: boolean
+  can_negotiate?: boolean
   notes: string | null
   status: string
   sent_at: string | null
@@ -1069,7 +983,7 @@ async function submitNegotiation() {
 }
 
 function statusLabel(s: string) {
-  return { draft: 'Draft', sent: 'Awaiting Payment', paid: 'Paid', overdue: 'Overdue' }[s] ?? s
+  return { draft: 'Draft', sent: 'Awaiting Payment', paid: 'Paid', overdue: 'Overdue (grace period)', closed: 'Closed' }[s] ?? s
 }
 function formatDate(dt: string | null) {
   if (!dt) return '—'
@@ -2088,4 +2002,10 @@ function formatDate(dt: string | null) {
 .branch-filter-label { font-size: 0.82rem; font-weight: 600; color: #475569; }
 .branch-filter-select { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 0.85rem; }
 .branch-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: #EEF9DC; color: #4D7C0F; font-size: 0.82rem; }
-</style>
+
+/* Payment calendar */
+.late-note { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 13.5px; line-height: 1.5; }
+.late-note strong:first-child { display: block; margin-bottom: 2px; color: #78350f; }
+.pay-window-hint { margin: 10px 0 0; font-size: 12.5px; color: #6b7280; }
+.btn-negotiate--subtle { margin-top: 12px; background: none !important; border: none !important; color: #92400e !important; text-decoration: underline; padding: 0 !important; box-shadow: none !important; }
+.inv-closed { background: #fee2e2; color: #b91c1c; }</style>

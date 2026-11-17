@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
 
     <!-- Header -->
@@ -15,19 +15,14 @@
       </div>
       <div class="header-actions">
         <p class="count-label">{{ total }} {{ activeTab === 'pending' ? 'pending' : activeTab === 'all' ? 'total' : activeTab }}</p>
-        <button type="button" class="btn-template" @click="downloadImportTemplate">Download CSV Template</button>
-        <button type="button" class="btn-import" :disabled="importing" @click="importInput?.click()">
-          {{ importing ? 'Importing…' : '↑ Import CSV' }}
-        </button>
-        <input
-          ref="importInput"
-          type="file"
-          accept=".csv,text/csv"
-          class="hidden-input"
-          @change="onImportFileChange"
-        />
+        <button type="button" class="btn-import" @click="importOpen = true">⬆ Import Excel</button>
       </div>
     </div>
+
+    <!-- Deadlines, payment window, invitations and cards (bulk actions) -->
+    <OnboardingDocs @import="importOpen = true" />
+    <OnboardingBanner ref="banner" @import="importOpen = true" @changed="onBannerChanged" />
+    <ImportEmployeesModal :open="importOpen" @close="importOpen = false" @done="onImported" />
 
     <!-- Search -->
     <div class="search-wrap">
@@ -166,11 +161,13 @@
                 @change="toggleOne(e.id)"
               />
             </td>
-            <td class="td-employee">
-              <div class="emp-avatar" :style="{ background: avatarColor(e.name) }">{{ initials(e.name) }}</div>
-              <div>
-                <p class="emp-name">{{ e.name }}</p>
-                <p class="emp-sub">{{ e.job_title || '—' }}</p>
+            <td>
+              <div class="td-employee">
+                <div class="emp-avatar" :style="{ background: avatarColor(e.name) }">{{ initials(e.name) }}</div>
+                <div>
+                  <p class="emp-name">{{ e.name }}</p>
+                  <p class="emp-sub">{{ e.job_title || '—' }}</p>
+                </div>
               </div>
             </td>
             <td class="td-fan">{{ e.fan_number }}</td>
@@ -193,12 +190,35 @@
             <td v-if="branchOptions.length" class="td-dept">{{ e.branch || 'Head office' }}</td>
             <td class="td-date">{{ e.enrolled_at }}</td>
             <td>
-              <span class="reg-badge" :class="e.registration_status === 'approved' && e.admin_approval_status === 'pending' ? 'reg-admin-pending' : 'reg-' + (e.registration_status ?? 'approved')">
+              <template v-if="e.is_banned">
+                <span class="reg-badge reg-rejected">Banned</span>
+                <p class="ban-line">
+                  {{ e.ban_indefinite ? 'Until lifted' : `Until ${formatDate(e.banned_until)}` }}
+                  <span v-if="e.ban_reason" class="ban-reason"> · {{ e.ban_reason }}</span>
+                </p>
+              </template>
+              <span v-else class="reg-badge" :class="e.registration_status === 'approved' && e.admin_approval_status === 'pending' ? 'reg-admin-pending' : 'reg-' + (e.registration_status ?? 'approved')">
                 {{ regLabel(e.registration_status, e.admin_approval_status) }}
               </span>
-              <p v-if="e.registration_status === 'approved'" class="access-line" :class="'access-' + e.status">
+              <p v-if="e.registration_status === 'approved' && !e.is_banned" class="access-line" :class="'access-' + e.status">
                 {{ accessLine(e) }}
               </p>
+              <p v-if="e.registration_status === 'approved' && e.account_created === false" class="invite-line" :class="{ late: e.invite_expired }">
+                ✉ {{ e.invite_expired ? 'Invitation expired' : 'Invited · account not created yet' }}
+                <button
+                  v-if="e.can_manage" type="button" class="link-btn" :disabled="resending === e.id"
+                  @click="resendInvite(e)"
+                >{{ resending === e.id ? 'Sending…' : 'Resend' }}</button>
+              </p>
+              <template v-if="e.registration_status === 'approved' && e.admin_approval_status !== 'pending'">
+                <p v-if="e.card_number" class="card-no">Card {{ e.card_number }}</p>
+                <p class="card-line" :class="{ on: e.card_activated && !e.is_banned, off: e.is_banned }">
+                  {{ e.is_banned ? '⛔ Card blocked while banned'
+                    : e.card_activated ? '✓ Card activated'
+                    : e.card_issued ? 'Card e-mailed · not activated yet'
+                    : 'Card number not sent yet' }}
+                </p>
+              </template>
             </td>
             <td v-if="activeTab === 'all'">
               <div class="action-cell">
@@ -207,18 +227,8 @@
                   <button class="act-btn act-approve" :disabled="acting === e.id" @click="approve(e)">Approve</button>
                   <button class="act-btn act-reject"  :disabled="acting === e.id" @click="reject(e)">Reject</button>
                 </template>
-                <button
-                  v-if="e.can_manage && e.registration_status === 'approved'"
-                  class="act-btn act-ban"
-                  title="Employee lost their phone or authenticator app"
-                  @click="resetTwoFactor(e)"
-                >Reset 2FA</button>
                 <button v-if="e.can_manage && !e.is_banned" class="act-btn act-ban" @click="openBan(e)">Ban</button>
                 <button v-else-if="e.can_manage" class="act-btn act-release" @click="doUnban(e)">Release</button>
-              </div>
-              <div v-if="e.is_banned" class="ban-chip">
-                Banned until {{ formatDate(e.banned_until) }}
-                <span v-if="e.ban_reason" class="ban-reason"> — {{ e.ban_reason }}</span>
               </div>
             </td>
           </tr>
@@ -357,7 +367,8 @@
             <div class="modal-header">
               <div>
                 <p class="modal-title">Ban Employee</p>
-                <p class="modal-sub">Banning <strong>{{ banModal.employee?.name }}</strong> will prevent them from checking in to any gym.</p>
+                <p class="modal-sub">Banning <strong>{{ banModal.employee?.name }}</strong> blocks their FitAccess card: they can still sign in to view their portal, but can't check in at a gym, join trainings or use anything else until the ban is lifted.
+                  When the ban ends or you lift it, the same card number works again.</p>
               </div>
               <button class="modal-close" @click="banModal.open = false">✕</button>
             </div>
@@ -390,7 +401,7 @@
             </div>
             <div class="modal-footer">
               <button class="btn-cancel" @click="banModal.open = false">Cancel</button>
-              <button class="btn-ban-confirm" :disabled="banModal.loading || !banModal.days" @click="confirmBan">
+              <button class="btn-ban-confirm" :disabled="banModal.loading || (banModal.days !== 0 && !banModal.days)" @click="confirmBan">
                 <span v-if="banModal.loading" class="spinner-sm"></span>
                 <span v-else>Confirm Ban</span>
               </button>
@@ -506,9 +517,41 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import { useAuthStore } from '@/stores/auth'
 import AppPagination from '@/components/AppPagination.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
+import OnboardingBanner from '@/components/hr/OnboardingBanner.vue'
+import OnboardingDocs from '@/components/hr/OnboardingDocs.vue'
+import { useRoute } from 'vue-router'
+import ImportEmployeesModal from '@/components/hr/ImportEmployeesModal.vue'
+
+// ── Excel import (company-led onboarding) ─────────────────────
+// Opened directly with /hr/employees?import=1 (e.g. from the dashboard)
+const importOpen = ref(useRoute().query.import === '1')
+const banner = ref<InstanceType<typeof OnboardingBanner> | null>(null)
+function onImported(message: string) {
+  showToast(message)
+  load()
+  banner.value?.load()
+}
+function onBannerChanged(message: string, type: 'success' | 'error' = 'success') {
+  showToast(message, type)
+  if (type === 'success') load()
+}
+const resending = ref<number | null>(null)
+async function resendInvite(e: Emp) {
+  resending.value = e.id
+  try {
+    const r = await api.post<{ message: string }>(`hr/employees/${e.id}/resend-invite`)
+    showToast(r.message)
+    load()
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : 'Invitation could not be sent.', 'error')
+  } finally {
+    resending.value = null
+  }
+}
 
 const api  = useApi()
 const auth = useAuthStore()
@@ -532,6 +575,8 @@ interface Emp {
   admin_approval_status: string | null; payment_preference: string | null
   company_branch_id: number | null; can_manage: boolean
   is_banned: boolean; banned_until: string | null; ban_reason: string | null
+  card_number?: string | null; card_activated?: boolean; card_issued?: boolean; ban_indefinite?: boolean
+  account_created?: boolean; invited_at?: string | null; invite_expired?: boolean
 }
 
 interface Plan {
@@ -564,6 +609,41 @@ function toggleAll() {
   selected.value = selected.value.length === selectable.value.length
     ? []
     : selectable.value.map(e => e.id)
+}
+
+// ── Bulk card sending (cards FitAccess has issued to the company) ──
+const cardSel = ref<number[]>([])
+const sendingMany = ref(false)
+function canSendCard(e: Emp): boolean {
+  return !!e.can_manage && !!e.card_issued && !!e.card_number && !e.is_banned
+    && e.registration_status === 'approved' && e.admin_approval_status !== 'pending'
+}
+const cardSelectable = computed(() => employees.value.filter(canSendCard))
+function toggleCard(id: number) {
+  cardSel.value = cardSel.value.includes(id) ? cardSel.value.filter(x => x !== id) : [...cardSel.value, id]
+}
+function toggleAllCards() {
+  cardSel.value = cardSel.value.length === cardSelectable.value.length ? [] : cardSelectable.value.map(e => e.id)
+}
+function selectNewCards() {
+  cardSel.value = cardSelectable.value.filter(e => !e.card_activated).map(e => e.id)
+  if (!cardSel.value.length) showToast('Every card is already activated. Tick employees to resend their number.', 'error')
+}
+async function sendSelectedCards() {
+  const n = cardSel.value.length
+  if (!n || !(await confirmDialog({ title: 'Send card numbers?', message: `Email ${n} employee${n === 1 ? '' : 's'} their own FitAccess card number?`, confirmText: `Send ${n} card${n === 1 ? '' : 's'}` }))) return
+  sendingMany.value = true
+  try {
+    const r = await api.post<{ message: string; skipped?: string[] }>('hr/employees/send-cards', { ids: cardSel.value, only_new: false })
+    showToast(r.message + (r.skipped?.length ? ' ' + r.skipped.slice(0, 2).join('; ') : ''))
+    cardSel.value = []
+    load()
+    banner.value?.load()
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : 'Card numbers could not be sent.', 'error')
+  } finally {
+    sendingMany.value = false
+  }
 }
 
 interface BulkResult { message: string; done: number; failed: { name: string | null; reason: string }[] }
@@ -669,6 +749,7 @@ const durationOptions = [
   { days: 3,  label: '3 Days' },
   { days: 7,  label: '1 Week' },
   { days: 30, label: '1 Month' },
+  { days: 0,  label: 'Until lifted' },
 ]
 
 const banModal = reactive({
@@ -687,13 +768,14 @@ function openBan(e: Emp) {
 }
 
 async function confirmBan() {
-  if (!banModal.employee || !banModal.days) return
+  if (!banModal.employee || (banModal.days !== 0 && !banModal.days)) return
   banModal.loading = true
   banModal.error   = ''
   try {
     const res = await api.post<{ employee: Emp }>(
       `hr/employees/${banModal.employee.id}/ban`,
-      { days: banModal.days, ban_reason: banModal.reason || null }
+      // 0 = "Until lifted": no end date
+      { days: banModal.days || null, ban_reason: banModal.reason || null }
     )
     const idx = employees.value.findIndex(e => e.id === banModal.employee!.id)
     if (idx !== -1) employees.value[idx] = res.employee
@@ -722,8 +804,23 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// Email (and Telegram, when linked) the employee their FitAccess card number
+const sendingCard = ref<number | null>(null)
+async function sendCard(e: Emp) {
+  if (!(await confirmDialog({ title: 'Send card number?', message: `Send the FitAccess card number to ${e.name} (${e.email})?`, confirmText: 'Send card' }))) return
+  sendingCard.value = e.id
+  try {
+    const res = await api.post<{ message: string }>(`hr/employees/${e.id}/send-card`, {})
+    showToast(res.message)
+  } catch (err) {
+    showToast(errMsg(err, 'Could not send the card number.'), 'error')
+  } finally {
+    sendingCard.value = null
+  }
+}
+
 async function resetTwoFactor(e: Emp) {
-  if (!window.confirm(`Reset two-factor authentication for ${e.name}? They will be signed out and must scan a new QR code on their next login.`)) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for ${e.name}? They will be signed out and must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
   try {
     const res = await api.post<{ message: string }>(`hr/employees/${e.id}/reset-2fa`, {})
     showToast(res.message)
@@ -1065,14 +1162,19 @@ async function onImportFileChange(e: Event) {
 .empty-sub   { font-size: 0.85rem; color: #94a3b8; margin: 0; }
 
 /* ── Table ──────────────────────────────────────────────────── */
-.table-card { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.table-card { background: white; border-radius: 14px; overflow-x: auto; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.data-table td.td-date, .data-table td.td-fan { white-space: nowrap; }
+.ban-line { margin: 4px 0 0; font-size: 0.72rem; font-weight: 600; color: #b45309; max-width: 200px; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .data-table th {
   padding: 12px 18px; text-align: left; font-size: 0.7rem; font-weight: 600;
   color: #94a3b8; letter-spacing: .06em; text-transform: uppercase;
   border-bottom: 1px solid #f1f5f9;
 }
-.data-table td { padding: 14px 18px; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+.data-table td { padding: 14px 14px; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+.data-table th { padding-left: 14px; padding-right: 14px; white-space: nowrap; }
+.td-employee .emp-name { white-space: nowrap; }
+.td-employee .emp-avatar { flex-shrink: 0; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: #f8fafc; }
 
@@ -1388,5 +1490,28 @@ async function onImportFileChange(e: Event) {
 .ro-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; background: #EEF9DC; color: #4D7C0F; font-size: 0.72rem; font-weight: 700; }
 .access-line { margin: 4px 0 0; font-size: 0.72rem; font-weight: 600; color: #4d7c0f; white-space: nowrap; }
 .access-line.access-expired, .access-line.access-unpaid { color: #dc2626; }
+.card-line { margin: 2px 0 0; font-size: 0.7rem; font-weight: 600; color: #b45309; white-space: nowrap; }
+.card-line.on { color: #4d7c0f; }
+.card-line.off { color: #dc2626; }
+.card-bulk {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid #f1f5f9; background: #fafcf6;
+}
+.card-bulk.active { background: #f3fce6; }
+.card-bulk-all { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: #334155; cursor: pointer; }
+.card-bulk-all input { width: 16px; height: 16px; accent-color: #72B800; }
+.card-bulk-actions { display: flex; gap: 8px; }
+.cb-btn {
+  padding: 8px 14px; border-radius: 9px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a;
+  font-size: 0.8rem; font-weight: 700; cursor: pointer;
+}
+.cb-btn:hover:not(:disabled) { border-color: #0b0c10; }
+.cb-btn.primary { background: #8BE000; border-color: #8BE000; color: #0b0c10; }
+.cb-btn:disabled { opacity: .6; cursor: default; }
+.invite-line { margin: 4px 0 0; font-size: 0.7rem; font-weight: 600; color: #2563eb; white-space: nowrap; }
+.invite-line.late { color: #b45309; }
+.link-btn { margin-left: 4px; padding: 0; border: none; background: none; color: #3f6b00; font-weight: 700; font-size: 0.7rem; text-decoration: underline; cursor: pointer; font-family: inherit; }
+.link-btn:disabled { opacity: .6; cursor: default; }
+.card-no { margin: 4px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; font-weight: 600; color: #0f172a; white-space: nowrap; }
 .access-line.access-inactive, .access-line.access-suspended { color: #94a3b8; }
 </style>

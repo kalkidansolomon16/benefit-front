@@ -89,6 +89,9 @@ export const useAuthStore = defineStore('auth', () => {
   const mfaSecret = ref<string | null>(null)
   const mfaMessage = ref('')
   const mfaEnrolled = ref(false)
+  /** Second step is now an emailed code: where it went, and when a resend is allowed */
+  const mfaSentTo = ref('')
+  const mfaResendAfter = ref(60)
 
   function clearMfaState() {
     mfaToken.value = null
@@ -97,6 +100,8 @@ export const useAuthStore = defineStore('auth', () => {
     mfaSecret.value = null
     mfaMessage.value = ''
     mfaEnrolled.value = false
+    mfaSentTo.value = ''
+    mfaResendAfter.value = 60
   }
 
   /* ── Role helpers ─────────────────────────────────────── */
@@ -202,6 +207,8 @@ export const useAuthStore = defineStore('auth', () => {
       mfaSecret.value = data.secret
       mfaMessage.value = data.message ?? ''
       mfaEnrolled.value = !!data.mfa_enrolled
+      mfaSentTo.value = data.mfa_sent_to ?? ''
+      mfaResendAfter.value = data.mfa_resend_after ?? 60
       return
     }
 
@@ -229,6 +236,22 @@ export const useAuthStore = defineStore('auth', () => {
     setSession(data.user, data.token, data.permissions ?? [], data.user?.must_change_password ?? false)
   }
 
+  /* Ask for a new emailed sign-in code (same sign-in attempt). */
+  async function resendMfaCode(): Promise<string> {
+    if (!mfaToken.value) throw new Error('Your login session has expired. Please sign in again.')
+
+    const res = await fetch(`${API_BASE_URL}/auth/mfa/resend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ mfa_token: mfaToken.value }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.message || 'Could not send a new code.')
+
+    mfaResendAfter.value = data.mfa_resend_after ?? 60
+    return data.message ?? 'A new code has been sent.'
+  }
+
   /* ── Logout ───────────────────────────────────────────── */
   async function logout(): Promise<void> {
     if (token.value) {
@@ -253,6 +276,9 @@ export const useAuthStore = defineStore('auth', () => {
     mfaSecret,
     mfaMessage,
     mfaEnrolled,
+    mfaSentTo,
+    mfaResendAfter,
+    resendMfaCode,
 
     /* role booleans */
     isLoggedIn,

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AuthShell from '@/components/AuthShell.vue'
+import '@/assets/auth-form.css'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -147,6 +149,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 const requestNote = ref('')
 const loading = ref(false)
 const error = ref('')
+const joinUrl = ref('')
 
 // ── Validation ─────────────────────────────────────────────────────────────
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -210,6 +213,11 @@ async function handleSubmit() {
       }),
     })
     const data = await res.json()
+    if (!res.ok && data.code === 'already_invited') {
+      // Registered by the company already: send them to Create your account
+      joinUrl.value = data.join_url || '/join'
+      throw new Error(data.message)
+    }
     if (!res.ok) {
       const firstErr = data.errors
         ? (Object.values(data.errors as Record<string, string[]>)[0]?.[0] ?? 'Validation error')
@@ -226,14 +234,8 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="signup-page">
-    <div class="signup-card">
-      <!-- Brand -->
-      <RouterLink to="/" class="brand" aria-label="FitAccess home">
-        <span class="brand-icon">✦</span>
-        <span class="brand-name">FitAccess</span>
-        <span class="brand-tag">Employee Portal</span>
-      </RouterLink>
+  <AuthShell variant="employee" prompt="Already have an account?" action-label="Log in" action-to="/login" wide>
+    <div class="signup-card af">
 
       <!-- Progress -->
       <div class="progress-wrap">
@@ -293,7 +295,7 @@ async function handleSubmit() {
           <div class="field-group">
             <label class="field-label">Phone Number <span class="req">*</span></label>
             <div class="phone-wrap">
-              <div class="phone-prefix"><span class="flag">🇪🇹</span><span>+251</span></div>
+              <div class="phone-prefix"><span>+251</span></div>
               <input
                 v-model="phone"
                 type="tel"
@@ -311,7 +313,7 @@ async function handleSubmit() {
               v-model="email"
               type="email"
               class="input"
-              placeholder="kebede@example.com"
+              placeholder="Your e-mail address"
               autocomplete="email"
             />
           </div>
@@ -511,7 +513,7 @@ async function handleSubmit() {
 
             <div v-if="companyId" class="company-selected">
               <div class="company-selected-inner">
-                <span class="company-selected-icon">🏢</span>
+                <span class="company-selected-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3h4v3"/></svg></span>
                 <span class="company-selected-name">{{ companyName }}</span>
               </div>
               <button type="button" class="company-selected-clear" @click="clearCompany">
@@ -729,7 +731,12 @@ async function handleSubmit() {
           <p class="field-hint">{{ requestNote.length }}/1000 — Your HR team will see this note.</p>
         </div>
 
-        <p v-if="error" class="error-msg">{{ error }}</p>
+        <div v-if="joinUrl" class="invited-box" role="alert">
+          <strong>You are already registered by your company</strong>
+          <span>{{ error }}</span>
+          <RouterLink :to="joinUrl" class="invited-btn">Create my account</RouterLink>
+        </div>
+        <p v-else-if="error" class="error-msg">{{ error }}</p>
 
         <div class="actions" style="margin-top: 20px">
           <button
@@ -747,13 +754,7 @@ async function handleSubmit() {
         </p>
       </div>
     </div>
-
-    <footer class="signup-footer">
-      <p class="footer-notice">
-        Protected by FitAccess Ethiopia &nbsp;·&nbsp; <a href="#">Privacy Policy</a>
-      </p>
-    </footer>
-  </div>
+  </AuthShell>
 </template>
 
 <style scoped>
@@ -1487,4 +1488,8 @@ async function handleSubmit() {
     display: none;
   }
 }
+.invited-box { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 14px; background: #f3fce6; border: 1px solid #c9ef8a; color: #3f6b00; font-size: 14px; line-height: 1.5; }
+.invited-box strong { color: #0b0c10; }
+.invited-btn { align-self: flex-start; margin-top: 4px; padding: 10px 18px; border-radius: 12px; background: #0b0c10; color: #fff; font-weight: 700; text-decoration: none; }
+.invited-btn:hover { background: #8be000; color: #0b0c10; }
 </style>

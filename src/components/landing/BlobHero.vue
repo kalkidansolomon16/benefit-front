@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { newTab } from '@/utils/newTab'
 
 // Hero with a cut-out person standing on organic blobs plus playful
 // decorations (dot halftone, rings, zigzags) — modelled on the inspiration.
@@ -42,7 +43,7 @@ const isLinkSecondary = computed(() => !!props.secondaryTo)
         <h1 class="lp-h1 bh-title"><slot name="title" /></h1>
         <p class="bh-text"><slot name="text" /></p>
         <div class="lp-btn-row">
-          <RouterLink :to="ctaTo" class="lp-btn bh-cta">{{ ctaLabel }}</RouterLink>
+          <RouterLink :to="ctaTo" class="lp-btn bh-cta" v-bind="newTab(ctaTo)">{{ ctaLabel }}</RouterLink>
           <RouterLink v-if="isLinkSecondary && secondaryTo" :to="secondaryTo" class="lp-btn bh-secondary">{{ secondaryLabel }}</RouterLink>
           <a v-else-if="secondaryHref" :href="secondaryHref" class="lp-btn bh-secondary">{{ secondaryLabel }}</a>
         </div>

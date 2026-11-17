@@ -156,6 +156,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 
@@ -222,7 +223,7 @@ async function bulkApprove() {
     return
   }
   const note = unpaidCount ? ` ${unpaidCount} unpaid employee(s) will be skipped.` : ''
-  if (!window.confirm(`Approve and activate ${paidIds.length} paid employee(s)?${note}`)) return
+  if (!(await confirmDialog({ title: 'Approve employees?', message: `Approve and activate ${paidIds.length} paid employee(s)?${note}`, confirmText: 'Approve' }))) return
   bulkBusy.value = true
   try {
     const res = await api.post<{ message: string; done: number; failed: { name: string | null; reason: string }[] }>(

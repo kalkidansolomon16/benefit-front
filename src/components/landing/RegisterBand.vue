@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { newTab } from '@/utils/newTab'
 
 // Dark call-to-action band shown near the bottom of every landing page.
 defineProps<{
@@ -21,8 +22,8 @@ defineProps<{
           <p>{{ text }}</p>
         </div>
         <div class="lp-btn-row">
-          <RouterLink :to="to" class="lp-btn lp-btn--primary">{{ label }}</RouterLink>
-          <RouterLink v-if="secondaryTo" :to="secondaryTo" class="lp-btn lp-btn--outline-light">{{ secondaryLabel }}</RouterLink>
+          <RouterLink :to="to" class="lp-btn lp-btn--primary" v-bind="newTab(to)">{{ label }}</RouterLink>
+          <RouterLink v-if="secondaryTo" :to="secondaryTo" class="lp-btn lp-btn--outline-light" v-bind="secondaryTo === '/login' ? { target: '_blank', rel: 'noopener' } : {}">{{ secondaryLabel }}</RouterLink>
         </div>
       </div>
     </div>

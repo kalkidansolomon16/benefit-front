@@ -136,6 +136,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 
 interface Method {
@@ -327,7 +328,7 @@ async function toggle(m: Method) {
 }
 
 async function remove(m: Method) {
-  if (!confirm(`Delete "${m.bank_name}" payment method?`)) return
+  if (!(await confirmDialog({ title: 'Delete?', message: `Delete "${m.bank_name}" payment method?`, confirmText: 'Delete', danger: true }))) return
   try {
     await api.delete(`admin/billing/payment-methods/${m.id}`)
     showToast('Payment method deleted.')

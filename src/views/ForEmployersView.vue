@@ -108,7 +108,7 @@ const steps = [
             </span>
             <h3>{{ f.title }}</h3>
             <p>{{ f.text }}</p>
-            <RouterLink :to="f.cta.to" class="lp-btn lp-btn--dark lp-btn--sm">{{ f.cta.label }}</RouterLink>
+            <RouterLink :to="f.cta.to" class="lp-btn lp-btn--dark lp-btn--sm" v-bind="f.cta.to === '/login' ? { target: '_blank', rel: 'noopener' } : {}">{{ f.cta.label }}</RouterLink>
           </article>
         </div>
       </div>

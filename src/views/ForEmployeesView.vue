@@ -81,7 +81,7 @@ const venueMail =
             <span class="lp-blob-num">{{ i + 1 }}</span>
             <h3>{{ r.title }}</h3>
             <p>{{ r.text }}</p>
-            <RouterLink :to="r.cta.to" class="lp-btn lp-btn--primary lp-btn--sm">{{ r.cta.label }}</RouterLink>
+            <RouterLink :to="r.cta.to" class="lp-btn lp-btn--primary lp-btn--sm" v-bind="r.cta.to === '/login' ? { target: '_blank', rel: 'noopener' } : {}">{{ r.cta.label }}</RouterLink>
           </article>
         </div>
       </div>
@@ -146,7 +146,7 @@ const venueMail =
               <p class="lp-quote"><strong>Start training</strong>Show your pass at any partner facility in your plan.</p>
             </div>
             <div class="lp-btn-row">
-              <RouterLink to="/login" class="lp-btn lp-btn--outline">Log in</RouterLink>
+              <RouterLink to="/login" class="lp-btn lp-btn--outline" target="_blank" rel="noopener">Log in</RouterLink>
             </div>
           </div>
         </div>

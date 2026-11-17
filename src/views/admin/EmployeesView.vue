@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
 
     <div class="page-actions">
@@ -44,14 +44,39 @@
 
     <!-- Table -->
     <div v-else class="table-card">
+      <!-- Bulk: e-mail card numbers straight to employees -->
+      <div v-if="pickable.length" class="card-bulk" :class="{ active: picked.length }">
+        <label class="card-bulk-all">
+          <input
+            type="checkbox"
+            :checked="allPicked"
+            :indeterminate.prop="picked.length > 0 && !allPicked"
+            :disabled="issuingMany"
+            @change="toggleAll"
+          />
+          <span v-if="!picked.length">Select employees to e-mail their card numbers ({{ pickable.length }} available)</span>
+          <span v-else>{{ picked.length }} of {{ pickable.length }} selected</span>
+        </label>
+        <div class="card-bulk-actions">
+          <button v-if="!picked.length" type="button" class="cb-btn" :disabled="issuingMany" @click="selectNotSent">Select all not yet sent</button>
+          <template v-else>
+            <button type="button" class="cb-btn primary" :disabled="issuingMany" @click="issueSelected">
+              {{ issuingMany ? 'Sending…' : `E-mail ${picked.length} card${picked.length === 1 ? '' : 's'} to employees` }}
+            </button>
+            <button type="button" class="cb-btn" :disabled="issuingMany" @click="picked = []">Clear</button>
+          </template>
+        </div>
+      </div>
       <table class="data-table">
         <thead>
           <tr>
+            <th class="th-pick"><input type="checkbox" :checked="allPicked" :disabled="!pickable.length" aria-label="Select all cards that can be sent" @change="toggleAll" /></th>
             <th>NAME</th>
             <th>COMPANY</th>
             <th>FAN NUMBER</th>
             <th>EMAIL</th>
             <th>PACKAGE</th>
+            <th>CARD</th>
             <th>ACCOUNT</th>
             <th>PAYMENT</th>
             <th>ACTION</th>
@@ -59,6 +84,7 @@
         </thead>
         <tbody>
           <tr v-for="e in filtered" :key="e.id">
+            <td class="td-pick"><input v-if="canIssue(e)" type="checkbox" :checked="picked.includes(e.id)" :aria-label="`Select ${e.user?.name ?? 'employee'}`" @change="togglePick(e.id)" /></td>
             <td class="td-name">{{ e.user?.name ?? '—' }}</td>
             <td class="td-muted">{{ e.company?.name ?? '—' }}</td>
             <td class="td-fan">{{ e.fan_number ?? '—' }}</td>
@@ -67,6 +93,20 @@
               <span class="pkg-badge" :class="'pkg-' + empTier(e)">
                 {{ empPlanName(e) }}
               </span>
+            </td>
+            <!-- FitAccess card: admin → company → employee -->
+            <td class="td-card">
+              <template v-if="e.card_number">
+                <span class="card-num">{{ e.card_number }}</span>
+                <span class="card-state" :class="cardStateClass(e)">{{ cardStateLabel(e) }}</span>
+                <button
+                  v-if="!e.is_banned && e.user_is_active && e.admin_approval_status !== 'pending'"
+                  class="card-send card-send--link"
+                  :disabled="issuing === e.id"
+                  @click="issueCard(e)"
+                >{{ issuing === e.id ? 'Sending…' : e.card_issued ? 'Resend to employee' : 'Send to employee' }}</button>
+              </template>
+              <span v-else class="td-muted">—</span>
             </td>
             <!-- Account / approval status -->
             <td>
@@ -97,11 +137,6 @@
                   @click="suspendMembership(e)"
                 >Suspend</button>
                 <button
-                  class="act-btn act-suspend"
-                  title="Employee lost their phone or authenticator app"
-                  @click="resetTwoFactor(e)"
-                >Reset 2FA</button>
-                <button
                   v-if="!e.is_banned"
                   class="act-btn act-ban"
                   @click="openBan(e)"
@@ -114,7 +149,7 @@
               </div>
               <!-- Ban chip -->
               <div v-if="e.is_banned" class="ban-chip">
-                Banned until {{ formatDate(e.banned_until) }}
+                {{ e.ban_indefinite ? 'Banned until lifted' : `Banned until ${formatDate(e.banned_until)}` }} · card blocked
                 <span v-if="e.ban_reason" class="ban-reason"> — {{ e.ban_reason }}</span>
               </div>
             </td>
@@ -167,7 +202,8 @@
             </div>
             <div class="modal-body">
               <p class="modal-sub">
-                Banning <strong>{{ banModal.employee?.user?.name }}</strong> will prevent them from checking in to any gym during the ban period.
+                Banning <strong>{{ banModal.employee?.user?.name }}</strong> blocks their FitAccess card: they can still sign in to view their portal, but can't check in at a gym, join trainings or use anything else until the ban is lifted.
+                When the ban ends or you lift it, the same card number works again.
               </p>
 
               <div class="field">
@@ -215,7 +251,7 @@
             </div>
             <div class="modal-footer">
               <button class="btn-cancel" @click="banModal.open = false">Cancel</button>
-              <button class="btn-ban" :disabled="banModal.loading || !banModal.days" @click="confirmBan">
+              <button class="btn-ban" :disabled="banModal.loading || (banModal.days !== 0 && !banModal.days)" @click="confirmBan">
                 <span v-if="banModal.loading" class="spinner-sm"></span>
                 <span v-else>Confirm Ban</span>
               </button>
@@ -304,6 +340,7 @@
 <script setup lang="ts">
 import { TIER_OPTIONS, canonicalTier } from '@/utils/tier'
 import { ref, computed, onMounted, reactive } from 'vue'
+import { confirmDialog } from '@/composables/useDialog'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/auth'
 import AppPagination from '@/components/AppPagination.vue'
@@ -336,6 +373,10 @@ interface Employee {
   is_banned: boolean
   banned_until: string | null
   ban_reason: string | null
+  ban_indefinite?: boolean
+  card_number?: string | null
+  card_issued?: boolean
+  card_activated?: boolean
   user?:    { name: string; email: string; phone: string | null }
   company?: { name: string; tier: string }
 }
@@ -424,7 +465,79 @@ const durationOptions = [
   { days: 3,  label: '3 Days' },
   { days: 7,  label: '1 Week' },
   { days: 30, label: '1 Month' },
+  { days: 0,  label: 'Until lifted' },
 ]
+
+// ── FitAccess card: issue to the company ─────────────────────
+const issuing = ref<number | null>(null)
+
+// Bulk: pick employees whose card can be sent to their company
+const picked = ref<number[]>([])
+const issuingMany = ref(false)
+function canIssue(e: Employee): boolean {
+  // Cards already sent can be ticked too, to resend them
+  return !!e.card_number && !e.is_banned && e.user_is_active && e.admin_approval_status !== 'pending'
+}
+const pickable = computed(() => filtered.value.filter(canIssue))
+const allPicked = computed(() => pickable.value.length > 0 && pickable.value.every((e) => picked.value.includes(e.id)))
+function selectNotSent() {
+  picked.value = pickable.value.filter((e) => !e.card_issued).map((e) => e.id)
+  if (!picked.value.length) showToast('Every card has already been sent. Tick employees to resend.', 'error')
+}
+function togglePick(id: number) {
+  picked.value = picked.value.includes(id) ? picked.value.filter((x) => x !== id) : [...picked.value, id]
+}
+function toggleAll() {
+  picked.value = allPicked.value ? [] : pickable.value.map((e) => e.id)
+}
+async function issueSelected() {
+  const n = picked.value.length
+  if (!n || !(await confirmDialog({ title: 'E-mail card numbers?', message: `E-mail ${n} employee${n === 1 ? '' : 's'} their own FitAccess card number? Their company is told who received one.`, confirmText: 'Send cards' }))) return
+  issuingMany.value = true
+  try {
+    const r = await api.post<{ message: string }>('employees/issue-cards', { ids: picked.value })
+    showToast(r.message)
+    picked.value = []
+    load()
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : 'Could not send the cards.', 'error')
+  } finally {
+    issuingMany.value = false
+  }
+}
+
+function cardStateLabel(e: Employee): string {
+  if (e.is_banned) return 'Blocked (banned)'
+  if (e.card_activated) return '✓ Activated by employee'
+  if (e.card_issued) return 'E-mailed to employee'
+  return 'Not sent yet'
+}
+function cardStateClass(e: Employee): string {
+  if (e.is_banned) return 'cs-blocked'
+  if (e.card_activated) return 'cs-on'
+  if (e.card_issued) return 'cs-sent'
+  return 'cs-new'
+}
+
+async function issueCard(e: Employee) {
+  const ok = await confirmDialog({
+    title: e.card_issued ? 'Resend card number?' : 'Send card number?',
+    message: `E-mail card number ${e.card_number} to ${e.user?.name ?? 'this employee'} (${e.user?.email ?? 'their e-mail'}). They activate it in the FitAccess portal.`,
+    confirmText: 'Send to employee',
+  })
+  if (!ok) return
+  issuing.value = e.id
+  try {
+    const res = await api.post<{ message: string; employee: Employee }>(`employees/${e.id}/issue-card`, {})
+    const idx = employees.value.findIndex(emp => emp.id === e.id)
+    if (idx !== -1) employees.value[idx] = res.employee
+    showToast(res.message)
+  } catch (err: unknown) {
+    showToast(err instanceof Error ? err.message : 'Could not send the card.', 'error')
+  } finally {
+    issuing.value = null
+  }
+}
 
 const banModal = reactive({
   open: false,
@@ -446,13 +559,14 @@ function openBan(e: Employee) {
 }
 
 async function confirmBan() {
-  if (!banModal.employee || !banModal.days) return
+  if (!banModal.employee || (banModal.days !== 0 && !banModal.days)) return
   banModal.loading = true
   banModal.error   = ''
   try {
     const updated = await api.post<{ employee: Employee }>(
       `employees/${banModal.employee.id}/ban`,
-      { days: banModal.days, ban_reason: banModal.reason || null }
+      // 0 = "Until lifted": no end date
+      { days: banModal.days || null, ban_reason: banModal.reason || null }
     )
     const idx = employees.value.findIndex(e => e.id === banModal.employee!.id)
     if (idx !== -1) employees.value[idx] = updated.employee
@@ -492,7 +606,7 @@ function toggleActive(e: Employee) {
 
 async function resetTwoFactor(e: Employee) {
   const name = e.user?.name ?? 'this employee'
-  if (!window.confirm(`Reset two-factor authentication for ${name}? They will be signed out and must scan a new QR code on their next login.`)) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for ${name}? They will be signed out and must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
   try {
     const res = await api.post<{ message: string }>(`employees/${e.id}/reset-2fa`, {})
     showToast(res.message)
@@ -521,6 +635,7 @@ async function doToggleActive() {
 
 // ── Account status helpers ────────────────────────────────────
 function accountStatusLabel(e: Employee): string {
+  if (e.is_banned) return 'Banned'
   if (e.admin_approval_status === 'pending') return 'Pending Admin'
   if (e.admin_approval_status === 'rejected') return 'Admin Rejected'
   if (!e.user_is_active) return 'Inactive'
@@ -528,6 +643,7 @@ function accountStatusLabel(e: Employee): string {
 }
 
 function accountStatusClass(e: Employee): string {
+  if (e.is_banned) return 'not'
   if (e.admin_approval_status === 'pending')  return 'status-pending'
   if (e.admin_approval_status === 'rejected') return 'status-rejected'
   if (!e.user_is_active) return 'not'
@@ -720,6 +836,40 @@ async function onImportFileChange(e: Event) {
 .act-release    { background: #d1fae5; color: #15803d; }
 .act-btn:disabled { opacity: .5; cursor: not-allowed; }
 
+.td-card { min-width: 150px; }
+.th-pick, .td-pick { width: 34px; padding-right: 0 !important; }
+.th-pick input, .td-pick input { width: 16px; height: 16px; accent-color: #72B800; cursor: pointer; }
+.btn-issue {
+  padding: 9px 16px; border-radius: 10px; border: none; background: #8BE000; color: #0b0c10;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+}
+.btn-issue:disabled { opacity: .6; cursor: default; }
+.card-bulk {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid #f1f5f9; background: #fafcf6;
+}
+.card-bulk.active { background: #f3fce6; }
+.card-bulk-all { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: #334155; cursor: pointer; }
+.card-bulk-all input { width: 16px; height: 16px; accent-color: #72B800; }
+.card-bulk-actions { display: flex; gap: 8px; }
+.cb-btn { padding: 8px 14px; border-radius: 9px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.cb-btn:hover:not(:disabled) { border-color: #0b0c10; }
+.cb-btn.primary { background: #8BE000; border-color: #8BE000; color: #0b0c10; }
+.cb-btn:disabled { opacity: .6; cursor: default; }
+.card-send--link { margin-top: 4px; padding: 0; background: none; color: #3f6b00; text-decoration: underline; font-weight: 700; }
+.card-send--link:not(:disabled):hover { background: none; color: #0b0c10; }
+.card-num { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; font-weight: 600; color: #0f172a; white-space: nowrap; }
+.card-state { display: block; margin-top: 2px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+.cs-new { color: #b45309; }
+.cs-sent { color: #2563eb; }
+.cs-on { color: #4d7c0f; }
+.cs-blocked { color: #dc2626; }
+.card-send {
+  margin-top: 6px; padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer;
+  background: #8BE000; color: #0b0c10; font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.card-send:disabled { opacity: .6; cursor: not-allowed; }
+.card-send:not(:disabled):hover { background: #72B800; }
 .ban-chip {
   margin-top: 5px; font-size: 0.72rem; color: #b45309;
   background: #fef9c3; border: 1px solid #fde68a;

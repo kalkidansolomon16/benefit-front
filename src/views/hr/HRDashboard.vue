@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="dashboard">
 
     <div v-if="branchOptions.length" class="dash-filter">
@@ -9,6 +9,9 @@
         <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
       </select>
     </div>
+
+    <!-- Contract + Excel template, always one click away -->
+    <OnboardingDocs @import="router.push({ path: '/hr/employees', query: { import: '1' } })" />
 
     <!-- ── Stats row ───────────────────────────────────────────── -->
     <section class="stats-row">
@@ -93,8 +96,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import OnboardingDocs from '@/components/hr/OnboardingDocs.vue'
 import { useApi } from '@/composables/useApi'
+const router = useRouter()
 
 const api = useApi()
 

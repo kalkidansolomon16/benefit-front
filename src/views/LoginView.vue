@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AuthShell from '@/components/AuthShell.vue'
 
 const router    = useRouter()
 const route     = useRoute()
@@ -9,11 +10,11 @@ const authStore = useAuthStore()
 
 const successMsg = computed(() => {
   if (route.query.registered === 'company')
-    return '🎉 Company account created! Please sign in to continue.'
+    return 'Company account created! Please sign in to continue.'
   if (route.query.registered === 'partner')
-    return '✅ Partner application submitted! Our team will review and contact you within 2–3 business days.'
+    return 'Partner application submitted! Our team will review and contact you within 2–3 business days.'
   if (route.query.registered === 'employee')
-    return '✅ Application submitted! Your HR team will review and activate your account shortly.'
+    return 'Application submitted! Your HR team will review and activate your account shortly.'
   if (route.query.session === 'expired')
     return 'Your session has expired. Please sign in again.'
   return ''
@@ -86,526 +87,251 @@ async function handleSignIn() {
 }
 
 async function handleMfaSetupConfirm() {
-  if (!totpCode.value) return
+  if (totpCode.value.length !== 6 || mfaLoading.value) return
   mfaLoading.value = true
   mfaError.value   = ''
+  resendNote.value = ''
   try {
     await authStore.confirmMfaSetup(totpCode.value)
+    stopTimer()
     proceedAfterLogin()
   } catch (e: unknown) {
     mfaError.value = e instanceof Error ? e.message : 'Something went wrong.'
+    totpCode.value = ''
+    codeEl.value?.focus()
+    // Too many wrong codes / expired: the server ended this attempt
+    if (/sign in again/i.test(mfaError.value)) setTimeout(backToSignIn, 2500)
   } finally {
     mfaLoading.value = false
   }
 }
+
+// ── Emailed code: digits only, auto-submit at 6, resend countdown ──
+const codeEl     = ref<HTMLInputElement | null>(null)
+const resendIn   = ref(0)
+const resending  = ref(false)
+const resendNote = ref('')
+let timer: ReturnType<typeof setInterval> | null = null
+
+function stopTimer() {
+  if (timer) clearInterval(timer)
+  timer = null
+}
+function startTimer(seconds: number) {
+  stopTimer()
+  resendIn.value = seconds
+  timer = setInterval(() => {
+    resendIn.value = Math.max(0, resendIn.value - 1)
+    if (resendIn.value === 0) stopTimer()
+  }, 1000)
+}
+
+function onCodeInput(e: Event) {
+  const el = e.target as HTMLInputElement
+  totpCode.value = el.value.replace(/\D/g, '').slice(0, 6)
+  el.value = totpCode.value
+  mfaError.value = ''
+  if (totpCode.value.length === 6) handleMfaSetupConfirm()
+}
+
+async function resendCode() {
+  resending.value = true
+  mfaError.value = ''
+  try {
+    resendNote.value = await authStore.resendMfaCode()
+    startTimer(authStore.mfaResendAfter)
+  } catch (e) {
+    mfaError.value = e instanceof Error ? e.message : 'Could not send a new code.'
+  } finally {
+    resending.value = false
+  }
+}
+
+function backToSignIn() {
+  stopTimer()
+  authStore.clearMfaState()
+  totpCode.value = ''
+  mfaError.value = ''
+  resendNote.value = ''
+  password.value = ''
+  step.value = 'signin'
+}
+
+watch(step, async (s) => {
+  if (s !== 'mfa-setup') return
+  startTimer(authStore.mfaResendAfter)
+  await nextTick()
+  codeEl.value?.focus()
+})
+onBeforeUnmount(stopTimer)
 </script>
 
 <template>
-  <div class="login-page">
+  <AuthShell variant="login" prompt="Don't have an account yet?" action-label="Register" action-to="/register">
+    <!-- ── Sign in ── -->
+    <form v-if="step === 'signin'" class="auth" novalidate @submit.prevent="handleSignIn">
+      <div v-if="successMsg" class="auth-ok" role="status">{{ successMsg }}</div>
 
-    <div class="back-row">
-      <RouterLink to="/" class="back-home"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back to home</RouterLink>
-    </div>
+      <h1 class="auth-title">Already have an account? Log in</h1>
+      <p class="auth-sub">Use the email address you registered with FitAccess.</p>
 
-    <!-- Card -->
-    <div class="login-card">
-
-      <!-- Logo (goes to the home page) -->
-      <RouterLink to="/" class="brand" aria-label="FitAccess home">
-        <img src="/logo.png" alt="FitAccess" class="brand-icon" />
-        <span class="brand-name">FitAccess</span>
-      </RouterLink>
-
-      <!-- ── Sign in: email + password on one page ── -->
-      <template v-if="step === 'signin'">
-        <form class="card-body" novalidate @submit.prevent="handleSignIn">
-          <div v-if="successMsg" class="success-msg">{{ successMsg }}</div>
-          <h1 class="heading">Sign in</h1>
-          <p class="subtext">Already have an account? Enter your email and password to sign in.</p>
-
-          <div class="field-wrap">
-            <label class="field-label" for="login-email">Email address</label>
-            <input
-              id="login-email"
-              v-model="email"
-              type="email"
-              placeholder="you@company.com"
-              class="input"
-              :class="{ 'input-error': error }"
-              autocomplete="username"
-              autofocus
-              @keydown.enter.prevent="focusPassword"
-            />
-          </div>
-
-          <div class="field-wrap">
-            <label class="field-label" for="login-password">Password</label>
-            <div class="pass-wrap">
-              <input
-                id="login-password"
-                ref="passwordEl"
-                v-model="password"
-                :type="showPass ? 'text' : 'password'"
-                placeholder="Password"
-                class="input"
-                :class="{ 'input-error': error }"
-                autocomplete="current-password"
-              />
-              <button
-                class="toggle-pass"
-                type="button"
-                :aria-label="showPass ? 'Hide password' : 'Show password'"
-                @click="showPass = !showPass"
-              >
-                <svg v-if="!showPass" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg v-else width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="forgot-row">
-            <RouterLink to="/forgot-password" class="link-forgot">Forgot password?</RouterLink>
-          </div>
-
-          <p v-if="error" class="error-msg">{{ error }}</p>
-
-          <div class="actions">
-            <button
-              type="submit"
-              class="btn-continue"
-              :class="{ active: canSignIn && !loading }"
-              :disabled="!canSignIn || loading"
-            >
-              <span v-if="loading" class="spinner"></span>
-              <span v-else>Sign in</span>
-            </button>
-          </div>
-
-          <p class="new-row">
-            New to FitAccess?
-            <RouterLink :to="{ path: '/', hash: '#audiences' }" class="link-signup">Create an account</RouterLink>
-          </p>
-        </form>
-      </template>
-
-      <!-- ── Step 3 : MFA setup (every privileged login) ── -->
-      <template v-else-if="step === 'mfa-setup'">
-        <div class="card-body">
-          <h1 class="heading">{{ authStore.mfaEnrolled ? 'Two-factor authentication' : 'Set up two-factor authentication' }}</h1>
-          <p class="subtext">{{ authStore.mfaMessage }}</p>
-
-          <div class="qr-wrap" v-if="authStore.mfaQrCode">
-            <img :src="authStore.mfaQrCode" alt="Scan with an authenticator app" width="180" height="180" />
-          </div>
-          <p v-if="authStore.mfaSecret" class="manual-secret">
-            Can't scan? Enter this key manually: <code>{{ authStore.mfaSecret }}</code>
-          </p>
-
-          <div class="field-wrap">
-            <input
-              v-model="totpCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              placeholder="Enter the 6-digit code"
-              class="input code-input"
-              autocomplete="one-time-code"
-              @keyup.enter="handleMfaSetupConfirm"
-            />
-          </div>
-
-          <p v-if="mfaError" class="error-msg">{{ mfaError }}</p>
-
-          <div class="actions">
-            <button
-              class="btn-continue"
-              :class="{ active: !mfaLoading && totpCode }"
-              :disabled="mfaLoading || !totpCode"
-              @click="handleMfaSetupConfirm"
-            >
-              <span v-if="mfaLoading" class="spinner"></span>
-              <span v-else>Enable & continue</span>
-            </button>
-          </div>
-        </div>
-      </template>
-
-    </div><!-- /card -->
-
-    <!-- Footer -->
-    <footer class="login-footer">
-      <p class="footer-notice">
-        This site is protected by reCAPTCHA Enterprise and the
-        <a href="#">FitAccess privacy policy</a> and
-        <a href="#">Terms of Service</a> apply.
-      </p>
-      <div class="footer-links">
-        <a href="#">Terms</a>
-        <a href="#">Privacy</a>
+      <div class="fl" :class="{ err: error }">
+        <label class="fl-label" for="login-email">Email <span aria-hidden="true">*</span></label>
+        <input
+          id="login-email"
+          v-model="email"
+          type="email"
+          class="fl-input"
+          placeholder="you@company.com"
+          autocomplete="username"
+          autofocus
+          @keydown.enter.prevent="focusPassword"
+        />
       </div>
-    </footer>
 
-  </div>
+      <div class="fl" :class="{ err: error }">
+        <label class="fl-label" for="login-password">Password <span aria-hidden="true">*</span></label>
+        <input
+          id="login-password"
+          ref="passwordEl"
+          v-model="password"
+          :type="showPass ? 'text' : 'password'"
+          class="fl-input has-eye"
+          placeholder="Your password"
+          autocomplete="current-password"
+        />
+        <button
+          class="fl-eye"
+          type="button"
+          :aria-label="showPass ? 'Hide password' : 'Show password'"
+          @click="showPass = !showPass"
+        >
+          <svg v-if="!showPass" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+          <svg v-else width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+        </button>
+      </div>
+
+      <p v-if="error" class="auth-err" role="alert">{{ error }}</p>
+
+      <RouterLink to="/forgot-password" class="auth-forgot">Forgot password?</RouterLink>
+
+      <button type="submit" class="auth-btn" :disabled="!canSignIn || loading">
+        <span v-if="loading" class="auth-spin" aria-hidden="true"></span>
+        <span v-else>Log in</span>
+      </button>
+
+      <p class="auth-alt">
+        New to FitAccess? <RouterLink to="/register">Create an account</RouterLink>
+          <span class="join-hint">Registered by your company? <RouterLink to="/join">Create your account here</RouterLink></span>
+      </p>
+    </form>
+
+    <!-- ── Second step: code sent by email ── -->
+    <form v-else-if="step === 'mfa-setup'" class="auth" novalidate @submit.prevent="handleMfaSetupConfirm">
+      <span class="auth-mail" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2" /><path d="M3.5 6.5l8.5 6.5 8.5-6.5" /></svg>
+      </span>
+      <h1 class="auth-title">Check your email</h1>
+      <p class="auth-sub">
+        We sent a 6-digit sign-in code to
+        <strong>{{ authStore.mfaSentTo || 'your email address' }}</strong>.
+        Enter it below to finish signing in.
+      </p>
+
+      <div class="fl" :class="{ err: mfaError }">
+        <label class="fl-label" for="mfa-code">Sign-in code <span aria-hidden="true">*</span></label>
+        <input
+          id="mfa-code"
+          ref="codeEl"
+          :value="totpCode"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          class="fl-input code"
+          placeholder="000000"
+          autocomplete="one-time-code"
+          @input="onCodeInput"
+        />
+      </div>
+
+      <p v-if="mfaError" class="auth-err" role="alert">{{ mfaError }}</p>
+      <p v-else-if="resendNote" class="auth-ok" role="status">{{ resendNote }}</p>
+
+      <button type="submit" class="auth-btn" :disabled="mfaLoading || totpCode.length !== 6">
+        <span v-if="mfaLoading" class="auth-spin" aria-hidden="true"></span>
+        <span v-else>Verify &amp; continue</span>
+      </button>
+
+      <p class="auth-alt">
+        Didn't get it? Check your spam folder, or
+        <button v-if="resendIn === 0" type="button" class="auth-linkbtn" :disabled="resending" @click="resendCode">
+          {{ resending ? 'sending…' : 'send a new code' }}
+        </button>
+        <span v-else class="auth-wait">send a new code in {{ resendIn }}s</span>
+      </p>
+      <button type="button" class="auth-back" @click="backToSignIn">← Use a different account</button>
+    </form>
+  </AuthShell>
 </template>
 
 <style scoped>
-/* ── Page ─────────────────────────────────────────────── */
-.login-page {
-  min-height: 100vh;
-  background: #f0ede8;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px 0;
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+.auth {
+  display: flex; flex-direction: column; gap: 22px; position: relative; overflow: hidden;
+  background: #fff; border: 1px solid #e4e9dc; border-radius: 28px; padding: 40px 40px 34px;
+  box-shadow: 0 30px 70px rgba(11, 12, 16, 0.10), 0 2px 8px rgba(11, 12, 16, 0.04);
 }
+.auth::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, #4d7c0f, #8be000 60%, #c5f27a); }
+.auth .auth-title { font-size: clamp(22px, 2vw, 28px); text-wrap: balance; }
+@media (max-width: 560px) { .auth { padding: 28px 18px 24px; border-radius: 22px; } }
+.auth-title { margin: 0; text-align: center; font-family: var(--font-heading); font-size: 30px; font-weight: 700; color: #111827; line-height: 1.2; }
+.auth-sub { margin: -10px 0 6px; text-align: center; font-size: 15px; color: #374151; line-height: 1.5; }
+.auth-ok { padding: 12px 16px; border-radius: 14px; background: #eef9dc; color: #3f6212; font-size: 14px; font-weight: 600; }
 
-/* ── Card ─────────────────────────────────────────────── */
-.login-card {
-  width: 100%;
-  max-width: 580px;
-  background: #ffffff;
-  border: 1px solid #e0dbd4;
-  border-radius: 16px;
-  padding: 40px 48px 48px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+/* Floating-label pill inputs */
+.fl { position: relative; }
+.fl-label {
+  position: absolute; top: -9px; left: 26px; z-index: 1; padding: 0 8px; background: #fff;
+  border-radius: 999px; font-size: 13px; color: #374151;
 }
+.fl-label span { color: #dc2626; }
+.fl-input {
+  width: 100%; box-sizing: border-box; padding: 19px 28px; border: 1.5px solid #e5e7eb; border-radius: 999px;
+  background: #f6f8f2; font-size: 16px; font-family: inherit; color: #111827; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.fl-input::placeholder { color: #9ca3af; }
+.fl-input:focus { outline: none; border-color: #0b0c10; background: #fff; box-shadow: 0 0 0 4px rgba(139, 224, 0, 0.3); }
+.fl-input.has-eye { padding-right: 60px; }
+.fl-input.code { text-align: center; letter-spacing: 0.4em; font-size: 20px; }
+.fl.err .fl-input { border-color: #fca5a5; }
+.fl-eye {
+  position: absolute; right: 18px; top: 50%; transform: translateY(-50%); border: none; background: none;
+  color: #9ca3af; cursor: pointer; padding: 6px; display: flex;
+}
+.fl-eye:hover { color: #0b0c10; }
 
-/* ── Brand ────────────────────────────────────────────── */
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 32px;
-  text-decoration: none;
+.auth-err { margin: -8px 0 0; padding: 10px 16px; border-radius: 14px; background: #fef2f2; color: #b91c1c; font-size: 14px; }
+.auth-forgot { align-self: center; color: #4d7c0f; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
+.auth-forgot:hover { color: #0b0c10; }
+.auth-btn {
+  display: flex; align-items: center; justify-content: center; min-height: 58px; border: none; border-radius: 999px;
+  background: #0b0c10; color: #fff; font-size: 17px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
-.back-row { width: 100%; max-width: 580px; }
-/* Field labels + "New to FitAccess?" row */
-.field-label {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #0B0C10;
-  margin-bottom: 6px;
-}
-.new-row {
-  margin: 24px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid #ece8e2;
-  font-size: 0.92rem;
-  color: #555;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-/* "Back to home" link above the card */
-.back-home {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #0B0C10;
-  text-decoration: none;
-  padding: 6px 2px;
-}
-.back-home:hover { color: #5E9A00; text-decoration: underline; text-underline-offset: 4px; }
-
-.brand-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-.brand-name {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #8BE000;
-  letter-spacing: -0.01em;
-}
-
-/* ── Card body ────────────────────────────────────────── */
-.card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* Back button */
-.back-btn {
-  display: flex;
-  align-items: center;
-  background: none;
-  border: none;
-  color: #555;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 20px;
-  width: fit-content;
-  transition: color 0.2s;
-}
-.back-btn:hover { color: #111; }
-
-/* Heading */
-.heading {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #111;
-  line-height: 1.2;
-  margin-bottom: 10px;
-  letter-spacing: -0.02em;
-}
-
-.subtext {
-  font-size: 0.97rem;
-  color: #666;
-  margin-bottom: 28px;
-}
-
-.email-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
-  color: #444;
-  background: #f5f2ee;
-  padding: 6px 12px;
-  border-radius: 20px;
-  width: fit-content;
-  margin-bottom: 24px;
-}
-
-/* ── Inputs ───────────────────────────────────────────── */
-.field-wrap { margin-bottom: 8px; }
-.field-wrap + .field-wrap { margin-top: 18px; }
-
-.input {
-  width: 100%;
-  padding: 16px 18px;
-  font-size: 1rem;
-  color: #111;
-  background: #f9f7f5;
-  border: 1.5px solid #ddd8d2;
-  border-radius: 10px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: inherit;
-}
-.input::placeholder { color: #aaa; }
-.input:focus {
-  border-color: #111;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
-}
-.input.input-error { border-color: #8BE000; }
-
-/* Password wrap */
-.pass-wrap {
-  position: relative;
-}
-.pass-wrap .input { padding-right: 50px; }
-.toggle-pass {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  transition: color 0.2s;
-}
-.toggle-pass:hover { color: #333; }
-
-/* Forgot */
-.forgot-row {
-  display: flex;
-  justify-content: flex-end;
-  margin: 8px 0 16px;
-}
-.link-forgot {
-  font-size: 0.85rem;
-  color: #555;
-  text-decoration: underline;
-  transition: color 0.2s;
-}
-.link-forgot:hover { color: #111; }
-
-/* Error */
-.error-msg {
-  font-size: 0.85rem;
-  color: #dc2626;
-  margin-bottom: 12px;
-  padding: 10px 14px;
-  background: #fef2f2;
-  border-radius: 8px;
-  border: 1px solid #fecaca;
-}
-
-/* ── Actions row ──────────────────────────────────────── */
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-top: 24px;
-}
-
-/* Continue / Sign in button */
-.btn-continue {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 13px 28px;
-  border-radius: 50px;
-  font-size: 0.97rem;
-  font-weight: 600;
-  font-family: inherit;
-  border: none;
-  cursor: not-allowed;
-  background: #d9d5d0;
-  color: #fff;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-  flex-shrink: 0;
-}
-.btn-continue.active {
-  background: #111;
-  cursor: pointer;
-}
-.btn-continue.active:hover {
-  background: #222;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-}
-.btn-continue.active:active { transform: translateY(0); }
-.btn-continue:disabled { opacity: 1; }
-
-/* Success message */
-.success-msg {
-  font-size: 0.9rem;
-  color: #166534;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-/* Signup link */
-.link-signup {
-  font-size: 0.95rem;
-  color: #111;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  transition: color 0.2s;
-}
-.link-signup:hover { color: #8BE000; }
-
-/* Loading spinner */
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.65s linear infinite;
-}
+.auth-btn:hover:not(:disabled) { background: #8be000; color: #0b0c10; }
+.auth-btn:disabled { background: #d1d5db; cursor: not-allowed; }
+.auth-spin { width: 20px; height: 20px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.4); border-top-color: #fff; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── MFA steps ────────────────────────────────────────── */
-.code-input {
-  text-align: center;
-  letter-spacing: 0.3em;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.qr-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 16px;
-  background: #fff;
-  border: 1.5px solid #ddd8d2;
-  border-radius: 12px;
-  margin-bottom: 16px;
-}
-.qr-wrap img { display: block; }
-
-.manual-secret {
-  font-size: 0.85rem;
-  color: #666;
-  margin-bottom: 20px;
-  text-align: center;
-}
-.manual-secret code {
-  background: #f5f2ee;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-/* ── Footer ───────────────────────────────────────────── */
-.login-footer {
-  width: 100%;
-  max-width: 1200px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 8px;
-  margin-top: 32px;
-  flex-wrap: wrap;
-}
-
-.footer-notice {
-  font-size: 0.78rem;
-  color: #999;
-  line-height: 1.6;
-  max-width: 420px;
-}
-.footer-notice a {
-  color: #666;
-  font-weight: 600;
-  text-decoration: underline;
-}
-.footer-notice a:hover { color: #111; }
-
-.footer-links {
-  display: flex;
-  gap: 20px;
-  flex-shrink: 0;
-}
-.footer-links a {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #444;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.footer-links a:hover { color: #111; }
-
-/* ── Responsive ───────────────────────────────────────── */
-@media (max-width: 600px) {
-  .login-card { padding: 32px 24px 36px; }
-  .heading    { font-size: 1.6rem; }
-  .login-footer { flex-direction: column; align-items: flex-start; }
-}
+.auth-alt { margin: 0; text-align: center; font-size: 15px; color: #4b5563; }
+.auth-alt a { color: #0b0c10; font-weight: 700; }
+.auth-alt a:hover { color: #4d7c0f; }
+.auth-mail { align-self: center; width: 72px; height: 72px; border-radius: 50%; background: #eef9dc; color: #4d7c0f; display: flex; align-items: center; justify-content: center; margin-bottom: -6px; }
+.auth-linkbtn { border: none; background: none; padding: 0; color: #0b0c10; font-weight: 700; font-size: inherit; font-family: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.auth-linkbtn:hover { color: #4d7c0f; }
+.auth-linkbtn:disabled { opacity: 0.6; cursor: default; }
+.auth-wait { color: #9ca3af; }
+.auth-back { align-self: center; border: none; background: none; color: #4b5563; font-size: 14px; font-family: inherit; cursor: pointer; }
+.auth-back:hover { color: #0b0c10; }
+@media (max-width: 480px) { .auth-title { font-size: 24px; } .fl-input { padding: 17px 22px; } }
+.join-hint { display: block; margin-top: 8px; font-size: 13px; color: #6b7280; }
+.join-hint a { color: #0b0c10; font-weight: 700; }
 </style>

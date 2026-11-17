@@ -1,1203 +1,328 @@
-﻿<template>
-  <div class="dashboard">
-    <!-- -- Loading ----------------------------------------------- -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading your dashboard…</p>
-    </div>
-
-    <template v-else-if="data">
-      <!-- -- Row 1: Profile + Pass cards --------------------------- -->
-      <div class="top-row">
-        <!-- Profile card -->
-        <div class="card profile-card">
-          <div class="profile-avatar">
-            <img
-              v-if="data.profile.photo_path"
-              :src="`${STORAGE_URL}/${data.profile.photo_path}`"
-              :alt="data.profile.name"
-              class="avatar-img"
-            />
-            <div v-else class="avatar-initials">{{ initials }}</div>
-          </div>
-          <div class="profile-info">
-            <div class="profile-name-row">
-              <h2 class="profile-name">{{ data.profile.name }}</h2>
-              <button class="edit-btn" @click="openEdit">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit
-              </button>
-            </div>
-            <p class="profile-meta">
-              <span v-if="data.profile.job_title">{{ data.profile.job_title }}</span>
-              <span v-if="data.profile.department" class="dot">·</span>
-              <span v-if="data.profile.department">{{ data.profile.department }}</span>
-              <span v-if="data.profile.branch" class="dot">·</span>
-              <span v-if="data.profile.branch">{{ data.profile.branch }}</span>
-            </p>
-            <p class="profile-company">{{ data.company.name }} · {{ data.company.city }}</p>
-
-            <div class="profile-contacts">
-              <span v-if="data.profile.email" class="contact-item">
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M4 4h16v16H4z" />
-                  <path d="M4 4l8 8 8-8" />
-                </svg>
-                {{ data.profile.email }}
-              </span>
-              <span v-if="data.profile.phone" class="contact-item">
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
-                  />
-                </svg>
-                {{ data.profile.phone }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Membership pass card -->
-        <div v-if="data.pass.access_message" class="access-banner">
-          <strong>Your gym access is paused.</strong> {{ data.pass.access_message }}
-          Please contact your HR team.
-        </div>
-        <div class="card pass-card" :class="`pass-card--${data.pass.plan_key}`">
-          <div class="pass-header">
-            <div>
-              <p class="pass-label">FITNESS PASS</p>
-              <h3 class="pass-plan">{{ data.pass.plan_name }}</h3>
-            </div>
-            <div class="pass-badge" :class="`badge--${data.pass.status}`">
-              {{ statusLabel(data.pass.status) }}
-            </div>
-          </div>
-
-          <div v-if="data.profile.card_number" class="pass-fan">
-            <p class="fan-label">FitAccess Card Number</p>
-            <p class="fan-number">{{ formatCard(data.profile.card_number) }}</p>
-          </div>
-          <div class="pass-fan">
-            <p class="fan-label">FAN Number</p>
-            <p class="fan-number">{{ data.profile.fan_number }}</p>
-          </div>
-
-          <div class="pass-footer">
-            <div>
-              <p class="pass-meta-label">Plan type</p>
-              <p class="pass-meta-val">
-                {{
-                  ['premium', 'platinum'].includes(data.pass.plan_key)
-                    ? 'Premium Access'
-                    : data.pass.plan_key === 'basic_plus'
-                    ? 'Plus Access'
-                    : 'Basic Access'
-                }}
-              </p>
-            </div>
-            <div v-if="data.pass.valid_until">
-              <p class="pass-meta-label">Valid until</p>
-              <p class="pass-meta-val">{{ formatDate(data.pass.valid_until) }}</p>
-            </div>
-          </div>
-
-          <!-- Decorative circles -->
-          <div class="pass-deco pass-deco-1"></div>
-          <div class="pass-deco pass-deco-2"></div>
-        </div>
-      </div>
-      <!-- /top-row -->
-
-      <!-- -- Row 2: Stat cards ----------------------------------- -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--total">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="9 11 12 14 22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-          </div>
-          <div class="stat-body">
-            <p class="stat-value">{{ data.stats.total_checkins }}</p>
-            <p class="stat-label">Total Visits</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--month">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
-          <div class="stat-body">
-            <p class="stat-value">{{ data.stats.this_month_checkins }}</p>
-            <p class="stat-label">This Month</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--week">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <div class="stat-body">
-            <p class="stat-value">{{ data.stats.this_week_checkins }}</p>
-            <p class="stat-label">This Week</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--last">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            </svg>
-          </div>
-          <div class="stat-body">
-            <p class="stat-value">
-              {{ data.stats.last_visit ? formatDate(data.stats.last_visit) : '—' }}
-            </p>
-            <p class="stat-label">Last Visit</p>
-          </div>
-        </div>
-      </div>
-      <!-- /stats-row -->
-
-      <!-- -- Row 3: Recent check-ins + Accessible gyms ----------- -->
-      <div class="bottom-row">
-        <!-- Recent check-ins -->
-        <div class="card section-card">
-          <div class="section-head">
-            <h3 class="section-title">Recent Check-ins</h3>
-            <span class="section-count">Last {{ data.recent_checkins.length }}</span>
-          </div>
-
-          <div v-if="data.recent_checkins.length === 0" class="empty-state">
-            <svg
-              width="40"
-              height="40"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#cbd5e1"
-              stroke-width="1.5"
-            >
-              <polyline points="9 11 12 14 22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-            <p>No check-ins yet.</p>
-          </div>
-
-          <ul v-else class="checkin-list">
-            <li v-for="c in data.recent_checkins" :key="c.id" class="checkin-item">
-              <div class="checkin-left">
-                <div class="checkin-dot" :class="`dot--${c.gym_tier}`"></div>
-                <div>
-                  <p class="checkin-gym">{{ c.gym_name }}</p>
-                  <p class="checkin-loc">{{ c.gym_sub_city }}</p>
-                </div>
-              </div>
-              <div class="checkin-right">
-                <p class="checkin-date">{{ formatDateTime(c.checked_in_at) }}</p>
-                <p v-if="c.duration_min" class="checkin-dur">{{ c.duration_min }} min</p>
-                <span class="tier-badge tier-badge--{{ c.gym_tier }}">{{
-                  tierLabel(c.gym_tier)
-                }}</span>
-              </div>
-            </li>
-          </ul>
-        </div>
-        <!-- /recent check-ins -->
-
-        <!-- Accessible gyms -->
-        <div class="card section-card">
-          <div class="section-head">
-            <h3 class="section-title">Gyms on Your Plan</h3>
-            <span class="section-count">{{ data.accessible_gyms.length }} locations</span>
-          </div>
-
-          <div v-if="data.accessible_gyms.length === 0" class="empty-state">
-            <svg
-              width="40"
-              height="40"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#cbd5e1"
-              stroke-width="1.5"
-            >
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            </svg>
-            <p>No gyms available yet.</p>
-          </div>
-
-          <ul v-else class="gym-list">
-            <li v-for="g in data.accessible_gyms" :key="g.id" class="gym-item">
-              <div class="gym-left">
-                <div class="gym-tier-dot" :class="`dot--${g.tier}`"></div>
-                <div>
-                  <p class="gym-name">{{ g.name }}</p>
-                  <p class="gym-addr">
-                    {{ g.sub_city }}<span v-if="g.city">, {{ g.city }}</span>
-                  </p>
-                </div>
-              </div>
-              <span class="tier-tag" :class="`tier-tag--${g.tier}`">{{ tierLabel(g.tier) }}</span>
-            </li>
-          </ul>
-        </div>
-        <!-- /gyms -->
-      </div>
-      <!-- /bottom-row -->
-    </template>
-
-    <!-- -- Error ------------------------------------------------ -->
-    <div v-else class="error-state">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#f87171"
-        stroke-width="1.5"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-      <p>{{ error }}</p>
-      <button class="retry-btn" @click="loadDashboard">Retry</button>
-    </div>
-  </div>
-
-  <!-- Edit Profile Modal -->
-  <div v-if="editOpen" class="modal-overlay" @click.self="editOpen = false">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Edit Profile</h3>
-        <button class="modal-close" @click="editOpen = false">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="field">
-          <label>Phone</label>
-          <input v-model="editForm.phone" type="text" placeholder="+251..." />
-        </div>
-        <div class="field">
-          <label>Job Title</label>
-          <input v-model="editForm.job_title" type="text" placeholder="e.g. Software Engineer" />
-        </div>
-        <div class="field">
-          <label>Department</label>
-          <input v-model="editForm.department" type="text" placeholder="e.g. IT" />
-        </div>
-        <div class="field">
-          <label>Branch</label>
-          <input v-model="editForm.branch" type="text" placeholder="e.g. Head Office" />
-        </div>
-        <p v-if="editError" class="edit-error">{{ editError }}</p>
-        <p v-if="editSuccess" class="edit-success">{{ editSuccess }}</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" @click="editOpen = false">Cancel</button>
-        <button class="btn-save" :disabled="editSaving" @click="saveEdit">
-          {{ editSaving ? 'Saving…' : 'Save Changes' }}
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useApi } from '@/composables/useApi'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  TRAINING_LABELS,
+  formatDate,
+  formatDuration,
+  useEmployeePortal,
+  type TrainingItem,
+} from '@/composables/useEmployeePortal'
+import FitCard from '@/components/employee/FitCard.vue'
+import CardActivate from '@/components/employee/CardActivate.vue'
+import ContentRow from '@/components/employee/ContentRow.vue'
+import ContentCard from '@/components/employee/ContentCard.vue'
+import NewsDetail from '@/components/employee/NewsDetail.vue'
+import TrainingDetail from '@/components/employee/TrainingDetail.vue'
 
-interface CheckIn {
-  id: number
-  gym_name: string
-  gym_tier: string
-  gym_sub_city: string
-  checked_in_at: string | null
-  checked_out_at: string | null
-  duration_min: number | null
-}
+const portal = useEmployeePortal()
+const router = useRouter()
+const d = computed(() => portal.data.value!)
+const card = computed(() => d.value.card)
+const firstName = computed(() => (d.value.profile.name ?? '').trim() || 'there')
 
-interface Gym {
-  id: number
-  name: string
-  tier: string
-  sub_city: string
-  city: string
-  address: string
-  facilities: string[]
-  opening_hours: string | null
-}
-
-interface DashboardData {
-  profile: {
-    name: string
-    email: string
-    phone: string
-    fan_number: string
-    card_number?: string | null
-    job_title: string
-    department: string
-    branch: string
-    photo_path: string | null
-  }
-  company: { name: string; city: string }
-  pass: {
-    plan_name: string
-    plan_key: string
-    status: string
-    valid_until: string | null
-    access_message?: string | null
-  }
-  stats: {
-    total_checkins: number
-    this_month_checkins: number
-    this_week_checkins: number
-    last_visit: string | null
-  }
-  recent_checkins: CheckIn[]
-  accessible_gyms: Gym[]
-}
-
-/** "123456789012" -> "1234 5678 9012" */
-function formatCard(n: string): string {
-  return n.replace(/(\d{4})(?=\d)/g, '$1 ')
-}
-
-const STORAGE_URL: string = import.meta.env.VITE_STORAGE_URL
-
-const api = useApi()
-const loading = ref(true)
-const error = ref('')
-const data = ref<DashboardData | null>(null)
-
-const editOpen    = ref(false)
-const editSaving  = ref(false)
-const editError   = ref('')
-const editSuccess = ref('')
-const editForm    = ref({ phone: '', job_title: '', department: '', branch: '' })
-
-function openEdit() {
-  if (!data.value) return
-  editForm.value = {
-    phone:      data.value.profile.phone ?? '',
-    job_title:  data.value.profile.job_title ?? '',
-    department: data.value.profile.department ?? '',
-    branch:     data.value.profile.branch ?? '',
-  }
-  editError.value   = ''
-  editSuccess.value = ''
-  editOpen.value    = true
-}
-
-async function saveEdit() {
-  editSaving.value  = true
-  editError.value   = ''
-  editSuccess.value = ''
-  try {
-    await api.patch('employee/profile', editForm.value)
-    editSuccess.value = 'Profile updated successfully.'
-    if (data.value) {
-      data.value.profile.phone      = editForm.value.phone
-      data.value.profile.job_title  = editForm.value.job_title
-      data.value.profile.department = editForm.value.department
-      data.value.profile.branch     = editForm.value.branch
-    }
-    setTimeout(() => { editOpen.value = false }, 900)
-  } catch (e: unknown) {
-    editError.value = e instanceof Error ? e.message : 'Failed to save changes.'
-  } finally {
-    editSaving.value = false
-  }
-}
-
-const initials = computed(() => {
-  const name = data.value?.profile.name ?? ''
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
+// ── Banner carousel: featured news, or a built-in welcome slide ──
+interface Slide { id: number | null; title: string; text: string; image: string | null; cta: string }
+const slides = computed<Slide[]>(() => {
+  const featured = d.value.featured.map((n) => ({
+    id: n.id,
+    title: n.title,
+    text: n.excerpt ?? '',
+    image: n.image_url,
+    cta: n.link_label || 'Read more',
+  }))
+  return featured.length
+    ? featured
+    : [{ id: null, title: 'Gyms available with your FitAccess card', text: 'Train at partner gyms across the city with one card, paid for by your company.', image: null, cta: 'Find a gym' }]
 })
-
-async function loadDashboard() {
-  loading.value = true
-  error.value = ''
-  try {
-    data.value = await api.get<DashboardData>('employee/dashboard')
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Could not load dashboard.'
-  } finally {
-    loading.value = false
-  }
+const slide = ref(0)
+let timer: ReturnType<typeof setInterval> | null = null
+function go(i: number) {
+  slide.value = (i + slides.value.length) % slides.value.length
+}
+function restart() {
+  if (timer) clearInterval(timer)
+  if (slides.value.length > 1) timer = setInterval(() => go(slide.value + 1), 7000)
+}
+function pause() {
+  if (timer) clearInterval(timer)
+  timer = null
+}
+onMounted(restart)
+onBeforeUnmount(pause)
+function openSlide(s: Slide) {
+  if (s.id) openNews.value = s.id
+  else router.push('/employee/gyms')
 }
 
-onMounted(loadDashboard)
-
-/* -- Helpers ---------------------------------------------------- */
-function formatDate(d: string | null): string {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+// ── Gym search ──
+const q = ref('')
+const facility = ref('')
+const facilities = computed(() =>
+  [...new Set(d.value.accessible_gyms.flatMap((g) => g.facilities ?? []))].filter(Boolean).sort(),
+)
+function search() {
+  router.push({ path: '/employee/gyms', query: { ...(q.value ? { q: q.value } : {}), ...(facility.value ? { facility: facility.value } : {}) } })
 }
 
-function formatDateTime(d: string | null): string {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+// ── Detail modals ──
+const openNews = ref<number | null>(null)
+const openTraining = ref<number | null>(null)
+function showTraining(t: TrainingItem) {
+  portal.requireCard(
+    'The training is ready!',
+    'Add your FitAccess card to your account to unlock all portal features, including trainings.',
+    () => (openTraining.value = t.id),
+  )
+}
+function onJoinChanged(id: number, joined: boolean) {
+  const t = d.value.trainings.find((x) => x.id === id)
+  if (t) t.joined = joined
 }
 
-function statusLabel(s: string): string {
-  return s === 'active'
-    ? 'Active'
-    : s === 'suspended'
-    ? 'Suspended'
-    : s === 'inactive'
-    ? 'Inactive'
-    : s === 'expired'
-    ? 'Expired'
-    : s === 'unpaid'
-    ? 'Not paid yet'
-    : s
-}
-
-function tierLabel(t: string): string {
-  return t === 'platinum'
-    ? 'Platinum'
-    : t === 'premium'
-    ? 'Premium'
-    : t === 'basic_plus'
-    ? 'Plus'
-    : 'Basic'
+const statusLabel: Record<string, string> = {
+  active: 'Active', expired: 'Expired', unpaid: 'Awaiting payment', suspended: 'Suspended', inactive: 'Not enrolled yet',
 }
 </script>
 
+<template>
+  <div class="ed">
+    <header class="ed-hello">
+      <h1>Hello {{ d.profile.name || firstName }}</h1>
+      <p>Welcome to FitAccess. Here you can find your card, partner gyms, trainings and news that help you stay fit and feel well.</p>
+    </header>
+
+    <!-- Banner -->
+    <section class="ed-banner" aria-roledescription="carousel" @mouseenter="pause" @mouseleave="restart">
+      <div v-for="(s, i) in slides" v-show="i === slide" :key="i" class="ed-slide">
+        <div class="ed-slide-media">
+          <img v-if="s.image" :src="s.image" alt="" />
+          <div v-else class="ed-slide-art" aria-hidden="true">
+            <FitCard plan="Your plan" size="lg" />
+          </div>
+        </div>
+        <div class="ed-slide-text">
+          <h2>{{ s.title }}</h2>
+          <p v-if="s.text">{{ s.text }}</p>
+          <button type="button" class="ed-btn light" @click="openSlide(s)">{{ s.cta }}</button>
+        </div>
+      </div>
+      <div v-if="slides.length > 1" class="ed-dots">
+        <button
+          v-for="(_, i) in slides"
+          :key="i"
+          type="button"
+          :class="{ on: i === slide }"
+          :aria-label="`Slide ${i + 1}`"
+          @click="go(i); restart()"
+        ></button>
+      </div>
+    </section>
+
+    <!-- Gym search -->
+    <section class="ed-section">
+      <h2 class="ed-h2">Gym Search</h2>
+      <form class="ed-search" @submit.prevent="search">
+        <label class="ed-search-q">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+          <input v-model="q" type="search" placeholder="Enter the gym's name or area" aria-label="Gym name or area" />
+        </label>
+        <label class="ed-search-f">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11M6.5 17.5h11M3 9.5v5M21 9.5v5M6.5 4v16M17.5 4v16" /></svg>
+          <select v-model="facility" aria-label="Facility">
+            <option value="">Choose facility</option>
+            <option v-for="f in facilities" :key="f" :value="f">{{ f }}</option>
+          </select>
+        </label>
+        <button type="submit" class="ed-btn">Search</button>
+      </form>
+    </section>
+
+    <!-- Card + promo -->
+    <section class="ed-duo">
+      <div class="ed-card">
+        <template v-if="card.activated">
+          <div class="ed-card-head">
+            <h2 class="ed-h3">FitAccess Card</h2>
+            <RouterLink to="/employee/cards" class="ed-more">More →</RouterLink>
+          </div>
+          <div class="ed-card-body">
+            <FitCard :plan="d.pass.plan_name" :number="card.number" :active="!card.banned && d.pass.status === 'active'" :paused="!card.banned && d.pass.status !== 'active'" :blocked="card.banned" />
+            <ul class="ed-facts">
+              <li><span class="ed-ico">▭</span>Card number: <strong>{{ card.number }}</strong></li>
+              <li v-if="!card.banned"><span class="ed-ico">📅</span>Active since: {{ formatDate(card.active_since) }}</li>
+              <li><span class="ed-ico">🏢</span>{{ card.company }}</li>
+              <li>
+                <span class="ed-ico">●</span>Access:
+                <span v-if="card.banned" class="ed-status ed-status--blocked">Blocked {{ card.banned_text }}</span>
+                <span v-else class="ed-status" :class="d.pass.status">{{ statusLabel[d.pass.status] ?? d.pass.status }}</span>
+              </li>
+            </ul>
+          </div>
+          <p v-if="card.banned" class="ed-warn ed-warn--red">
+            Your card is blocked, so you can't check in at a gym. Once the ban is lifted, the same card number works again. Contact your HR team with questions.
+          </p>
+          <p v-else-if="d.pass.access_message" class="ed-warn">{{ d.pass.access_message }}</p>
+        </template>
+        <template v-else>
+          <div class="ed-add">
+            <div class="ed-add-text">
+              <span class="ed-add-ico" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="5" width="19" height="14" rx="2" /><rect x="5.5" y="9" width="5" height="4" rx=".5" /><path d="M13.5 9.5h5M13.5 12.5h5" /></svg>
+              </span>
+              <h2 class="ed-h3">Add your FitAccess card</h2>
+              <p>Enter your FitAccess card number to access all portal features.</p>
+              <CardActivate />
+            </div>
+            <div class="ed-add-art" aria-hidden="true">
+              <FitCard :plan="d.pass.plan_name" placeholder />
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <RouterLink to="/employee/gyms" class="ed-promo">
+        <p class="ed-promo-kicker">It's all in FitAccess</p>
+        <h2>Discover where to train!</h2>
+        <p>Every workout gives you a boost of energy and a clearer head. Find partner gyms on your {{ d.pass.plan_name }} plan near you.</p>
+        <span class="ed-btn">Find your way to get moving</span>
+      </RouterLink>
+    </section>
+
+    <!-- Trainings -->
+    <ContentRow title="Trainings" more="/employee/trainings" :count="d.trainings.length" empty="New trainings will appear here soon.">
+      <ContentCard
+        v-for="t in d.trainings"
+        :key="t.id"
+        :image="t.image_url"
+        :category="TRAINING_LABELS[t.category] ?? t.category"
+        :title="t.title"
+        :badge="formatDuration(t.duration_minutes) || undefined"
+        badge-icon="time"
+        :locked="!card.activated || !!card.banned"
+        :joined="t.joined"
+        @open="showTraining(t)"
+      />
+    </ContentRow>
+
+    <!-- News -->
+    <ContentRow title="News" more="/employee/news" :count="d.news.length" empty="News from FitAccess will appear here.">
+      <ContentCard
+        v-for="n in d.news"
+        :key="n.id"
+        :image="n.image_url"
+        :category="n.category"
+        :title="n.title"
+        :excerpt="n.excerpt"
+        badge="Read"
+        badge-icon="read"
+        @open="openNews = n.id"
+      />
+    </ContentRow>
+
+    <NewsDetail v-if="openNews" :id="openNews" @close="openNews = null" />
+    <TrainingDetail
+      v-if="openTraining"
+      :id="openTraining"
+      @close="openTraining = null"
+      @changed="(j) => onJoinChanged(openTraining!, j)"
+    />
+  </div>
+</template>
+
 <style scoped>
-.dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  font-family: 'Inter', system-ui, sans-serif;
+.ed { display: flex; flex-direction: column; gap: 44px; }
+.ed-hello h1 { margin: 0 0 8px; font-family: var(--font-heading); font-size: 42px; font-weight: 600; color: #1f2937; letter-spacing: -0.02em; }
+.ed-hello p { margin: 0; max-width: 820px; color: #4b5563; font-size: 17px; line-height: 1.5; }
+.ed-h2 { margin: 0 0 18px; font-family: var(--font-heading); font-size: 30px; font-weight: 600; color: #1f2937; }
+.ed-h3 { margin: 0; font-family: var(--font-heading); font-size: 24px; font-weight: 600; color: #1f2937; }
+.ed-btn {
+  display: inline-flex; align-items: center; justify-content: center; padding: 13px 22px; border-radius: 14px;
+  border: 1.5px solid #0b0c10; background: #0b0c10; color: #fff; font-weight: 700; font-size: 14px;
+  font-family: inherit; cursor: pointer; text-decoration: none; white-space: nowrap;
 }
+.ed-btn:hover { background: #8be000; border-color: #8be000; color: #0b0c10; }
+.ed-btn.light { background: #fff; color: #0b0c10; border-color: #e5e7eb; }
+.ed-btn.light:hover { border-color: #0b0c10; }
 
-/* -- Loading / Error ------------------------------------------- */
-.loading-state,
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 80px 20px;
-  color: #94a3b8;
+/* Banner */
+.ed-banner { position: relative; border-radius: 24px; overflow: hidden; background: #eef9dc; margin-top: -16px; }
+.ed-slide { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: center; min-height: 320px; }
+.ed-slide-media { height: 100%; min-height: 320px; position: relative; }
+.ed-slide-media img { position: absolute; inset: 14px 0 14px 14px; width: calc(100% - 14px); height: calc(100% - 28px); object-fit: cover; border-radius: 18px; }
+.ed-slide-art {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 32px;
+  background: radial-gradient(90% 120% at 0% 100%, rgba(139, 224, 0, 0.6), transparent 60%);
 }
-.loading-state p,
-.error-state p {
-  font-size: 0.95rem;
-  margin: 0;
-}
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #8BE000;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.retry-btn {
-  padding: 8px 20px;
-  border-radius: 8px;
-  border: 1.5px solid #e2e8f0;
-  background: #fff;
-  font-size: 0.85rem;
-  cursor: pointer;
-  color: #334155;
-}
-.retry-btn:hover {
-  background: #f8fafc;
-}
+.ed-slide-art :deep(.fc) { transform: rotate(-6deg); }
+.ed-slide-text { padding: 36px 40px 48px; }
+.ed-slide-text h2 { margin: 0 0 14px; font-family: var(--font-heading); font-size: 38px; font-weight: 600; line-height: 1.15; color: #1f2937; }
+.ed-slide-text p { margin: 0 0 24px; color: #4b5563; font-size: 15px; line-height: 1.55; }
+.ed-dots { position: absolute; right: 22px; bottom: 18px; display: flex; gap: 8px; }
+.ed-dots button { width: 10px; height: 10px; border-radius: 50%; border: none; background: #fff; padding: 0; cursor: pointer; }
+.ed-dots button.on { background: #4d7c0f; }
 
-/* -- Cards ----------------------------------------------------- */
-.card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  overflow: hidden;
+/* Search */
+.ed-search {
+  display: flex; align-items: stretch; gap: 0; background: #fff; border-radius: 16px; padding: 8px;
+  box-shadow: 0 6px 24px rgba(11, 12, 16, 0.06);
 }
+.ed-search label { display: flex; align-items: center; gap: 10px; padding: 0 14px; color: #4d7c0f; }
+.ed-search-q { flex: 1 1 auto; min-width: 0; }
+.ed-search-f { flex: 0 0 300px; border-left: 1px solid #eef0ea; }
+.ed-search input, .ed-search select {
+  flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 15px;
+  font-family: inherit; color: #1f2937; padding: 12px 0;
+}
+.ed-search .ed-btn { padding: 13px 40px; }
 
-/* -- Row 1 ----------------------------------------------------- */
-.top-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+/* Card + promo */
+.ed-duo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; }
+.ed-card { background: #fff; border-radius: 22px; padding: 30px 32px; }
+.ed-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+.ed-more { color: #1f2937; text-decoration: none; font-weight: 600; font-size: 14px; }
+.ed-more:hover { text-decoration: underline; }
+.ed-card-body { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 28px; align-items: center; }
+.ed-facts { list-style: none; margin: 0; padding: 0; }
+.ed-facts li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f0f1ec; color: #4b5563; font-size: 14px; }
+.ed-facts li:last-child { border-bottom: none; }
+.ed-ico { width: 20px; text-align: center; color: #4d7c0f; }
+.ed-status { font-weight: 700; color: #4d7c0f; }
+.ed-status.expired, .ed-status.unpaid, .ed-status.suspended { color: #b45309; }
+.ed-status.inactive { color: #6b7280; }
+.ed-status--blocked { color: #dc2626; }
+.ed-warn--red { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.ed-warn { margin: 16px 0 0; padding: 10px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; color: #92400e; font-size: 13px; }
+.ed-add { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 22px; align-items: center; }
+.ed-add-ico { display: inline-flex; color: #4d7c0f; margin-bottom: 8px; }
+.ed-add-text p { margin: 8px 0 16px; color: #4b5563; font-size: 15px; line-height: 1.5; }
+.ed-add-art { display: flex; justify-content: center; }
+.ed-promo {
+  position: relative; overflow: hidden; border-radius: 22px; padding: 34px 32px; text-decoration: none;
+  background: radial-gradient(120% 120% at 100% 100%, rgba(139, 224, 0, 0.55) 0%, rgba(139, 224, 0, 0) 55%), #0b0c10;
+  color: #fff; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
 }
+.ed-promo-kicker { margin: 0; font-weight: 800; color: #8be000; font-size: 15px; }
+.ed-promo h2 { margin: 0; font-family: var(--font-heading); font-size: 26px; font-weight: 600; }
+.ed-promo p { margin: 0 0 12px; color: #d1d5db; font-size: 14px; line-height: 1.6; }
+.ed-promo .ed-btn { background: #fff; color: #0b0c10; border-color: #fff; margin-top: auto; }
+.ed-promo:hover .ed-btn { background: #8be000; border-color: #8be000; }
 
-/* Profile card */
-.profile-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 18px;
-  padding: 24px;
-}
-.profile-avatar {
-  flex-shrink: 0;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: linear-gradient(135deg, #8BE00022, #72B80022);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatar-initials {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #8BE000;
-  letter-spacing: -0.02em;
-}
-.profile-info {
-  flex: 1;
-  min-width: 0;
-}
-.profile-name {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.profile-meta {
-  font-size: 0.82rem;
-  color: #64748b;
-  margin: 0 0 3px;
-}
-.profile-company {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  margin: 0 0 12px;
-}
-.dot {
-  margin: 0 4px;
-}
-.profile-contacts {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.contact-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
-  color: #475569;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Pass card */
-.pass-card {
-  position: relative;
-  padding: 24px;
-  color: #fff;
-  overflow: hidden;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-}
-.pass-card--platinum,
-.pass-card--premium {
-  background: linear-gradient(135deg, #72B800 0%, #72B800 100%);
-}
-.pass-card--basic_plus {
-  background: linear-gradient(135deg, #72B800 0%, #1a9e38 100%);
-}
-.pass-card--basic {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-}
-
-.pass-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.pass-label {
-  font-size: 0.65rem;
-  letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 4px;
-}
-.pass-plan {
-  font-size: 1.3rem;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-.pass-badge {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  flex-shrink: 0;
-}
-.badge--active {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
-  border: 1px solid rgba(134, 239, 172, 0.3);
-}
-.badge--suspended {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fde68a;
-  border: 1px solid rgba(253, 230, 138, 0.3);
-}
-.badge--expired,
-.badge--unpaid {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  border: 1px solid rgba(252, 165, 165, 0.3);
-}
-.access-banner {
-  grid-column: 1 / -1;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: #fffbeb;
-  border: 1.5px solid #fde68a;
-  color: #78350f;
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-.badge--inactive {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  border: 1px solid rgba(252, 165, 165, 0.3);
-}
-
-.pass-fan {
-  margin-bottom: 20px;
-}
-.fan-label {
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 0.1em;
-  margin: 0 0 4px;
-}
-.fan-number {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  font-feature-settings: 'tnum';
-  margin: 0;
-}
-
-.pass-footer {
-  display: flex;
-  gap: 28px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 14px;
-}
-.pass-meta-label {
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 0.08em;
-  margin: 0 0 3px;
-}
-.pass-meta-val {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0;
-}
-
-/* Decorative circles */
-.pass-deco {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.04);
-  pointer-events: none;
-}
-.pass-deco-1 {
-  width: 160px;
-  height: 160px;
-  top: -60px;
-  right: -40px;
-}
-.pass-deco-2 {
-  width: 100px;
-  height: 100px;
-  bottom: -30px;
-  right: 60px;
-}
-
-/* -- Stats row ------------------------------------------------- */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-.stat-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 18px 20px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.stat-icon--total {
-  background: #f0fdf4;
-  color: #16a34a;
-}
-.stat-icon--month {
-  background: #ebfaee;
-  color: #8BE000;
-}
-.stat-icon--week {
-  background: #fef9ec;
-  color: #d97706;
-}
-.stat-icon--last {
-  background: #fdf2f8;
-  color: #8BE000;
-}
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 2px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-.stat-label {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin: 0;
-}
-
-/* -- Bottom row ------------------------------------------------ */
-.bottom-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-.section-card {
-  padding: 0;
-}
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.section-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-.section-count {
-  font-size: 0.78rem;
-  color: #94a3b8;
-}
-
-/* Empty state */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 20px;
-  color: #94a3b8;
-  font-size: 0.85rem;
-}
-
-/* Check-in list */
-.checkin-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.checkin-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 13px 20px;
-  gap: 12px;
-  border-bottom: 1px solid #f8fafc;
-}
-.checkin-item:last-child {
-  border-bottom: none;
-}
-.checkin-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.checkin-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  flex-shrink: 0;
-}
-.checkin-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.checkin-gym {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.checkin-loc {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin: 0;
-}
-.checkin-date {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin: 0;
-}
-.checkin-dur {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  margin: 0;
-}
-
-/* Gym list */
-.gym-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 420px;
-  overflow-y: auto;
-}
-.gym-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  gap: 12px;
-  border-bottom: 1px solid #f8fafc;
-}
-.gym-item:last-child {
-  border-bottom: none;
-}
-.gym-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.gym-tier-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.gym-name {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.gym-addr {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin: 0;
-}
-
-/* Tier dot colors */
-.dot--platinum {
-  background: #72B800;
-}
-.dot--premium {
-  background: #72B800;
-}
-.dot--basic_plus {
-  background: #72B800;
-}
-.dot--basic {
-  background: #64748b;
-}
-
-/* Tier badges (check-ins) */
-.tier-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.tier-badge--platinum {
-  background: #ebfaee;
-  color: #72B800;
-}
-.tier-badge--premium {
-  background: #ebfaee;
-  color: #8BE000;
-}
-.tier-badge--basic_plus {
-  background: #ebfaee;
-  color: #72B800;
-}
-.tier-badge--basic {
-  background: #f8fafc;
-  color: #64748b;
-}
-
-/* Tier tags (gym list) */
-.tier-tag {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.tier-tag--platinum {
-  background: #ebfaee;
-  color: #72B800;
-}
-.tier-tag--premium {
-  background: #ebfaee;
-  color: #8BE000;
-}
-.tier-tag--basic_plus {
-  background: #EEF9DC;
-  color: #72B800;
-}
-.tier-tag--basic {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-/* -- Responsive ------------------------------------------------ */
 @media (max-width: 1100px) {
-  .top-row {
-    grid-template-columns: 1fr;
-  }
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .bottom-row {
-    grid-template-columns: 1fr;
-  }
+  .ed-duo { grid-template-columns: 1fr; }
 }
-@media (max-width: 600px) {
-  .stats-row {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-/* -- Edit button & modal --------------------------------------- */
-.profile-name-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 12px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: #4D7C0F;
-  background: #EEF9DC;
-  border: 1px solid #D9F2AE;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.edit-btn:hover { background: #EEF9DC; }
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-.modal {
-  background: #fff;
-  border-radius: 14px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-  overflow: hidden;
-}
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.modal-header h3 { font-size: 1rem; font-weight: 600; color: #0f172a; margin: 0; }
-.modal-close {
-  background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px;
-  display: flex; align-items: center;
-}
-.modal-close:hover { color: #475569; }
-
-.modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
-.field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 0.78rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-.field input {
-  padding: 9px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  color: #0f172a;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.field input:focus { border-color: #4D7C0F; }
-
-.edit-error   { font-size: 0.83rem; color: #ef4444; margin: 0; }
-.edit-success { font-size: 0.83rem; color: #22c55e; margin: 0; }
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 22px 18px;
-  border-top: 1px solid #f1f5f9;
-}
-.btn-cancel {
-  padding: 8px 18px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  cursor: pointer;
-  color: #475569;
-}
-.btn-cancel:hover { background: #f8fafc; }
-.btn-save {
-  padding: 8px 20px;
-  background: #4D7C0F;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-save:hover:not(:disabled) { background: #4D7C0F; }
-.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
-
-@media (prefers-color-scheme: dark) {
-  .modal { background: #1e293b; }
-  .modal-header { border-color: #334155; }
-  .modal-header h3 { color: #f1f5f9; }
-  .field label { color: #94a3b8; }
-  .field input { background: #0f172a; border-color: #334155; color: #f1f5f9; }
-  .field input:focus { border-color: #4D7C0F; }
-  .modal-footer { border-color: #334155; }
-  .btn-cancel { background: #1e293b; border-color: #334155; color: #94a3b8; }
-  .btn-cancel:hover { background: #334155; }
-  .edit-btn { background: #1F2A0E; border-color: #4D7C0F; color: #8BE000; }
-  .edit-btn:hover { background: #4D7C0F; }
+@media (max-width: 800px) {
+  .ed-hello h1 { font-size: 30px; }
+  .ed-slide { grid-template-columns: 1fr; }
+  .ed-slide-media { min-height: 200px; }
+  .ed-slide-media img { inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); }
+  .ed-slide-text { padding: 20px 22px 44px; }
+  .ed-slide-text h2 { font-size: 26px; }
+  .ed-search { flex-direction: column; gap: 6px; }
+  .ed-search-f { flex-basis: auto; border-left: none; border-top: 1px solid #eef0ea; }
+  .ed-card { padding: 22px 20px; }
+  .ed-card-body, .ed-add { grid-template-columns: 1fr; }
+  .ed-add-art { display: none; }
+  .ed-h2 { font-size: 24px; }
 }
 </style>

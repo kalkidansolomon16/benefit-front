@@ -48,8 +48,12 @@
           <option value="draft">Draft</option>
           <option value="sent">Sent</option>
           <option value="paid">Paid</option>
-          <option value="overdue">Overdue</option>
+          <option value="overdue">Overdue (grace period)</option>
+          <option value="closed">Closed</option>
         </select>
+        <button v-if="draftCount" class="btn-drafts" :disabled="sendingDrafts" @click="sendAllDrafts">
+          {{ sendingDrafts ? 'Sending…' : `Send all drafts (${draftCount})` }}
+        </button>
         <button class="btn-generate" @click="openGenerate">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Generate Invoice
@@ -74,6 +78,7 @@
           </div>
           <div class="inv-right">
             <p class="inv-amount">ETB {{ Number(inv.total_amount).toLocaleString() }}</p>
+            <p v-if="Number(inv.late_fee_amount) > 0" class="fee-line">incl. late fee ETB {{ Number(inv.late_fee_amount).toLocaleString() }}</p>
             <span class="inv-badge" :class="'inv-' + inv.status">{{ invStatusLabel(inv.status) }}</span>
           </div>
         </div>
@@ -237,6 +242,9 @@
               <p v-if="genPreview" class="coverage-note">
                 Paying this invoice gives the employees access from <strong>{{ fmtDay(genPreview.period_start) }}</strong>
                 to <strong>{{ fmtDay(genPreview.period_end) }}</strong>. After that, check-in stops until the next invoice is paid.
+                <template v-if="genPreview.payment_window">
+                  Payment {{ genPreview.payment_window }}; after that staff access is paused and the invoice closes.
+                </template>
                 <template v-if="genPreview.preferred_months !== genForm.period_months">
                   The company prefers to pay <strong>{{ cycleLabel(genPreview.preferred_months).toLowerCase() }}</strong>.
                 </template>
@@ -251,7 +259,7 @@
               </div>
               <div class="field-row">
                 <div class="field">
-                  <label>Due Date</label>
+                  <label>Payment due</label>
                   <div class="date-wrap">
                     <input class="date-input" type="date" v-model="genForm.due_date" />
                     <svg class="date-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -299,6 +307,10 @@
                 <template v-if="genPreview.already_covered">{{ genPreview.already_covered }} already paid until after {{ fmtDay(genPreview.period_start) }}</template>
                 <template v-if="genPreview.already_covered && genPreview.already_invoiced">; </template>
                 <template v-if="genPreview.already_invoiced">{{ genPreview.already_invoiced }} already on an unpaid invoice</template>.
+              </p>
+              <p v-if="genPreview && genPreview.renewals" class="coverage-note coverage-note--muted">
+                Renewal: {{ genPreview.renewals }} of these employee{{ genPreview.renewals !== 1 ? 's were' : ' was' }} paid before —
+                their current paid period ends before {{ fmtDay(genPreview.period_start) }}, so this invoice extends it.
               </p>
               <div v-if="previewLoading" class="preview-loading">Calculating…</div>
               <div v-if="genPreview && genPreview.total < 100 && !previewLoading" class="preview-zero-warn">
@@ -621,6 +633,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { confirmDialog } from '@/composables/useDialog'
 import { useApi } from '@/composables/useApi'
 import { useRoute } from 'vue-router'
 import AppPagination from '@/components/AppPagination.vue'
@@ -633,13 +646,15 @@ interface InvoicePreview {
   preferred_months: number; period_months: number
   period_start: string; period_end: string; period_text: string
   employees: number; total: number; groups: PreviewGroup[]
-  already_covered: number; already_invoiced: number; zero_plans: string[]
+  already_covered: number; already_invoiced: number; renewals?: number; zero_plans: string[]
+  due_date?: string; closes_on?: string; payment_window?: string; late_fee_percent?: number
 }
 interface LatestPayment { status: string; submitted_at: string; payment_method_bank: string; admin_notes: string | null }
 interface Invoice {
   id: number; invoice_number: string; billing_period: string; total_amount: number
   period_months?: number; period_start?: string | null; period_end?: string | null; covered_count?: number
   due_date: string | null; notes: string | null; status: string
+  late_fee_amount?: number; closes_on?: string | null
   sent_at: string | null; paid_at: string | null; created_at: string
   company: { id: number; name: string; contact_email: string; contact_phone: string } | null
   branch_scoped?: boolean; branch?: { id: number | null; name: string } | null
@@ -822,6 +837,24 @@ onMounted(async () => {
 watch(filteredInvoices, () => { invPage.value = 1 })
 
 // -- Generate invoice -------------------------------------------
+// Drafts are created automatically on the 21st; finance checks and sends them in one click
+const sendingDrafts = ref(false)
+const draftCount = computed(() => invoices.value.filter((i) => i.status === 'draft').length)
+async function sendAllDrafts() {
+  const n = draftCount.value
+  if (!n || !(await confirmDialog({ title: 'Send all drafts?', message: `Send ${n} draft invoice${n === 1 ? '' : 's'} to the companies now? Each company is emailed its invoice.`, confirmText: `Send ${n}` }))) return
+  sendingDrafts.value = true
+  try {
+    const r = await api.post<{ message: string }>('admin/billing/invoices/send-drafts', {})
+    showToast(r.message)
+    await loadInvoices()
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : 'Could not send the drafts.', 'error')
+  } finally {
+    sendingDrafts.value = false
+  }
+}
+
 function openGenerate() {
   Object.assign(genForm, { company_id: '', employee_id: null, employee_name: '', branch: '', period_months: 1, period_start: '', due_date: '', notes: '' })
   genBranches.value = []
@@ -862,6 +895,7 @@ async function previewInvoice() {
     genPreview.value = res
     genForm.period_months = res.period_months
     genForm.period_start  = res.period_start
+    if (!genForm.due_date && res.due_date) genForm.due_date = res.due_date
     usePreferredMonths = false
   } catch (e: unknown) {
     genPreview.value = null
@@ -1046,7 +1080,7 @@ async function confirmCompanyAction() {
 
 // -- Helpers ----------------------------------------------------
 function invStatusLabel(s: string) {
-  return { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' }[s] ?? s
+  return { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue (grace period)', closed: 'Closed' }[s] ?? s
 }
 function formatDate(dt: string | null) {
   if (!dt) return '—'
@@ -1112,7 +1146,9 @@ function formatDate(dt: string | null) {
 .inv-draft   { background: #f1f5f9; color: #64748b; }
 .inv-sent    { background: #EBFAEE; color: #72B800; }
 .inv-paid    { background: #d1fae5; color: #72B800; }
-.inv-overdue { background: #fee2e2; color: #dc2626; }
+.inv-overdue { background: #fef3c7; color: #b45309; }
+.inv-closed { background: #fee2e2; color: #dc2626; }
+.fee-line { margin: 2px 0 0; font-size: .72rem; color: #b45309; font-weight: 600; }
 
 /* Receipt cards */
 .receipts-list { display: flex; flex-direction: column; gap: 14px; }
@@ -1318,4 +1354,7 @@ function formatDate(dt: string | null) {
 .inv-branch { color: #4D7C0F; font-weight: 600; }
 .per-branch { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
 .per-branch-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.84rem; color: #334155; }
+.btn-drafts { padding: 10px 16px; border-radius: 10px; border: 1.5px solid #8BE000; background: #f3fce6; color: #0b0c10; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-right: 8px; }
+.btn-drafts:hover:not(:disabled) { background: #8BE000; }
+.btn-drafts:disabled { opacity: .6; cursor: default; }
 </style>

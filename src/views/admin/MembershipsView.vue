@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 
 const api = useApi()
@@ -348,7 +349,7 @@ async function reinstate(m: MembershipRow) {
 
 /* ── Delete ──────────────────────────────────────────────────── */
 async function remove(m: MembershipRow) {
-  if (!confirm(`Delete ${m.employee_name}'s membership at ${m.gym_name}?`)) return
+  if (!(await confirmDialog({ title: 'Delete?', message: `Delete ${m.employee_name}'s membership at ${m.gym_name}?`, confirmText: 'Delete', danger: true }))) return
   try {
     await api.delete(`memberships/${m.id}`)
     memberships.value = memberships.value.filter(x => x.id !== m.id)

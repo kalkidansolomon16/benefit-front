@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AuthShell from '@/components/AuthShell.vue'
+import '@/assets/auth-form.css'
 import { ref, computed } from 'vue'
 import BranchFields from '@/components/BranchFields.vue'
 import { emptyBranch, branchValid, branchMissing, branchPayload, type BranchForm } from '@/utils/branches'
@@ -82,7 +84,6 @@ const step1Valid = computed(
     companyName.value.trim() &&
     industry.value &&
     companySize.value &&
-    tin.value.trim() &&
     branchesOk.value
 )
 const step2Valid = computed(() => {
@@ -154,12 +155,8 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="signup-page">
-    <div class="signup-card">
-      <!-- Brand -->
-      <RouterLink to="/" class="brand" aria-label="FitAccess home">
-        <span class="brand-name">FitAccess</span>
-      </RouterLink>
+  <AuthShell variant="company" prompt="Already have an account?" action-label="Log in" action-to="/login" wide>
+    <div class="signup-card af">
 
       <!-- -- Application sent -- -->
       <div v-if="submittedRef" class="card-body done">
@@ -176,9 +173,10 @@ async function handleSubmit() {
           <p class="done-steps-title">What now?</p>
           <ol>
             <li>Our team will contact you within the next 2 business days to discuss the details.</li>
-            <li>We verify your company information, including your TIN.</li>
+            <li>We verify your company information (including your TIN, if you gave one).</li>
             <li>Once approved, you receive an email with your login details and a temporary password.
               You will choose your own password when you first sign in.</li>
+            <li>You receive the Employee Enrolment and Consent Form and the staff-list template. Companies that finish registration and sign by the 15th start on the 1st of next month; your staff list is due on the 20th.</li>
           </ol>
         </div>
         <div class="actions">
@@ -229,7 +227,7 @@ async function handleSubmit() {
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Only the person who has authority to represent this company should register here.
         </div>
-        <p class="subtext">Tell us about your Ethiopian organisation. All billing is in ETB.</p>
+        <p class="subtext">Tell us about your organisation.</p>
 
         <div class="fields">
           <div class="field-group">
@@ -287,8 +285,8 @@ async function handleSubmit() {
               </div>
             </div>
             <div class="field-group">
-              <label class="field-label">TIN Number <span class="req">*</span></label>
-              <input v-model="tin" type="text" class="input" placeholder="Tax ID Number" required />
+              <label class="field-label">TIN Number <span class="optional">(optional)</span></label>
+              <input v-model="tin" type="text" class="input" placeholder="Tax ID Number (if available)" />
             </div>
           </div>
 
@@ -409,7 +407,7 @@ async function handleSubmit() {
               v-model="workEmail"
               type="email"
               class="input"
-              placeholder="tigist@company.com.et"
+              placeholder="Your work e-mail address"
               autocomplete="email"
             />
           </div>
@@ -418,7 +416,7 @@ async function handleSubmit() {
             <label class="field-label">Phone Number <span class="req">*</span></label>
             <div class="phone-wrap">
               <div class="phone-prefix">
-                <span class="flag">🇪🇹</span>
+                
                 <span>+251</span>
               </div>
               <input
@@ -482,7 +480,7 @@ async function handleSubmit() {
               <dt>Company name</dt><dd>{{ companyName }}</dd>
               <dt>Industry</dt><dd>{{ industryLabel }}</dd>
               <dt>Number of employees</dt><dd>{{ companySize }}</dd>
-              <dt>TIN number</dt><dd>{{ tin }}</dd>
+              <dt>TIN number</dt><dd>{{ tin || 'Not provided' }}</dd>
               <template v-if="hasBranches && branches.length">
                 <dt>Other branches</dt><dd>{{ branches.map((b) => b.branch_name).join(', ') }}</dd>
               </template>
@@ -531,14 +529,7 @@ async function handleSubmit() {
     <!-- /card -->
 
     <!-- Footer -->
-    <footer class="signup-footer">
-      <p class="footer-notice">
-        Protected by FitAccess Ethiopia &nbsp;·&nbsp;
-        <a href="#">Privacy Policy</a> &nbsp;·&nbsp;
-        <a href="#">Terms of Service</a>
-      </p>
-    </footer>
-  </div>
+  </AuthShell>
 </template>
 
 <style scoped>

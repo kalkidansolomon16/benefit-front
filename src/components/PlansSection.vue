@@ -328,7 +328,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 16px 40px rgba(11, 12, 16, 0.12);
 }
 .plan-card.popular { border-color: #8BE000; }
-.plan-card--premium { border-color: #E3C770; background: #FFFCF3; }
 
 .plan-flag {
   position: absolute;
@@ -376,16 +375,13 @@ onBeforeUnmount(() => {
   border: 18px solid rgba(139, 224, 0, 0.35);
   z-index: -1;
 }
-.card-art--basic { background: linear-gradient(135deg, #F4F4F4 0%, #CFCFCF 55%, #A9A9A9 100%); color: #0B0C10; }
-.card-art--plus  { background: linear-gradient(135deg, #B7F04A 0%, #8BE000 50%, #5E9A00 100%); color: #0B0C10; }
-.card-art--plus::after { border-color: rgba(11, 12, 16, 0.18); }
-/* Premium / platinum: gold */
-.card-art--premium {
-  background: linear-gradient(135deg, #FFF1B8 0%, #F2C94C 35%, #D4A017 65%, #A97C10 100%);
-  color: #3A2A00;
-}
-.card-art--premium::before { background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.7) 48%, transparent 60%); }
-.card-art--premium::after { border-color: rgba(255, 255, 255, 0.35); }
+/* Every package uses the Basic Plus lime card (client request); the tier name tells them apart */
+.card-art--basic,
+.card-art--plus,
+.card-art--premium { background: linear-gradient(135deg, #B7F04A 0%, #8BE000 50%, #5E9A00 100%); color: #0B0C10; }
+.card-art--basic::after,
+.card-art--plus::after,
+.card-art--premium::after { border-color: rgba(11, 12, 16, 0.18); }
 
 .art-top { display: flex; align-items: center; gap: 6px; }
 .art-logo { width: 20px; height: 20px; object-fit: contain; }
@@ -464,8 +460,6 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
 }
-.plan-card--premium .tick,
-.pd-dialog--premium .tick { background: #E9B92E; }
 
 .more-btn {
   align-self: flex-start;
@@ -506,7 +500,6 @@ onBeforeUnmount(() => {
   transition: background 0.2s, color 0.2s;
 }
 .plan-btn:hover { background: #8BE000; color: #0B0C10; }
-.plan-card--premium .plan-btn:hover { background: #E9B92E; }
 .plan-note {
   margin: 12px 0 0;
   text-align: center;
@@ -539,8 +532,6 @@ onBeforeUnmount(() => {
   color: #0B0C10;
   border-top: 6px solid #8BE000;
 }
-.pd-dialog--basic { border-top-color: #A9A9A9; }
-.pd-dialog--premium { border-top-color: #E9B92E; }
 .pd-close {
   position: absolute;
   top: 14px;
@@ -568,8 +559,6 @@ onBeforeUnmount(() => {
 .card-art--mini .art-tier { font-size: 0.5rem; letter-spacing: 0.12em; margin-bottom: auto; }
 .card-art--mini::after { width: 90px; height: 90px; border-width: 10px; right: -20px; bottom: -34px; }
 .pd-tagline { margin: 0 0 4px; font-size: 0.82rem; font-weight: 700; color: #5E9A00; text-transform: uppercase; letter-spacing: 0.05em; }
-.pd-dialog--premium .pd-tagline { color: #A97C10; }
-.pd-dialog--basic .pd-tagline { color: #555; }
 .pd-title { margin: 0; font-size: 1.6rem; font-weight: 900; line-height: 1.15; }
 .pd-intro { margin: 0 0 6px; font-size: 0.95rem; line-height: 1.6; }
 .pd-sub { margin: 20px 0 10px; font-size: 0.95rem; font-weight: 800; }
@@ -592,7 +581,6 @@ onBeforeUnmount(() => {
   font-size: 0.88rem;
   line-height: 1.5;
 }
-.pd-dialog--premium .pd-price { background: #FFF6D6; }
 .pd-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
 .pd-btn { width: auto; flex: 1 1 180px; }
 .pd-btn-outline {

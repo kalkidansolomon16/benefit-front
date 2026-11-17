@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="hr-shell">
 
     <!-- ── Sidebar ─────────────────────────────────────────────── -->
@@ -56,11 +56,7 @@
           <h1 class="page-title">{{ currentTitle }}</h1>
           <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
         </div>
-        <!-- Register Employee shortcut on dashboard -->
-        <RouterLink v-if="route.name === 'hr-dashboard' && auth.hasPermission('co.employees.register')" to="/hr/register" class="btn-register">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-          Register Employee
-        </RouterLink>
+        <NotificationBell class="top-bell" />
       </header>
 
       <main class="page-content">
@@ -74,6 +70,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import NotificationBell from '@/components/NotificationBell.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useApi } from '@/composables/useApi'
 
@@ -100,11 +97,6 @@ const navItems = computed(() => {
       name: 'dashboard', label: 'Dashboard', to: '/hr/dashboard',
       permission: 'co.dashboard.view',
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
-    },
-    {
-      name: 'register', label: 'Register Employee', to: '/hr/register',
-      permission: 'co.employees.register',
-      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`,
     },
     {
       name: 'employees', label: 'Employees', to: '/hr/employees',
@@ -143,7 +135,6 @@ const navItems = computed(() => {
 const pageMeta: Record<string, { title: string; sub?: string }> = {
   'hr-branches': { title: 'Branches', sub: 'Head office and branch locations' },
   'hr-dashboard': { title: `Welcome, ${companyName.value}`, sub: 'Corporate membership overview' },
-  'hr-register':  { title: 'Register Employee', sub: 'Add a new employee to the gym membership programme' },
   'hr-employees': { title: 'Employees' },
   'hr-billing':   { title: 'Billing & Invoices', sub: 'View invoices and submit payments' },
   'hr-team':      { title: 'Team Management', sub: 'Manage Finance and CEO sub-accounts' },
@@ -276,6 +267,7 @@ async function handleLogout() {
   transition: opacity .15s;
 }
 .btn-register:hover { opacity: .85; }
+.top-bell { margin-left: 12px; flex-shrink: 0; }
 
 .page-content {
   flex: 1; padding: 20px 32px 32px;

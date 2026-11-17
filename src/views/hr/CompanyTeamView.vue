@@ -223,6 +223,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { alertDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 
 const auth = useAuthStore()
@@ -335,7 +336,7 @@ async function toggleActive(m: Member) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    alert(err.message || 'Failed to update status.')
+    await alertDialog({ title: 'Something went wrong', message: err.message || 'Failed to update status.', tone: 'error' })
     return
   }
   fetchMembers()

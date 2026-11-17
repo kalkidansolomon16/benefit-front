@@ -86,6 +86,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { confirmDialog } from '@/composables/useDialog'
 
 const auth = useAuthStore()
 const API  = import.meta.env.VITE_API_BASE_URL
@@ -162,7 +163,7 @@ async function addRole() {
 }
 
 async function deleteRole(role: Role) {
-  if (!confirm(`Delete role "${role.label}"? Users with this role will keep it but it won't be assignable.`)) return
+  if (!(await confirmDialog({ title: 'Delete role?', message: `Delete role "${role.label}"? Users with this role will keep it but it won't be assignable.`, confirmText: 'Delete', danger: true }))) return
   deletingId.value = role.id
   errorMsg.value = ''
   try {

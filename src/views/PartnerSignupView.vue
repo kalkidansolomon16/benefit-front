@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AuthShell from '@/components/AuthShell.vue'
+import '@/assets/auth-form.css'
 import { ref, computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import BranchFields from '@/components/BranchFields.vue'
@@ -45,14 +47,14 @@ const websiteOk = computed(() => {
 })
 
 const serviceCategories = [
-  { id: 'gym', label: '🏋️ Gym & Fitness Center' },
-  { id: 'swimming', label: '🏊 Swimming Pool' },
-  { id: 'spa', label: '💆 Spa & Hydrotherapy' },
-  { id: 'reflexology', label: '🦶 Reflexology & Massage Center' },
-  { id: 'cinema', label: '🎬 Cinema / Theatre' },
-  { id: 'yoga', label: '🧘 Yoga & Pilates Studio' },
-  { id: 'sauna', label: '🧖 Sauna & Steam Room' },
-  { id: 'nutrition', label: '🥗 Nutrition & Wellness Clinic' },
+  { id: 'gym', label: 'Gym & Fitness Center' },
+  { id: 'swimming', label: 'Swimming Pool' },
+  { id: 'spa', label: 'Spa & Hydrotherapy' },
+  { id: 'reflexology', label: 'Reflexology & Massage Center' },
+  { id: 'cinema', label: 'Cinema / Theatre' },
+  { id: 'yoga', label: 'Yoga & Pilates Studio' },
+  { id: 'sauna', label: 'Sauna & Steam Room' },
+  { id: 'nutrition', label: 'Nutrition & Wellness Clinic' },
 ]
 
 function toggleCategory(id: string) {
@@ -70,7 +72,6 @@ const step1Valid = computed(() => {
     contactPerson.value.trim() &&
     phoneOk &&
     emailOk &&
-    tinNumber.value.trim() &&
     websiteOk.value
   )
 })
@@ -157,14 +158,14 @@ const maxCapacity = ref('')
 const selectedAmenities = ref<string[]>([])
 
 const amenitiesList = [
-  { id: 'locker', label: '🚪 Locker Rooms' },
-  { id: 'parking', label: '🅿️ Parking' },
-  { id: 'classes', label: '👥 Group Classes' },
-  { id: 'personal', label: '💪 Personal Training' },
-  { id: 'cafe', label: '☕ Café / Juice Bar' },
-  { id: 'wifi', label: '📶 Free Wi-Fi' },
-  { id: 'shower', label: '🚿 Showers' },
-  { id: 'ac', label: '❄️ Air Conditioning' },
+  { id: 'locker', label: 'Locker Rooms' },
+  { id: 'parking', label: 'Parking' },
+  { id: 'classes', label: 'Group Classes' },
+  { id: 'personal', label: 'Personal Training' },
+  { id: 'cafe', label: 'Café / Juice Bar' },
+  { id: 'wifi', label: 'Free Wi-Fi' },
+  { id: 'shower', label: 'Showers' },
+  { id: 'ac', label: 'Air Conditioning' },
 ]
 
 function toggleAmenity(id: string) {
@@ -347,14 +348,8 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
 </script>
 
 <template>
-  <div class="signup-page">
-    <div class="signup-card">
-      <!-- Brand -->
-      <RouterLink to="/" class="brand" aria-label="FitAccess home">
-        <span class="brand-icon">F</span>
-        <span class="brand-name">FitAccess</span>
-        <span class="brand-tag">Partner Portal</span>
-      </RouterLink>
+  <AuthShell variant="partner" prompt="Already have an account?" action-label="Log in" action-to="/login" wide>
+    <div class="signup-card af">
 
       <!-- -- Application sent -- -->
       <div v-if="submittedRef" class="card-body done">
@@ -374,6 +369,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
             <li>We check that your facility meets our terms of cooperation.</li>
             <li>Once approved, you receive an email with your login details and a temporary password.
               You will choose your own password when you first sign in.</li>
+            <li>Centers that apply by the 10th are approved and listed in the FitAccess app by the 22nd, and receive members from the 1st of the next month.</li>
           </ol>
         </div>
         <div class="actions">
@@ -486,7 +482,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
               <label class="field-label">Contact Phone <span class="req">*</span></label>
               <div class="phone-wrap">
                 <div class="phone-prefix">
-                  <span class="flag">🇪🇹</span>
+                  
                   <span>+251</span>
                 </div>
                 <input
@@ -504,7 +500,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
                 v-model="contactEmail"
                 type="email"
                 class="input"
-                placeholder="info@yourfacility.et"
+                placeholder="Your facility e-mail address"
               />
             </div>
           </div>
@@ -512,7 +508,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
           <!-- TIN -->
           <div class="field-group">
             <label class="field-label"
-              >TIN (Taxpayer Identification Number) <span class="req">*</span></label
+              >TIN (Taxpayer Identification Number) <span class="optional">(optional)</span></label
             >
             <input
               v-model="tinNumber"
@@ -953,7 +949,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
             <dl class="review-list">
               <dt>Facility name</dt><dd>{{ facilityName }}</dd>
               <dt>Services</dt><dd>{{ selectedCategories.length }} selected</dd>
-              <dt>TIN</dt><dd>{{ tinNumber }}</dd>
+              <dt>TIN</dt><dd>{{ tinNumber || 'Not provided' }}</dd>
               <template v-if="normalizedWebsite()">
                 <dt>Website</dt><dd>{{ normalizedWebsite() }}</dd>
               </template>
@@ -1024,15 +1020,7 @@ const stepLabels = ['Identity', 'Location', 'Operations', 'Review']
       </div>
     </div>
     <!-- /card -->
-
-    <footer class="signup-footer">
-      <p class="footer-notice">
-        Protected by FitAccess Ethiopia &nbsp;·&nbsp;
-        <a href="#">Privacy Policy</a> &nbsp;·&nbsp;
-        <a href="#">Partner Terms</a>
-      </p>
-    </footer>
-  </div>
+  </AuthShell>
 </template>
 
 <style scoped>

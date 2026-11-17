@@ -5,44 +5,45 @@
     <!-- Error banner -->
     <div v-if="error" class="banner-error">{{ error }}</div>
 
+    <div class="layout">
     <form @submit.prevent="submit" class="form-body">
 
       <!-- ── Personal Information ──────────────────────────────── -->
       <div class="form-card">
-        <h2 class="section-title">PERSONAL INFORMATION</h2>
+        <h2 class="section-title"><span class="sec-num">1</span>Personal information</h2>
         <div class="name-row">
           <div class="field">
-            <label class="field-label">FIRST NAME</label>
-            <input v-model="form.first_name" class="input" :class="{ 'input-error': errors.first_name }" placeholder="Abebe" />
+            <label class="field-label">First name <span class="req">*</span></label>
+            <input v-model="form.first_name" class="input" :class="{ 'input-error': errors.first_name }" placeholder="Employee's first name" />
             <p v-if="errors.first_name" class="err-msg">{{ errors.first_name }}</p>
           </div>
           <div class="field">
-            <label class="field-label">MIDDLE NAME</label>
-            <input v-model="form.middle_name" class="input" :class="{ 'input-error': errors.middle_name }" placeholder="Girma" />
+            <label class="field-label">Middle name <span class="req">*</span></label>
+            <input v-model="form.middle_name" class="input" :class="{ 'input-error': errors.middle_name }" placeholder="Father's name" />
             <p v-if="errors.middle_name" class="err-msg">{{ errors.middle_name }}</p>
           </div>
           <div class="field">
-            <label class="field-label">LAST NAME</label>
-            <input v-model="form.last_name" class="input" :class="{ 'input-error': errors.last_name }" placeholder="Haile" />
+            <label class="field-label">Last name <span class="req">*</span></label>
+            <input v-model="form.last_name" class="input" :class="{ 'input-error': errors.last_name }" placeholder="Grandfather's name" />
             <p v-if="errors.last_name" class="err-msg">{{ errors.last_name }}</p>
           </div>
         </div>
 
         <div class="two-col">
           <div class="field">
-            <label class="field-label">FAN NUMBER (ETHIOPIAN NATIONAL ID)</label>
+            <label class="field-label">FAN number (Ethiopian national ID) <span class="req">*</span></label>
             <input
               v-model="form.fan_number"
               class="input input-full"
               :class="{ 'input-error': errors.fan_number }"
-              placeholder="e.g. 1234567890123"
+              placeholder="Digits only, e.g. 1234567890123"
               maxlength="20"
               @input="form.fan_number = form.fan_number.replace(/\D/g, '')"
             />
             <p v-if="errors.fan_number" class="err-msg">{{ errors.fan_number }}</p>
           </div>
           <div class="field">
-            <label class="field-label">DATE JOINED COMPANY</label>
+            <label class="field-label">Date joined the company</label>
             <div class="date-wrap">
               <input v-model="form.joined_at" type="date" class="input input-full date-input-styled" />
               <svg class="date-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -55,31 +56,31 @@
 
       <!-- ── Account Credentials ───────────────────────────────── -->
       <div class="form-card">
-        <h2 class="section-title">ACCOUNT CREDENTIALS</h2>
+        <h2 class="section-title"><span class="sec-num">2</span>Sign-in details</h2>
         <p class="section-hint">The employee will use these to log in. They can change their password after first login.</p>
 
-        <div class="field" style="margin-bottom: 14px;">
-          <label class="field-label">EMAIL ADDRESS <span class="req">*</span></label>
+        <div class="field" style="margin-bottom: 24px;">
+          <label class="field-label">E-mail address <span class="req">*</span></label>
           <input
             v-model="form.email"
             type="email"
             class="input input-full"
             :class="{ 'input-error': errors.email }"
-            placeholder="employee@company.com"
+            placeholder="Employee's e-mail address"
           />
           <p v-if="errors.email" class="err-msg">{{ errors.email }}</p>
         </div>
 
         <div class="two-col">
           <div class="field">
-            <label class="field-label">TEMPORARY PASSWORD <span class="req">*</span></label>
+            <label class="field-label">Temporary password <span class="req">*</span></label>
             <div class="pw-wrap">
               <input
                 v-model="form.temp_password"
                 :type="showPw ? 'text' : 'password'"
                 class="input input-full"
                 :class="{ 'input-error': errors.temp_password }"
-                placeholder="Min. 6 characters"
+                placeholder="12+ characters, A-z, 0-9, symbol"
                 autocomplete="new-password"
               />
               <button type="button" class="pw-toggle" @click="showPw = !showPw" :title="showPw ? 'Hide' : 'Show'">
@@ -90,14 +91,14 @@
             <p v-if="errors.temp_password" class="err-msg">{{ errors.temp_password }}</p>
           </div>
           <div class="field">
-            <label class="field-label">CONFIRM PASSWORD <span class="req">*</span></label>
+            <label class="field-label">Confirm password <span class="req">*</span></label>
             <div class="pw-wrap">
               <input
                 v-model="form.confirm_password"
                 :type="showConfirm ? 'text' : 'password'"
                 class="input input-full"
                 :class="{ 'input-error': errors.confirm_password }"
-                placeholder="Repeat password"
+                placeholder="Type the password again"
                 autocomplete="new-password"
               />
               <button type="button" class="pw-toggle" @click="showConfirm = !showConfirm">
@@ -112,7 +113,7 @@
 
       <!-- ── Employee Photo ────────────────────────────────────── -->
       <div class="form-card">
-        <h2 class="section-title">EMPLOYEE PHOTO</h2>
+        <h2 class="section-title"><span class="sec-num">3</span>Employee photo</h2>
         <div
           class="photo-zone"
           :class="{ 'photo-zone--over': isDragging, 'photo-zone--filled': photoPreview }"
@@ -137,24 +138,24 @@
 
       <!-- ── Work Details ──────────────────────────────────────── -->
       <div class="form-card">
-        <h2 class="section-title">WORK DETAILS</h2>
+        <h2 class="section-title"><span class="sec-num">4</span>Work details</h2>
         <div class="two-col">
           <div class="field">
-            <label class="field-label">PACKAGE</label>
-            <select v-model="form.package" class="input" :class="{ 'input-error': errors.package }">
+            <label class="field-label">Package <span class="req">*</span></label>
+            <select v-model="form.package" class="input select" :class="{ 'input-error': errors.package }">
               <option value="">Select package…</option>
               <option v-for="p in plans" :key="p.tier" :value="p.tier">{{ p.name }}</option>
             </select>
             <p v-if="errors.package" class="err-msg">{{ errors.package }}</p>
           </div>
           <div class="field">
-            <label class="field-label">PHONE (OPTIONAL)</label>
-            <input v-model="form.phone" class="input" placeholder="+251 9xx xxx xxxx" />
+            <label class="field-label">Phone (optional)</label>
+            <input v-model="form.phone" type="tel" class="input" placeholder="+251 9xx xxx xxx" />
           </div>
         </div>
         <div v-if="!myBranchId && branchOptions.length" class="field">
-          <label class="field-label">BRANCH (OPTIONAL)</label>
-          <select v-model="form.company_branch_id" class="input">
+          <label class="field-label">Branch (optional)</label>
+          <select v-model="form.company_branch_id" class="input select">
             <option value="">Head office</option>
             <option v-for="b in branchOptions" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
           </select>
@@ -162,19 +163,19 @@
         <p v-else-if="myBranchId" class="section-hint">Employees you register are added to your branch.</p>
         <div class="two-col">
           <div class="field">
-            <label class="field-label">JOB TITLE (OPTIONAL)</label>
-            <input v-model="form.job_title" class="input" placeholder="Software Engineer" />
+            <label class="field-label">Job title (optional)</label>
+            <input v-model="form.job_title" class="input" placeholder="e.g. Accountant" />
           </div>
           <div class="field">
-            <label class="field-label">DEPARTMENT (OPTIONAL)</label>
-            <input v-model="form.department" class="input" placeholder="IT Department" />
+            <label class="field-label">Department (optional)</label>
+            <input v-model="form.department" class="input" placeholder="e.g. Finance" />
           </div>
         </div>
       </div>
 
       <!-- ── Payment Preference ────────────────────────────────── -->
       <div class="form-card">
-        <h2 class="section-title">PAYMENT PREFERENCE</h2>
+        <h2 class="section-title"><span class="sec-num">5</span>Payment preference</h2>
         <p class="section-hint">Choose how your company will settle the invoice for this employee.</p>
         <p v-if="errors.payment_preference" class="err-msg" style="margin-bottom: 10px;">{{ errors.payment_preference }}</p>
 
@@ -222,13 +223,53 @@
         </button>
       </div>
     </form>
+
+    <!-- ── Live preview + what happens next ─────────────────────── -->
+    <aside class="side">
+      <div class="side-card preview">
+        <p class="side-kicker">Preview</p>
+        <div class="pv-person">
+          <div class="pv-avatar">
+            <img v-if="photoPreview" :src="photoPreview" alt="" />
+            <span v-else>{{ initials || '?' }}</span>
+          </div>
+          <div class="pv-text">
+            <p class="pv-name">{{ fullName || 'New employee' }}</p>
+            <p class="pv-sub">{{ [form.job_title, form.department].filter(Boolean).join(' · ') || 'Job title · Department' }}</p>
+            <p class="pv-mail">{{ form.email || 'e-mail address' }}</p>
+          </div>
+        </div>
+        <div class="pv-card"><FitCard :plan="planName || 'Package'" /></div>
+        <ul class="pv-facts">
+          <li><span>FAN</span><strong>{{ form.fan_number || '—' }}</strong></li>
+          <li><span>Package</span><strong>{{ planName || '—' }}</strong></li>
+          <li><span>Payment</span><strong>{{ form.payment_preference === 'pay_now' ? 'Pay now' : form.payment_preference === 'pay_later' ? 'Pay later' : '—' }}</strong></li>
+        </ul>
+        <div class="pv-progress" :aria-label="`${filledCount} of ${requiredCount} required fields filled`">
+          <div class="pv-bar"><span :style="{ width: `${Math.round((filledCount / requiredCount) * 100)}%` }"></span></div>
+          <p>{{ filledCount }} of {{ requiredCount }} required fields filled</p>
+        </div>
+      </div>
+
+      <div class="side-card next">
+        <p class="side-kicker">What happens next</p>
+        <ol class="steps">
+          <li><span>1</span>FitAccess gives final approval once the payment is settled.</li>
+          <li><span>2</span>FitAccess sends the employee's card number to you.</li>
+          <li><span>3</span>You press <strong>Send card</strong> on the Employees page to e-mail it to them.</li>
+          <li><span>4</span>The employee signs in and enters the number to activate their card.</li>
+        </ol>
+      </div>
+    </aside>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useApi } from '@/composables/useApi'
+import FitCard from '@/components/employee/FitCard.vue'
 
 const auth = useAuthStore()
 const api  = useApi()
@@ -268,6 +309,14 @@ const form = reactive({
   phone: '',
   joined_at: new Date().toISOString().slice(0, 10),
 })
+
+// Live preview in the side panel
+const fullName = computed(() => [form.first_name, form.middle_name, form.last_name].filter(Boolean).join(' '))
+const initials = computed(() => [form.first_name, form.last_name].filter(Boolean).map((s) => s[0]).join('').toUpperCase())
+const planName = computed(() => plans.value.find((p) => p.tier === form.package)?.name ?? '')
+const REQUIRED = ['first_name', 'middle_name', 'last_name', 'fan_number', 'email', 'temp_password', 'confirm_password', 'package', 'payment_preference'] as const
+const requiredCount = REQUIRED.length
+const filledCount = computed(() => REQUIRED.filter((k) => !!form[k]).length)
 
 const errors     = reactive<Record<string, string>>({})
 const loading    = ref(false)
@@ -314,7 +363,10 @@ function validate(): boolean {
     errors.email = 'Please enter a valid email address.'
 
   if (!form.temp_password) errors.temp_password = 'Temporary password is required.'
-  else if (form.temp_password.length < 6) errors.temp_password = 'Password must be at least 6 characters.'
+  // Same rule as the server (StrongPassword)
+  else if (form.temp_password.length < 12) errors.temp_password = 'Password must be at least 12 characters.'
+  else if (!/[A-Z]/.test(form.temp_password) || !/[a-z]/.test(form.temp_password) || !/\d/.test(form.temp_password) || !/[^A-Za-z0-9]/.test(form.temp_password))
+    errors.temp_password = 'Use upper- and lower-case letters, a number and a symbol.'
 
   if (!form.confirm_password) errors.confirm_password = 'Please confirm the password.'
   else if (form.temp_password !== form.confirm_password)
@@ -396,7 +448,44 @@ function reset() {
 </script>
 
 <style scoped>
-.page { display: flex; flex-direction: column; gap: 20px; max-width: 760px; }
+.page { display: flex; flex-direction: column; gap: 20px; max-width: 1240px; }
+
+/* Form on the left, live preview + next steps on the right */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.side { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 18px; }
+.side-card { background: #fff; border-radius: 22px; padding: 24px; border: 1px solid #eef0ea; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+.side-kicker { margin: 0 0 16px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7280; }
+.preview { background: linear-gradient(180deg, #f3fce6 0%, #fff 55%); }
+.pv-person { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.pv-avatar {
+  width: 54px; height: 54px; flex-shrink: 0; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #0b0c10; color: #8be000; font-weight: 800; font-size: 18px;
+}
+.pv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pv-text { min-width: 0; }
+.pv-name { margin: 0; font-family: var(--font-heading); font-weight: 700; font-size: 17px; color: #0b0c10; overflow-wrap: anywhere; }
+.pv-sub, .pv-mail { margin: 2px 0 0; font-size: 13px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-card { display: flex; justify-content: center; margin-bottom: 18px; }
+.pv-facts { list-style: none; margin: 0 0 18px; padding: 0; }
+.pv-facts li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f0f1ec; font-size: 13.5px; color: #6b7280; }
+.pv-facts li:last-child { border-bottom: none; }
+.pv-facts strong { color: #0b0c10; text-align: right; overflow-wrap: anywhere; }
+.pv-bar { height: 8px; border-radius: 999px; background: #eef0ea; overflow: hidden; }
+.pv-bar span { display: block; height: 100%; background: #8be000; border-radius: 999px; transition: width .25s ease; }
+.pv-progress p { margin: 8px 0 0; font-size: 12.5px; color: #6b7280; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.steps li { display: flex; gap: 12px; font-size: 13.5px; line-height: 1.5; color: #374151; }
+.steps li span {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f3fce6; border: 1.5px solid #8be000; color: #3f6b00; font-size: 12px; font-weight: 800;
+}
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+  .side { position: static; order: -1; }
+  .next { display: none; }
+}
 
 .banner-success {
   padding: 12px 16px; background: #d1fae5; border: 1px solid #a7f3d0;
@@ -407,57 +496,91 @@ function reset() {
   border-radius: 10px; color: #dc2626; font-size: 0.88rem;
 }
 
-.form-body   { display: flex; flex-direction: column; gap: 16px; }
-.form-card   { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+/* Same look as the Log in / sign-up forms: floating label on the border,
+   pill inputs, icons for e-mail and password, black → lime buttons. */
+.form-body   { display: flex; flex-direction: column; gap: 18px; }
+.form-card   { background: white; border-radius: 22px; padding: 28px 28px 30px; box-shadow: 0 1px 4px rgba(0,0,0,.05); border: 1px solid #eef0ea; }
 .section-title {
-  font-size: 0.72rem; font-weight: 700; color: #94a3b8;
-  letter-spacing: 0.1em; margin: 0 0 6px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-heading); font-size: 1.05rem; font-weight: 700; color: #0b0c10;
+  margin: 0 0 22px;
 }
-.section-hint { font-size: 0.78rem; color: #94a3b8; margin: 0 0 18px; }
-.req { color: #ef4444; }
+.sec-num {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 50%; background: #0b0c10; color: #8be000; font-size: 0.78rem; font-weight: 800;
+}
+.section-hint { font-size: 0.85rem; color: #6b7280; margin: -12px 0 22px; }
+.req { color: #dc2626; }
 
-.name-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
-.two-col  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.name-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 14px; margin-bottom: 24px; }
+.two-col  { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 14px; margin-bottom: 24px; }
 .two-col:last-child, .name-row:last-child { margin-bottom: 0; }
 
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field-label { font-size: 0.68rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; }
-.input {
-  padding: 10px 14px; background: #f8fafc; border: 1.5px solid #e2e8f0;
-  border-radius: 10px; font-size: 0.875rem; color: #0f172a; outline: none;
-  transition: border-color 0.15s; font-family: inherit; width: 100%; box-sizing: border-box;
+/* Floating label */
+.field { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.field-label {
+  position: absolute; top: -9px; left: 20px; z-index: 2; max-width: calc(100% - 40px);
+  padding: 0 8px; background: #fff; border-radius: 999px;
+  font-size: 12.5px; font-weight: 500; color: #374151; line-height: 18px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.input:focus { border-color: #8BE000; background: white; }
-.input-error  { border-color: #ef4444; }
+.input {
+  padding: 15px 22px; background-color: #fff; border: 1.5px solid #dfe3d8;
+  border-radius: 999px; font-size: 15px; color: #111827; outline: none;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
+  font-family: inherit; width: 100%; box-sizing: border-box;
+}
+.input::placeholder { color: #9ca3af; }
+.input:hover { border-color: #b9c2ab; }
+.input:focus { border-color: #0b0c10; background-color: #fff; box-shadow: 0 0 0 4px rgba(139, 224, 0, .3); }
+.input-error, .input-error:focus { border-color: #fca5a5; box-shadow: 0 0 0 4px rgba(239, 68, 68, .12); }
 .input-full   { width: 100%; box-sizing: border-box; }
-.err-msg { font-size: 0.72rem; color: #ef4444; margin: 0; }
+.err-msg { font-size: 12.5px; color: #dc2626; margin: 0; padding-left: 22px; }
+
+/* E-mail and password icons on the left */
+.input[type='email'], .pw-wrap .input {
+  padding-left: 54px; background-repeat: no-repeat; background-position: 22px center; background-size: 19px 19px;
+}
+.input[type='email'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='5' width='19' height='14' rx='2' fill='%23707070'/%3E%3Cpath d='M3.5 6.5l8.5 6.5 8.5-6.5' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.pw-wrap .input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2' fill='%23707070'/%3E%3Cpath d='M8 10.5V8a4 4 0 0 1 8 0v2.5' fill='none' stroke='%23707070' stroke-width='2'/%3E%3C/svg%3E");
+}
+
+/* Selects: own arrow inside the pill */
+.select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 50px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 22px center; background-size: 16px 16px;
+}
 
 /* Password field with eye toggle */
 .pw-wrap { position: relative; }
-.pw-wrap .input { padding-right: 42px; }
+.pw-wrap .input { padding-right: 54px; }
 .pw-toggle {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px;
+  position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px;
   display: flex; align-items: center; justify-content: center;
 }
-.pw-toggle:hover { color: #64748b; }
+.pw-toggle:hover { color: #0b0c10; }
 
 /* Date input */
 .date-wrap { position: relative; width: 100%; }
-.date-input-styled { padding-right: 40px !important; cursor: pointer; color-scheme: light; }
-.date-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-.date-input-styled::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; position: absolute; right: 0; top: 0; width: 40px; height: 100%; }
+.date-input-styled { padding-right: 50px !important; cursor: pointer; color-scheme: light; }
+.date-icon { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); color: #6b7280; pointer-events: none; }
+.date-input-styled::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; position: absolute; right: 0; top: 0; width: 56px; height: 100%; }
 
 /* Photo zone */
 .photo-zone {
-  border: 2px dashed #e2e8f0; border-radius: 12px; padding: 40px 20px;
+  border: 2px dashed #d9e2c8; border-radius: 22px; padding: 40px 20px; background: #fafcf6;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; cursor: pointer; transition: border-color .15s, background .15s; min-height: 160px;
 }
-.photo-zone:hover, .photo-zone--over { border-color: #8BE000; background: #f0fdf9; }
+.photo-zone:hover, .photo-zone--over { border-color: #8BE000; background: #f3fce6; }
 .photo-zone--filled { padding: 12px; }
-.photo-label { font-size: 0.88rem; color: #64748b; margin: 0; }
-.browse-link { color: #8BE000; font-weight: 600; }
+.photo-label { font-size: 0.9rem; color: #4b5563; margin: 0; }
+.browse-link { color: #0b0c10; font-weight: 700; text-decoration: underline; text-decoration-color: #8be000; text-underline-offset: 3px; }
 .photo-hint  { font-size: 0.72rem; color: #94a3b8; margin: 0; }
 .photo-preview { max-height: 180px; border-radius: 10px; object-fit: cover; }
 .remove-photo { margin-top: 8px; background: none; border: none; color: #ef4444; font-size: 0.78rem; cursor: pointer; }
@@ -468,12 +591,12 @@ function reset() {
 .pay-options { display: flex; flex-direction: column; gap: 10px; }
 .pay-option {
   display: flex; align-items: flex-start; gap: 14px;
-  padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px;
+  padding: 18px 20px; border: 2px solid #e5e7eb; border-radius: 18px;
   background: white; cursor: pointer; text-align: left; font-family: inherit;
   transition: border-color .15s, background .15s; width: 100%;
 }
 .pay-option:hover { border-color: #94a3b8; background: #f8fafc; }
-.pay-option--selected { border-color: #8BE000; background: #EBFAEE; }
+.pay-option--selected { border-color: #8BE000; background: #f3fce6; }
 .pay-icon  { font-size: 1.5rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
 .pay-info  { flex: 1; }
 .pay-title { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
@@ -488,20 +611,24 @@ function reset() {
 /* Submit row */
 .form-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .btn-cancel {
-  padding: 10px 20px; background: white; border: 1.5px solid #e2e8f0;
-  border-radius: 10px; color: #64748b; font-size: 0.875rem; font-weight: 500;
+  padding: 15px 26px; background: white; border: 1.5px solid #e5e7eb;
+  border-radius: 999px; color: #374151; font-size: 15px; font-weight: 600; font-family: inherit;
   cursor: pointer; transition: border-color .15s;
 }
-.btn-cancel:hover { border-color: #94a3b8; }
+.btn-cancel:hover { border-color: #0b0c10; }
 .btn-submit {
-  padding: 10px 28px; background: #8BE000; border: none; border-radius: 10px;
-  color: white; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  min-width: 220px; padding: 15px 34px; background: #0b0c10; border: none; border-radius: 999px;
+  color: #fff; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: background .15s, color .15s;
 }
-.btn-submit:disabled { opacity: .6; cursor: default; }
-.btn-submit:not(:disabled):hover { opacity: .85; }
+.btn-submit:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
+.btn-submit:not(:disabled):hover { background: #8BE000; color: #0b0c10; }
 
 @media (max-width: 600px) {
-  .name-row { grid-template-columns: 1fr; }
+  .name-row { grid-template-columns: 1fr; gap: 24px; }
   .two-col  { grid-template-columns: 1fr; }
+  .form-card { padding: 24px 18px; }
+  .form-actions { flex-direction: column-reverse; }
+  .btn-submit, .btn-cancel { width: 100%; }
 }
 </style>
