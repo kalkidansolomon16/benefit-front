@@ -1,0 +1,1 @@
+const e="fitaccess_active_gym";function c(){try{return localStorage.getItem(e)}catch{return null}}function a(t){try{t===null?localStorage.removeItem(e):localStorage.setItem(e,String(t))}catch{}}function r(){const t=c();return t?{"X-Gym-Id":t}:{}}export{r as a,c as g,a as s};
