@@ -131,6 +131,15 @@
 
           <div class="edit-section">
             <h3 class="edit-section-title">Location</h3>
+            <div class="map-field">
+              <LocationPicker
+                v-model:lat="editForm.latitude"
+                v-model:lng="editForm.longitude"
+                locate-label="I'm at this location now"
+                @address="onEditAddress"
+              />
+              <p class="map-hint">This pin is what members see on the FitAccess map and in the mobile app.</p>
+            </div>
             <div class="form-grid">
               <div class="field">
                 <label class="field-label">City</label>
@@ -292,6 +301,8 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import LocationPicker from '@/components/LocationPicker.vue'
+import type { PlaceAddress } from '@/utils/geo'
 
 const api = useApi()
 
@@ -299,7 +310,8 @@ const api = useApi()
 interface OpeningHours { weekdays?: string; weekends?: string; summary?: string; [k: string]: string | undefined }
 interface GymInfo {
   id: number; name: string; tier: string; city: string; sub_city: string | null
-  address: string | null; contact_person: string; contact_phone: string; contact_email: string
+  address: string | null; latitude: number | null; longitude: number | null
+  contact_person: string; contact_phone: string; contact_email: string
   max_capacity: number; facilities: string[]; opening_hours: OpeningHours | null
   is_active: boolean; partnership_start: string | null
 }
@@ -322,6 +334,7 @@ const newFacility = ref('')
 const editForm = reactive({
   name: '', contact_person: '', contact_phone: '',
   city: '', sub_city: '', address: '',
+  latitude: null as number | null, longitude: null as number | null,
   max_capacity: 0,
   facilities: [] as string[],
   opening_hours: { weekdays: '', weekends: '' } as OpeningHours,
@@ -347,7 +360,7 @@ async function load() {
   loading.value = true
   try {
     const [dashRes, planRes] = await Promise.all([
-      api.get<{ gym: GymInfo }>('partner/dashboard'),
+      api.get<{ gym: GymInfo }>('partner-portal/dashboard'),
       api.get<Plan[]>('membership-plans').catch(() => [] as Plan[]),
     ])
     gym.value   = dashRes.gym
@@ -360,7 +373,7 @@ onMounted(load)
 
 async function loadRequests() {
   try {
-    const res = await api.get<UpgradeRequest[]>('partner/upgrade-requests')
+    const res = await api.get<UpgradeRequest[]>('partner-portal/upgrade-requests')
     upgradeRequests.value = Array.isArray(res) ? res : []
   } catch { upgradeRequests.value = [] }
 }
@@ -414,12 +427,20 @@ function startEdit() {
   Object.assign(editForm, {
     name: g.name, contact_person: g.contact_person, contact_phone: g.contact_phone,
     city: g.city, sub_city: g.sub_city ?? '', address: g.address ?? '',
+    latitude: g.latitude ?? null, longitude: g.longitude ?? null,
     max_capacity: g.max_capacity,
     facilities: [...(g.facilities ?? [])],
     opening_hours: { weekdays: hours.weekdays ?? '', weekends: hours.weekends ?? '' },
   })
   editError.value = ''
   tab.value = 'edit'
+}
+
+// Pin moved: suggest city / sub-city; address only when empty
+function onEditAddress(a: PlaceAddress) {
+  if (a.city) editForm.city = a.city
+  if (a.sub_city) editForm.sub_city = a.sub_city
+  if (a.landmark && !editForm.address.trim()) editForm.address = a.landmark
 }
 
 function addFacility() {
@@ -440,6 +461,8 @@ async function saveProfile() {
       city:           editForm.city,
       sub_city:       editForm.sub_city || undefined,
       address:        editForm.address || undefined,
+      latitude:       editForm.latitude,
+      longitude:      editForm.longitude,
       max_capacity:   editForm.max_capacity,
       facilities:     editForm.facilities,
       opening_hours:  {
@@ -447,7 +470,7 @@ async function saveProfile() {
         weekends: editForm.opening_hours.weekends || undefined,
       },
     }
-    const res = await api.put<{ message: string; gym: GymInfo }>('partner/profile', payload)
+    const res = await api.put<{ message: string; gym: GymInfo }>('partner-portal/profile', payload)
     gym.value = res.gym
     tab.value = 'profile'
     showToast('Profile updated successfully.')
@@ -465,7 +488,7 @@ async function submitUpgrade() {
   if (!upgradeForm.message.trim())  { upgradeError.value = 'Please explain why you deserve this upgrade.'; return }
   upgradeSaving.value = true
   try {
-    await api.post('partner/upgrade-request', {
+    await api.post('partner-portal/upgrade-request', {
       requested_tier: upgradeForm.requested_tier,
       message:        upgradeForm.message,
     })
@@ -505,7 +528,7 @@ function formatDate(iso: string): string {
 }
 .spinner {
   width: 30px; height: 30px;
-  border: 3px solid #e2e8f0; border-top-color: #4CD964;
+  border: 3px solid #e2e8f0; border-top-color: #8BE000;
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 .spinner-sm {
@@ -522,7 +545,7 @@ function formatDate(iso: string): string {
 }
 .retry-btn {
   padding: 8px 20px; border-radius: 8px; border: none;
-  background: #4CD964; color: #fff; font-weight: 600; cursor: pointer;
+  background: #8BE000; color: #fff; font-weight: 600; cursor: pointer;
 }
 
 /* Tab bar */
@@ -547,7 +570,7 @@ function formatDate(iso: string): string {
 }
 .profile-avatar {
   width: 60px; height: 60px; border-radius: 16px; flex-shrink: 0;
-  background: linear-gradient(135deg, #4CD964, #2EB84B);
+  background: linear-gradient(135deg, #8BE000, #72B800);
   color: #fff; font-weight: 800; font-size: 1.3rem;
   display: flex; align-items: center; justify-content: center;
 }
@@ -561,7 +584,7 @@ function formatDate(iso: string): string {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;
 }
-.tier--basic      { background: #eff6ff; color: #3b82f6; }
+.tier--basic      { background: #f1f5f9; color: #0B0C10; }
 .tier--basic_plus { background: #f0fdf4; color: #16a34a; }
 .tier--premium    { background: #fff7ed; color: #ea580c; }
 .tier--platinum   { background: #faf5ff; color: #9333ea; }
@@ -609,10 +632,10 @@ function formatDate(iso: string): string {
   padding: 4px 12px; background: #f1f5f9; border-radius: 20px;
   font-size: 0.82rem; color: #475569;
 }
-.editable-chip { background: #e0f2fe; color: #0369a1; }
+.editable-chip { background: #EEF9DC; color: #4D7C0F; }
 .chip-remove {
   border: none; background: none; cursor: pointer; font-size: 1rem;
-  color: #0369a1; line-height: 1; padding: 0;
+  color: #4D7C0F; line-height: 1; padding: 0;
 }
 
 /* Edit card */
@@ -622,6 +645,8 @@ function formatDate(iso: string): string {
 }
 .edit-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 22px; }
 .edit-section { margin-bottom: 24px; }
+.map-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.map-hint { margin: 0; font-size: 12px; color: #64748b; }
 .edit-section-title {
   font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: .05em; color: #94a3b8; margin: 0 0 12px;
@@ -636,7 +661,7 @@ function formatDate(iso: string): string {
   font-size: 0.9rem; color: #0f172a; outline: none; transition: border-color .15s;
   font-family: inherit;
 }
-.input:focus { border-color: #4CD964; }
+.input:focus { border-color: #8BE000; }
 .textarea { resize: vertical; min-height: 90px; }
 
 .chip-input-wrap {
@@ -657,7 +682,7 @@ function formatDate(iso: string): string {
 .btn-save {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 9px 22px; border-radius: 8px; border: none;
-  background: #4CD964; color: #fff; font-weight: 600; font-size: 0.88rem;
+  background: #8BE000; color: #fff; font-weight: 600; font-size: 0.88rem;
   cursor: pointer; transition: opacity .15s;
 }
 .btn-save:disabled { opacity: .55; cursor: not-allowed; }
@@ -673,9 +698,9 @@ function formatDate(iso: string): string {
   background: #fff; cursor: pointer; font-size: 0.88rem; font-weight: 500; color: #374151;
   transition: all .15s;
 }
-.tier-btn.selected { border-color: #4CD964; background: #f0fdf4; color: #16a34a; font-weight: 600; }
+.tier-btn.selected { border-color: #8BE000; background: #f0fdf4; color: #16a34a; font-weight: 600; }
 .tier-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot-basic       { background: #3b82f6; }
+.dot-basic       { background: #0B0C10; }
 .dot-basic_plus  { background: #22c55e; }
 .dot-premium     { background: #f97316; }
 .dot-platinum    { background: #a855f7; }

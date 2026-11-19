@@ -7,7 +7,7 @@ const steps = [
     description:
       'Your Ethiopian organisation picks a quarterly plan in ETB that fits your headcount and employee grade — Basic, Basic Plus, or Platinum. HR handles one invoice, we do the rest.',
     color: '#EBFAEE',
-    accent: '#4CD964',
+    accent: '#8BE000',
   },
   {
     number: '02',
@@ -60,7 +60,7 @@ const steps = [
       </div>
 
       <div class="how-cta">
-        <a href="#plans" class="btn btn-primary">See Plans & Pricing</a>
+        <a href="#plans" class="btn btn-primary">See Plans</a>
         <a href="#stats" class="btn btn-outline">View ROI Data</a>
       </div>
     </div>

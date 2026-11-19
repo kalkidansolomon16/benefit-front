@@ -1,0 +1,87 @@
+/* Avenir Next LT Pro — brand display/heading face */
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-It.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-Demi.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-BoldIt.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Avenir Next LT Pro';
+  src: url('./fonts/avenir-next/AvenirNextLTPro-Heavy.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Montserrat — brand body/UI face (SIL Open Font License) */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/montserrat/Montserrat-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/montserrat/Montserrat-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/montserrat/Montserrat-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/montserrat/Montserrat-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/montserrat/Montserrat-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}

@@ -337,6 +337,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { confirmDialog, alertDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 
 const auth = useAuthStore()
@@ -466,15 +467,31 @@ function confirmRemove(m: Member) {
 async function submitRemove() {
   removeModal.value.loading = true
   try {
-    await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${removeModal.value.id}`, {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${removeModal.value.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
     })
+    if (!res.ok) {
+      const data = await res.json()
+      await alertDialog({ title: 'Something went wrong', message: data.message || 'Failed to remove member.', tone: 'error' })
+      return
+    }
     removeModal.value.show = false
     fetchMembers()
   } finally {
     removeModal.value.loading = false
   }
+}
+
+/* ── Reset 2FA ──────────────────────────────────────────── */
+async function resetTwoFactor(m: Member) {
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for ${m.name}? They will be signed out and must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/team/${m.id}/reset-2fa`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.token}`, Accept: 'application/json' },
+  })
+  const data = await res.json().catch(() => ({}))
+  await alertDialog({ title: res.ok ? 'Done' : 'Something went wrong', message: data.message || (res.ok ? 'Two-factor authentication reset.' : 'Failed to reset two-factor authentication.'), tone: res.ok ? 'success' : 'error' })
 }
 
 /* ── Reset temp password ────────────────────────────────── */
@@ -606,7 +623,7 @@ async function submitDeleteRole() {
   align-items: center;
   gap: 7px;
   padding: 10px 20px;
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -615,16 +632,16 @@ async function submitDeleteRole() {
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(76, 217, 100, 0.28);
+  box-shadow: 0 2px 8px rgba(139, 224, 0, 0.28);
 }
 .btn-primary svg {
   width: 16px;
   height: 16px;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #2eb84b;
+  background: #72B800;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(76, 217, 100, 0.38);
+  box-shadow: 0 4px 14px rgba(139, 224, 0, 0.38);
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -754,8 +771,8 @@ async function submitDeleteRole() {
   height: 14px;
 }
 .btn-icon:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 .btn-icon.btn-danger:hover {
@@ -769,7 +786,7 @@ async function submitDeleteRole() {
   width: 40px;
   height: 40px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4cd964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -899,8 +916,8 @@ async function submitDeleteRole() {
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: #4cd964;
-  box-shadow: 0 0 0 3px rgba(76, 217, 100, 0.12);
+  border-color: #8BE000;
+  box-shadow: 0 0 0 3px rgba(139, 224, 0, 0.12);
   background: #fff;
 }
 .field select {
@@ -1020,8 +1037,8 @@ async function submitDeleteRole() {
   transition: all 0.15s;
 }
 .copy-btn:hover {
-  background: #4cd964;
-  border-color: #4cd964;
+  background: #8BE000;
+  border-color: #8BE000;
   color: #fff;
 }
 
@@ -1071,8 +1088,8 @@ async function submitDeleteRole() {
   height: 16px;
 }
 .btn-secondary:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 
@@ -1095,7 +1112,7 @@ async function submitDeleteRole() {
 }
 .role-card:hover {
   border-color: #b8f0c0;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 4px 12px rgba(139,224,0,0.08);
 }
 
 .role-card-icon {
@@ -1107,7 +1124,7 @@ async function submitDeleteRole() {
   justify-content: center;
   background: #ebfaee;
   border-radius: 9px;
-  color: #4cd964;
+  color: #8BE000;
 }
 .role-card-icon svg {
   width: 18px;

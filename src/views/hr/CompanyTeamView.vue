@@ -223,6 +223,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { alertDialog } from '@/composables/useDialog'
 import AppPagination from '@/components/AppPagination.vue'
 
 const auth = useAuthStore()
@@ -335,7 +336,7 @@ async function toggleActive(m: Member) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    alert(err.message || 'Failed to update status.')
+    await alertDialog({ title: 'Something went wrong', message: err.message || 'Failed to update status.', tone: 'error' })
     return
   }
   fetchMembers()
@@ -419,7 +420,7 @@ async function submitResetTemp() {
   align-items: center;
   gap: 7px;
   padding: 10px 20px;
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -428,16 +429,16 @@ async function submitResetTemp() {
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(76, 217, 100, 0.28);
+  box-shadow: 0 2px 8px rgba(139, 224, 0, 0.28);
 }
 .btn-primary svg {
   width: 16px;
   height: 16px;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #2eb84b;
+  background: #72B800;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(76, 217, 100, 0.38);
+  box-shadow: 0 4px 14px rgba(139, 224, 0, 0.38);
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -464,8 +465,8 @@ async function submitResetTemp() {
   height: 16px;
 }
 .btn-secondary:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 
@@ -543,7 +544,7 @@ async function submitResetTemp() {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: #ebfaee;
-  color: #2eb84b;
+  color: #72B800;
 }
 .status-badge {
   display: inline-block;
@@ -584,8 +585,8 @@ async function submitResetTemp() {
   height: 14px;
 }
 .btn-icon:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 .btn-icon.btn-danger:hover {
@@ -599,7 +600,7 @@ async function submitResetTemp() {
   width: 40px;
   height: 40px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4cd964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -655,7 +656,7 @@ async function submitResetTemp() {
 }
 .role-card:hover {
   border-color: #b8f0c0;
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.08);
+  box-shadow: 0 4px 12px rgba(139,224,0,0.08);
 }
 .role-card-icon {
   width: 36px;
@@ -666,7 +667,7 @@ async function submitResetTemp() {
   justify-content: center;
   background: #ebfaee;
   border-radius: 9px;
-  color: #4cd964;
+  color: #8BE000;
 }
 .role-card-icon svg {
   width: 18px;
@@ -730,7 +731,7 @@ async function submitResetTemp() {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #4cd964;
+  color: #8BE000;
 }
 .group-header::before {
   content: '';
@@ -738,7 +739,7 @@ async function submitResetTemp() {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4cd964;
+  background: #8BE000;
 }
 .perm-table {
   width: 100%;
@@ -810,15 +811,15 @@ async function submitResetTemp() {
   height: 14px;
 }
 .check-btn:hover:not(.granted) {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
   background: #ebfaee;
 }
 .check-btn.granted {
-  background: #4cd964;
-  border-color: #4cd964;
+  background: #8BE000;
+  border-color: #8BE000;
   color: #fff;
-  box-shadow: 0 2px 6px rgba(76, 217, 100, 0.3);
+  box-shadow: 0 2px 6px rgba(139, 224, 0, 0.3);
 }
 .check-btn.granted:hover {
   background: #ef4444;
@@ -944,8 +945,8 @@ async function submitResetTemp() {
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: #4cd964;
-  box-shadow: 0 0 0 3px rgba(76, 217, 100, 0.12);
+  border-color: #8BE000;
+  box-shadow: 0 0 0 3px rgba(139, 224, 0, 0.12);
   background: #fff;
 }
 .field select {
@@ -1076,8 +1077,8 @@ async function submitResetTemp() {
   transition: all 0.15s;
 }
 .copy-btn:hover {
-  background: #4cd964;
-  border-color: #4cd964;
+  background: #8BE000;
+  border-color: #8BE000;
   color: #fff;
 }
 .pw-note {

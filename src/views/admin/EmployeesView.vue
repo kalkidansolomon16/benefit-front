@@ -1,9 +1,22 @@
-﻿<template>
+<template>
   <div class="page">
 
     <div class="page-actions">
       <p class="count-label">{{ meta?.total ?? employees.length }} total</p>
-      <button class="btn-export" @click="exportCsv">↓ Export CSV</button>
+      <div class="header-actions">
+        <button class="btn-template" @click="downloadImportTemplate">Download CSV Template</button>
+        <button class="btn-import" :disabled="importing" @click="importInput?.click()">
+          {{ importing ? 'Importing…' : '↑ Import CSV' }}
+        </button>
+        <input
+          ref="importInput"
+          type="file"
+          accept=".csv,text/csv"
+          class="hidden-input"
+          @change="onImportFileChange"
+        />
+        <button class="btn-export" @click="exportCsv">↓ Export CSV</button>
+      </div>
     </div>
 
     <!-- Search + filters -->
@@ -11,9 +24,7 @@
       <input v-model="search" class="search-box" placeholder="Search name, FAN, email or phone…" />
       <select v-model="filterTier" class="select-box">
         <option value="">All packages</option>
-        <option value="basic">Basic</option>
-        <option value="basic_plus">Basic Plus</option>
-        <option value="platinum">Platinum</option>
+        <option v-for="o in TIER_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
       <select v-model="filterStatus" class="select-box">
         <option value="">All status</option>
@@ -33,14 +44,39 @@
 
     <!-- Table -->
     <div v-else class="table-card">
+      <!-- Bulk: e-mail card numbers straight to employees -->
+      <div v-if="pickable.length" class="card-bulk" :class="{ active: picked.length }">
+        <label class="card-bulk-all">
+          <input
+            type="checkbox"
+            :checked="allPicked"
+            :indeterminate.prop="picked.length > 0 && !allPicked"
+            :disabled="issuingMany"
+            @change="toggleAll"
+          />
+          <span v-if="!picked.length">Select employees to e-mail their card numbers ({{ pickable.length }} available)</span>
+          <span v-else>{{ picked.length }} of {{ pickable.length }} selected</span>
+        </label>
+        <div class="card-bulk-actions">
+          <button v-if="!picked.length" type="button" class="cb-btn" :disabled="issuingMany" @click="selectNotSent">Select all not yet sent</button>
+          <template v-else>
+            <button type="button" class="cb-btn primary" :disabled="issuingMany" @click="issueSelected">
+              {{ issuingMany ? 'Sending…' : `E-mail ${picked.length} card${picked.length === 1 ? '' : 's'} to employees` }}
+            </button>
+            <button type="button" class="cb-btn" :disabled="issuingMany" @click="picked = []">Clear</button>
+          </template>
+        </div>
+      </div>
       <table class="data-table">
         <thead>
           <tr>
+            <th class="th-pick"><input type="checkbox" :checked="allPicked" :disabled="!pickable.length" aria-label="Select all cards that can be sent" @change="toggleAll" /></th>
             <th>NAME</th>
             <th>COMPANY</th>
             <th>FAN NUMBER</th>
             <th>EMAIL</th>
             <th>PACKAGE</th>
+            <th>CARD</th>
             <th>ACCOUNT</th>
             <th>PAYMENT</th>
             <th>ACTION</th>
@@ -48,14 +84,29 @@
         </thead>
         <tbody>
           <tr v-for="e in filtered" :key="e.id">
+            <td class="td-pick"><input v-if="canIssue(e)" type="checkbox" :checked="picked.includes(e.id)" :aria-label="`Select ${e.user?.name ?? 'employee'}`" @change="togglePick(e.id)" /></td>
             <td class="td-name">{{ e.user?.name ?? '—' }}</td>
             <td class="td-muted">{{ e.company?.name ?? '—' }}</td>
             <td class="td-fan">{{ e.fan_number ?? '—' }}</td>
             <td class="td-email">{{ e.user?.email ?? '—' }}</td>
             <td>
-              <span class="pkg-badge" :class="'pkg-' + (e.company?.tier ?? 'basic')">
-                {{ tierLabel(e.company?.tier) }}
+              <span class="pkg-badge" :class="'pkg-' + empTier(e)">
+                {{ empPlanName(e) }}
               </span>
+            </td>
+            <!-- FitAccess card: admin → company → employee -->
+            <td class="td-card">
+              <template v-if="e.card_number">
+                <span class="card-num">{{ e.card_number }}</span>
+                <span class="card-state" :class="cardStateClass(e)">{{ cardStateLabel(e) }}</span>
+                <button
+                  v-if="!e.is_banned && e.user_is_active && e.admin_approval_status !== 'pending'"
+                  class="card-send card-send--link"
+                  :disabled="issuing === e.id"
+                  @click="issueCard(e)"
+                >{{ issuing === e.id ? 'Sending…' : e.card_issued ? 'Resend to employee' : 'Send to employee' }}</button>
+              </template>
+              <span v-else class="td-muted">—</span>
             </td>
             <!-- Account / approval status -->
             <td>
@@ -98,7 +149,7 @@
               </div>
               <!-- Ban chip -->
               <div v-if="e.is_banned" class="ban-chip">
-                Banned until {{ formatDate(e.banned_until) }}
+                {{ e.ban_indefinite ? 'Banned until lifted' : `Banned until ${formatDate(e.banned_until)}` }} · card blocked
                 <span v-if="e.ban_reason" class="ban-reason"> — {{ e.ban_reason }}</span>
               </div>
             </td>
@@ -151,7 +202,8 @@
             </div>
             <div class="modal-body">
               <p class="modal-sub">
-                Banning <strong>{{ banModal.employee?.user?.name }}</strong> will prevent them from checking in to any gym during the ban period.
+                Banning <strong>{{ banModal.employee?.user?.name }}</strong> blocks their FitAccess card: they can still sign in to view their portal, but can't check in at a gym, join trainings or use anything else until the ban is lifted.
+                When the ban ends or you lift it, the same card number works again.
               </p>
 
               <div class="field">
@@ -199,10 +251,68 @@
             </div>
             <div class="modal-footer">
               <button class="btn-cancel" @click="banModal.open = false">Cancel</button>
-              <button class="btn-ban" :disabled="banModal.loading || !banModal.days" @click="confirmBan">
+              <button class="btn-ban" :disabled="banModal.loading || (banModal.days !== 0 && !banModal.days)" @click="confirmBan">
                 <span v-if="banModal.loading" class="spinner-sm"></span>
                 <span v-else>Confirm Ban</span>
               </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Import results modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="importResult.show" class="modal-backdrop" @click.self="importResult.show = false">
+          <div class="modal-panel modal-panel--wide">
+            <div class="modal-header">
+              <h2 class="modal-title">Import Results</h2>
+              <button class="modal-close" @click="importResult.show = false">✕</button>
+            </div>
+            <div class="modal-body import-result-body">
+              <p class="modal-sub">
+                {{ importResult.created.length }} employee(s) imported,
+                {{ importResult.failed.length }} row(s) failed.
+              </p>
+
+              <div v-if="importResult.created.length" class="import-section">
+                <div class="import-section-head">
+                  <p class="import-section-title">Created ({{ importResult.created.length }})</p>
+                  <button type="button" class="btn-template" @click="downloadImportedCredentials">
+                    ↓ Download Credentials
+                  </button>
+                </div>
+                <div class="import-table-wrap">
+                  <table class="import-table">
+                    <thead>
+                      <tr><th>Name</th><th>Email</th><th>Company</th><th>FAN Number</th><th>Temp Password</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="c in importResult.created" :key="c.row">
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.email }}</td>
+                        <td>{{ c.company }}</td>
+                        <td class="mono">{{ c.fan_number }}</td>
+                        <td class="mono">{{ c.temp_password }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="pw-note">Share each password with its employee. They must set a new password on first login.</p>
+              </div>
+
+              <div v-if="importResult.failed.length" class="import-section">
+                <p class="import-section-title import-section-title--error">Failed rows ({{ importResult.failed.length }})</p>
+                <ul class="import-error-list">
+                  <li v-for="f in importResult.failed" :key="f.row">
+                    <strong>Row {{ f.row }}:</strong> {{ f.errors.join(' ') }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-cancel" @click="importResult.show = false">Close</button>
             </div>
           </div>
         </div>
@@ -228,11 +338,15 @@
 </template>
 
 <script setup lang="ts">
+import { TIER_OPTIONS, canonicalTier } from '@/utils/tier'
 import { ref, computed, onMounted, reactive } from 'vue'
+import { confirmDialog } from '@/composables/useDialog'
 import { useApi } from '@/composables/useApi'
+import { useAuthStore } from '@/stores/auth'
 import AppPagination from '@/components/AppPagination.vue'
 
-const api = useApi()
+const api  = useApi()
+const auth = useAuthStore()
 
 // ── Toast ────────────────────────────────────────────────────
 const toast = reactive({ show: false, type: 'success', message: '' })
@@ -246,6 +360,8 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 interface Employee {
   id: number
   fan_number: string | null
+  level: string | null
+  gym_tier: string | null
   is_enrolled: boolean
   payment_status: 'paid' | 'unpaid'
   registration_status: string | null
@@ -253,9 +369,14 @@ interface Employee {
   payment_preference: string | null
   user_is_active: boolean
   active_membership_id: number | null
+  active_membership?: { plan?: { name: string; tier: string } | null } | null
   is_banned: boolean
   banned_until: string | null
   ban_reason: string | null
+  ban_indefinite?: boolean
+  card_number?: string | null
+  card_issued?: boolean
+  card_activated?: boolean
   user?:    { name: string; email: string; phone: string | null }
   company?: { name: string; tier: string }
 }
@@ -294,7 +415,7 @@ const filtered = computed(() =>
       const phone = e.user?.phone?.toLowerCase() ?? ''
       if (!name.includes(q) && !fan.includes(q) && !email.includes(q) && !phone.includes(q)) return false
     }
-    if (filterTier.value && e.company?.tier !== filterTier.value) return false
+    if (filterTier.value && empTier(e) !== canonicalTier(filterTier.value)) return false
     if (filterStatus.value === 'active'        &&  !e.user_is_active) return false
     if (filterStatus.value === 'inactive'      &&   e.user_is_active) return false
     if (filterStatus.value === 'pending_admin' && e.admin_approval_status !== 'pending') return false
@@ -303,8 +424,23 @@ const filtered = computed(() =>
   })
 )
 
-function tierLabel(t?: string) {
-  return { basic: 'Basic', basic_plus: 'Basic Plus', platinum: 'Platinum' }[t ?? ''] ?? 'Basic'
+function normalizeTier(t?: string | null): string {
+  return canonicalTier(t) || 'basic'
+}
+
+function tierLabel(t?: string | null) {
+  const canon = normalizeTier(t)
+  return { basic: 'Basic', basic_plus: 'Basic Plus', premium: 'Premium', platinum: 'Platinum' }[canon] ?? canon
+}
+
+function empPlanName(e: Employee): string {
+  if (e.active_membership?.plan?.name) return e.active_membership.plan.name
+  return tierLabel(e.gym_tier)
+}
+
+function empTier(e: Employee): string {
+  if (e.active_membership?.plan?.tier) return normalizeTier(e.active_membership.plan.tier)
+  return normalizeTier(e.gym_tier)
 }
 
 async function suspendMembership(e: Employee) {
@@ -329,7 +465,79 @@ const durationOptions = [
   { days: 3,  label: '3 Days' },
   { days: 7,  label: '1 Week' },
   { days: 30, label: '1 Month' },
+  { days: 0,  label: 'Until lifted' },
 ]
+
+// ── FitAccess card: issue to the company ─────────────────────
+const issuing = ref<number | null>(null)
+
+// Bulk: pick employees whose card can be sent to their company
+const picked = ref<number[]>([])
+const issuingMany = ref(false)
+function canIssue(e: Employee): boolean {
+  // Cards already sent can be ticked too, to resend them
+  return !!e.card_number && !e.is_banned && e.user_is_active && e.admin_approval_status !== 'pending'
+}
+const pickable = computed(() => filtered.value.filter(canIssue))
+const allPicked = computed(() => pickable.value.length > 0 && pickable.value.every((e) => picked.value.includes(e.id)))
+function selectNotSent() {
+  picked.value = pickable.value.filter((e) => !e.card_issued).map((e) => e.id)
+  if (!picked.value.length) showToast('Every card has already been sent. Tick employees to resend.', 'error')
+}
+function togglePick(id: number) {
+  picked.value = picked.value.includes(id) ? picked.value.filter((x) => x !== id) : [...picked.value, id]
+}
+function toggleAll() {
+  picked.value = allPicked.value ? [] : pickable.value.map((e) => e.id)
+}
+async function issueSelected() {
+  const n = picked.value.length
+  if (!n || !(await confirmDialog({ title: 'E-mail card numbers?', message: `E-mail ${n} employee${n === 1 ? '' : 's'} their own FitAccess card number? Their company is told who received one.`, confirmText: 'Send cards' }))) return
+  issuingMany.value = true
+  try {
+    const r = await api.post<{ message: string }>('employees/issue-cards', { ids: picked.value })
+    showToast(r.message)
+    picked.value = []
+    load()
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : 'Could not send the cards.', 'error')
+  } finally {
+    issuingMany.value = false
+  }
+}
+
+function cardStateLabel(e: Employee): string {
+  if (e.is_banned) return 'Blocked (banned)'
+  if (e.card_activated) return '✓ Activated by employee'
+  if (e.card_issued) return 'E-mailed to employee'
+  return 'Not sent yet'
+}
+function cardStateClass(e: Employee): string {
+  if (e.is_banned) return 'cs-blocked'
+  if (e.card_activated) return 'cs-on'
+  if (e.card_issued) return 'cs-sent'
+  return 'cs-new'
+}
+
+async function issueCard(e: Employee) {
+  const ok = await confirmDialog({
+    title: e.card_issued ? 'Resend card number?' : 'Send card number?',
+    message: `E-mail card number ${e.card_number} to ${e.user?.name ?? 'this employee'} (${e.user?.email ?? 'their e-mail'}). They activate it in the FitAccess portal.`,
+    confirmText: 'Send to employee',
+  })
+  if (!ok) return
+  issuing.value = e.id
+  try {
+    const res = await api.post<{ message: string; employee: Employee }>(`employees/${e.id}/issue-card`, {})
+    const idx = employees.value.findIndex(emp => emp.id === e.id)
+    if (idx !== -1) employees.value[idx] = res.employee
+    showToast(res.message)
+  } catch (err: unknown) {
+    showToast(err instanceof Error ? err.message : 'Could not send the card.', 'error')
+  } finally {
+    issuing.value = null
+  }
+}
 
 const banModal = reactive({
   open: false,
@@ -351,13 +559,14 @@ function openBan(e: Employee) {
 }
 
 async function confirmBan() {
-  if (!banModal.employee || !banModal.days) return
+  if (!banModal.employee || (banModal.days !== 0 && !banModal.days)) return
   banModal.loading = true
   banModal.error   = ''
   try {
     const updated = await api.post<{ employee: Employee }>(
       `employees/${banModal.employee.id}/ban`,
-      { days: banModal.days, ban_reason: banModal.reason || null }
+      // 0 = "Until lifted": no end date
+      { days: banModal.days || null, ban_reason: banModal.reason || null }
     )
     const idx = employees.value.findIndex(e => e.id === banModal.employee!.id)
     if (idx !== -1) employees.value[idx] = updated.employee
@@ -395,6 +604,17 @@ function toggleActive(e: Employee) {
   confirmModal.open         = true
 }
 
+async function resetTwoFactor(e: Employee) {
+  const name = e.user?.name ?? 'this employee'
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for ${name}? They will be signed out and must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
+  try {
+    const res = await api.post<{ message: string }>(`employees/${e.id}/reset-2fa`, {})
+    showToast(res.message)
+  } catch (err: unknown) {
+    showToast(err instanceof Error ? err.message : 'Failed to reset two-factor authentication.', 'error')
+  }
+}
+
 async function doToggleActive() {
   if (!confirmModal.employeeId) return
   const id     = confirmModal.employeeId
@@ -415,6 +635,7 @@ async function doToggleActive() {
 
 // ── Account status helpers ────────────────────────────────────
 function accountStatusLabel(e: Employee): string {
+  if (e.is_banned) return 'Banned'
   if (e.admin_approval_status === 'pending') return 'Pending Admin'
   if (e.admin_approval_status === 'rejected') return 'Admin Rejected'
   if (!e.user_is_active) return 'Inactive'
@@ -422,6 +643,7 @@ function accountStatusLabel(e: Employee): string {
 }
 
 function accountStatusClass(e: Employee): string {
+  if (e.is_banned) return 'not'
   if (e.admin_approval_status === 'pending')  return 'status-pending'
   if (e.admin_approval_status === 'rejected') return 'status-rejected'
   if (!e.user_is_active) return 'not'
@@ -445,19 +667,109 @@ function exportCsv() {
   a.download = `employees_${new Date().toISOString().slice(0,10)}.csv`
   a.click()
 }
+
+// ── CSV Import ──────────────────────────────────────────────
+interface ImportCreated { row: number; name: string; email: string; company: string; fan_number: string; temp_password: string }
+interface ImportFailed  { row: number; errors: string[] }
+
+const importInput  = ref<HTMLInputElement | null>(null)
+const importing    = ref(false)
+const importResult = reactive<{ show: boolean; created: ImportCreated[]; failed: ImportFailed[] }>({
+  show: false, created: [], failed: [],
+})
+
+function downloadCsv(rows: (string | number)[][], filename: string) {
+  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const a    = document.createElement('a')
+  a.href     = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+}
+
+async function downloadImportTemplate() {
+  let exampleTier = 'basic'
+  try {
+    const res  = await api.get<{ tier: string }[]>('membership-plans')
+    const list = Array.isArray(res) ? res : (res as any).data ?? []
+    if (list.length) exampleTier = list[0].tier
+  } catch {
+    // fall back to placeholder tier if plans can't be fetched
+  }
+  downloadCsv([
+    ['company', 'first_name', 'middle_name', 'last_name', 'email', 'fan_number', 'package', 'job_title', 'department', 'phone', 'joined_at'],
+    ['Acme Ethiopia PLC', 'Abebe', 'Girma', 'Haile', 'abebe.haile@example.com', '1234567890123', exampleTier, 'Accountant', 'Finance', '0912345678', '2026-01-15'],
+  ], 'employee_import_template.csv')
+}
+
+function downloadImportedCredentials() {
+  downloadCsv([
+    ['Name', 'Email', 'Company', 'FAN Number', 'Temp Password'],
+    ...importResult.created.map(c => [c.name, c.email, c.company, c.fan_number, c.temp_password]),
+  ], `imported_employees_credentials_${new Date().toISOString().slice(0, 10)}.csv`)
+}
+
+async function onImportFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file  = input.files?.[0]
+  if (!file) return
+
+  importing.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/employees/import`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: formData,
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      showToast(data.message ?? 'Import failed.', 'error')
+      return
+    }
+    importResult.created = data.created ?? []
+    importResult.failed  = data.failed ?? []
+    importResult.show    = true
+    await load()
+  } catch (err) {
+    showToast(err instanceof Error ? err.message : 'Import failed.', 'error')
+  } finally {
+    importing.value = false
+    input.value = ''
+  }
+}
 </script>
 
 <style scoped>
 .page { display: flex; flex-direction: column; gap: 16px; }
 
-.page-actions { display: flex; align-items: center; justify-content: space-between; }
-.count-label  { font-size: 0.85rem; color: #94a3b8; margin: 0; }
+.page-actions   { display: flex; align-items: center; justify-content: space-between; }
+.count-label    { font-size: 0.85rem; color: #94a3b8; margin: 0; }
+.header-actions { display: flex; align-items: center; gap: 12px; }
+.hidden-input   { display: none; }
 .btn-export   {
-  padding: 9px 18px; background: #4CD964; color: white;
+  padding: 9px 18px; background: #8BE000; color: white;
   border: none; border-radius: 10px; font-size: 0.84rem; font-weight: 600;
   cursor: pointer; transition: opacity .15s;
 }
 .btn-export:hover { opacity: .85; }
+.btn-template {
+  padding: 9px 14px; background: white; color: #64748b;
+  border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.btn-template:hover { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+.btn-import {
+  padding: 9px 16px; background: #0f172a; color: white; border: none;
+  border-radius: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: opacity .15s;
+}
+.btn-import:hover:not(:disabled) { opacity: .85; }
+.btn-import:disabled { opacity: .55; cursor: default; }
 
 .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; }
 .search-box {
@@ -465,12 +777,12 @@ function exportCsv() {
   background: white; border: 1px solid #e2e8f0; border-radius: 10px;
   font-size: 0.875rem; color: #0f172a; outline: none;
 }
-.search-box:focus { border-color: #4CD964; box-shadow: 0 0 0 3px rgba(76,217,100,0.1); }
+.search-box:focus { border-color: #8BE000; box-shadow: 0 0 0 3px rgba(139, 224, 0,0.1); }
 .select-box {
   padding: 8px 12px; background: white; border: 1px solid #e2e8f0;
   border-radius: 10px; color: #64748b; font-size: 0.82rem; outline: none; cursor: pointer;
 }
-.select-box:focus { border-color: #4CD964; }
+.select-box:focus { border-color: #8BE000; }
 
 .state-msg { text-align: center; color: #94a3b8; padding: 48px; background: white; border-radius: 14px; }
 
@@ -496,19 +808,19 @@ function exportCsv() {
   display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
 }
 .pkg-basic      { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.pkg-basic_plus { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
-.pkg-platinum   { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
+.pkg-basic_plus { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
+.pkg-platinum   { background: #ede9fe; color: #72B800; border: 1px solid #B8F0C0; }
 
 .status-badge {
   display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
 }
-.status-badge.enrolled        { background: #d1fae5; color: #2EB84B;  border: 1px solid #a7f3d0; }
+.status-badge.enrolled        { background: #d1fae5; color: #72B800;  border: 1px solid #a7f3d0; }
 .status-badge.not             { background: #fee2e2; color: #dc2626;  border: 1px solid #fecaca; }
 .status-badge.status-pending  { background: #fef3c7; color: #d97706;  border: 1px solid #fde68a; }
 .status-badge.status-rejected { background: #fee2e2; color: #dc2626;  border: 1px solid #fecaca; }
 
 .pay-badge   { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
-.pay-paid    { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
+.pay-paid    { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
 .pay-unpaid  { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
 
 .action-cell { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -524,6 +836,40 @@ function exportCsv() {
 .act-release    { background: #d1fae5; color: #15803d; }
 .act-btn:disabled { opacity: .5; cursor: not-allowed; }
 
+.td-card { min-width: 150px; }
+.th-pick, .td-pick { width: 34px; padding-right: 0 !important; }
+.th-pick input, .td-pick input { width: 16px; height: 16px; accent-color: #72B800; cursor: pointer; }
+.btn-issue {
+  padding: 9px 16px; border-radius: 10px; border: none; background: #8BE000; color: #0b0c10;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+}
+.btn-issue:disabled { opacity: .6; cursor: default; }
+.card-bulk {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid #f1f5f9; background: #fafcf6;
+}
+.card-bulk.active { background: #f3fce6; }
+.card-bulk-all { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; font-weight: 600; color: #334155; cursor: pointer; }
+.card-bulk-all input { width: 16px; height: 16px; accent-color: #72B800; }
+.card-bulk-actions { display: flex; gap: 8px; }
+.cb-btn { padding: 8px 14px; border-radius: 9px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.cb-btn:hover:not(:disabled) { border-color: #0b0c10; }
+.cb-btn.primary { background: #8BE000; border-color: #8BE000; color: #0b0c10; }
+.cb-btn:disabled { opacity: .6; cursor: default; }
+.card-send--link { margin-top: 4px; padding: 0; background: none; color: #3f6b00; text-decoration: underline; font-weight: 700; }
+.card-send--link:not(:disabled):hover { background: none; color: #0b0c10; }
+.card-num { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; font-weight: 600; color: #0f172a; white-space: nowrap; }
+.card-state { display: block; margin-top: 2px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+.cs-new { color: #b45309; }
+.cs-sent { color: #2563eb; }
+.cs-on { color: #4d7c0f; }
+.cs-blocked { color: #dc2626; }
+.card-send {
+  margin-top: 6px; padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer;
+  background: #8BE000; color: #0b0c10; font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.card-send:disabled { opacity: .6; cursor: not-allowed; }
+.card-send:not(:disabled):hover { background: #72B800; }
 .ban-chip {
   margin-top: 5px; font-size: 0.72rem; color: #b45309;
   background: #fef9c3; border: 1px solid #fde68a;
@@ -541,6 +887,29 @@ function exportCsv() {
   background: white; border-radius: 16px; width: 100%; max-width: 480px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;
 }
+.modal-panel--wide { max-width: 680px; }
+
+.import-result-body { max-height: 60vh; overflow-y: auto; }
+.import-section { display: flex; flex-direction: column; gap: 8px; }
+.import-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.import-section-title { font-size: 0.85rem; font-weight: 700; color: #0f172a; margin: 0; }
+.import-section-title--error { color: #dc2626; }
+.import-table-wrap { border: 1px solid #e2e8f0; border-radius: 10px; overflow: auto; max-height: 260px; }
+.import-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.import-table th {
+  position: sticky; top: 0; background: #f8fafc; text-align: left;
+  padding: 8px 12px; font-size: 0.68rem; font-weight: 600; color: #94a3b8;
+  letter-spacing: .05em; text-transform: uppercase; border-bottom: 1px solid #e2e8f0;
+}
+.import-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.import-table tr:last-child td { border-bottom: none; }
+.import-error-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.import-error-list li {
+  font-size: 0.8rem; color: #7f1d1d; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 8px; padding: 8px 12px;
+}
+.pw-note { font-size: 0.76rem; color: #94a3b8; margin: 0; }
+.mono { font-family: monospace; }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 22px; border-bottom: 1px solid #f1f5f9;
@@ -644,7 +1013,7 @@ function exportCsv() {
 }
 .btn-confirm:disabled { opacity: .55; cursor: not-allowed; }
 .btn-confirm:not(:disabled):hover { opacity: .85; }
-.btn-confirm-activate   { background: #4CD964; color: white; }
+.btn-confirm-activate   { background: #8BE000; color: white; }
 .btn-confirm-deactivate { background: #f59e0b; color: white; }
 
 /* Modal slide-in transition */

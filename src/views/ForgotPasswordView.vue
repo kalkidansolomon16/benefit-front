@@ -1,10 +1,10 @@
-﻿<template>
+<template>
   <div class="auth-wrap">
     <div class="auth-card">
-      <div class="auth-logo">
-        <span class="logo-icon">⚡</span>
+      <RouterLink to="/" class="auth-logo" aria-label="FitAccess home">
+        <img src="/logo.png" alt="FitAccess" class="logo-icon" />
         <span class="logo-text">FitAccess</span>
-      </div>
+      </RouterLink>
 
       <!-- Step 1: Enter email -->
       <template v-if="!tokenSent">
@@ -133,7 +133,11 @@ async function copyToken() {
 }
 
 .logo-icon {
-  font-size: 1.6rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .logo-text {
   font-size: 1.4rem;
@@ -190,8 +194,8 @@ async function copyToken() {
 
 .field input:focus {
   outline: none;
-  border-color: #4cd964;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: #8BE000;
+  box-shadow: 0 0 0 3px rgba(139,224,0,0.15);
 }
 
 .err-msg {
@@ -207,7 +211,7 @@ async function copyToken() {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #4cd964;
+  background: #8BE000;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -223,7 +227,7 @@ async function copyToken() {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #2eb84b;
+  background: #72B800;
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -250,7 +254,7 @@ async function copyToken() {
 
 .back-link {
   text-align: center;
-  color: #4cd964;
+  color: #8BE000;
   font-size: 0.875rem;
   text-decoration: none;
   display: block;
@@ -258,7 +262,7 @@ async function copyToken() {
 }
 
 .back-link:hover {
-  color: #4cd964;
+  color: #8BE000;
 }
 
 /* Token display */
@@ -283,7 +287,7 @@ async function copyToken() {
   font-size: 1.8rem;
   font-weight: 800;
   letter-spacing: 0.15em;
-  color: #a5b4fc;
+  color: #8BE000;
   margin-bottom: 14px;
   font-family: monospace;
 }
@@ -300,8 +304,8 @@ async function copyToken() {
 }
 
 .copy-btn:hover {
-  border-color: #4cd964;
-  color: #4cd964;
+  border-color: #8BE000;
+  color: #8BE000;
 }
 
 .info-note {
@@ -314,4 +318,5 @@ async function copyToken() {
 .info-note strong {
   color: #94a3b8;
 }
+a.auth-logo { text-decoration: none; }
 </style>

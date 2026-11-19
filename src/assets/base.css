@@ -1,20 +1,24 @@
+@import './fonts.css';
+
 :root {
-  --color-primary: #1b3a6b;
-  --color-primary-dark: #0f2447;
-  --color-accent: #4CD964;
-  --color-accent-hover: #2EB84B;
-  --color-green: #4CD964;
-  --color-green-hover: #2EB84B;
+  --font-heading: 'Avenir Next LT Pro', 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Montserrat', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --color-primary: #0B0C10;
+  --color-primary-dark: #0B0C10;
+  --color-accent: #8BE000;
+  --color-accent-hover: #72B800;
+  --color-green: #8BE000;
+  --color-green-hover: #72B800;
   --color-white: #ffffff;
-  --color-bg-light: #EBFAEE;
-  --color-bg-soft: #f8faff;
+  --color-bg-light: #F3FCE6;
+  --color-bg-soft: #f8faf5;
   --color-bg-gray: #f3f4f6;
   --color-text: #111827;
   --color-text-muted: #6b7280;
   --color-text-light: #9ca3af;
   --color-border: #e5e7eb;
-  --color-card-shadow: 0 4px 24px rgba(27, 58, 107, 0.08);
-  --color-card-shadow-hover: 0 8px 40px rgba(27, 58, 107, 0.16);
+  --color-card-shadow: 0 4px 24px rgba(11, 12, 16, 0.08);
+  --color-card-shadow-hover: 0 8px 40px rgba(11, 12, 16, 0.16);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
@@ -35,12 +39,17 @@ html {
 }
 
 body {
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-white);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
 }
 
 a { text-decoration: none; color: inherit; }

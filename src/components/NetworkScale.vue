@@ -6,7 +6,7 @@ const cards = [
     label: 'Partner Gyms in Addis',
     desc: 'Premium hotel gyms, fitness studios, and wellness centres across Addis Ababa',
     color: '#EBFAEE',
-    accent: '#4CD964',
+    accent: '#8BE000',
   },
   {
     icon: '🏢',

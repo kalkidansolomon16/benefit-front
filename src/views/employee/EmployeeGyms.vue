@@ -1,351 +1,298 @@
+<script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import { useEmployeePortal, type PortalGym } from '@/composables/useEmployeePortal'
+import { DEFAULT_CENTER, distanceMeters, type LatLng } from '@/utils/geo'
+import GymCrowd from '@/components/GymCrowd.vue'
+
+const portal = useEmployeePortal()
+const route = useRoute()
+const d = computed(() => portal.data.value!)
+
+// ── Filters ──
+const q = ref(typeof route.query.q === 'string' ? route.query.q : '')
+const facility = ref(typeof route.query.facility === 'string' ? route.query.facility : '')
+const tier = ref('')
+const sort = ref<'name' | 'distance'>('name')
+const me = ref<LatLng | null>(null)
+const locating = ref(false)
+const locateMsg = ref('')
+const selected = ref<number | null>(null)
+
+const tiers = computed(() => d.value.pass.accessible_tiers)
+const tierLabel = (t: string) => d.value.pass.plan_labels[t] ?? t.replace('_', ' ')
+const facilities = computed(() =>
+  [...new Set(d.value.accessible_gyms.flatMap((g) => g.facilities ?? []))].filter(Boolean).sort(),
+)
+
+function dist(g: PortalGym): number | null {
+  if (!me.value || g.latitude == null || g.longitude == null) return null
+  return distanceMeters(me.value, { lat: g.latitude, lng: g.longitude })
+}
+
+const gyms = computed(() => {
+  const term = q.value.trim().toLowerCase()
+  const list = d.value.accessible_gyms.filter((g) => {
+    if (tier.value && g.tier !== tier.value && !(tier.value === 'basic_plus' && g.tier === 'basic_plus')) return false
+    if (facility.value && !(g.facilities ?? []).includes(facility.value)) return false
+    if (!term) return true
+    return [g.name, g.sub_city, g.city, g.address].filter(Boolean).join(' ').toLowerCase().includes(term)
+  })
+  return sort.value === 'distance' && me.value
+    ? [...list].sort((a, b) => (dist(a) ?? Infinity) - (dist(b) ?? Infinity))
+    : [...list].sort((a, b) => a.name.localeCompare(b.name))
+})
+
+// ── Opening hours: "06:00–22:00" → open / closed now ──
+function hoursToday(g: PortalGym): string | null {
+  const h = g.opening_hours
+  if (!h || typeof h === 'string') return (h as string) || null
+  const weekend = [0, 6].includes(new Date().getDay())
+  return (weekend ? h.weekends : h.weekdays) ?? null
+}
+function openState(g: PortalGym): { open: boolean; text: string } | null {
+  const h = hoursToday(g)
+  if (!h) return null
+  if (/closed/i.test(h)) return { open: false, text: 'Closed today' }
+  const m = h.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/)
+  if (!m) return { open: true, text: h }
+  const now = new Date()
+  const mins = now.getHours() * 60 + now.getMinutes()
+  const from = +m[1]! * 60 + +m[2]!
+  const to = +m[3]! * 60 + +m[4]!
+  const open = to > from ? mins >= from && mins < to : mins >= from || mins < to
+  return open ? { open: true, text: `Open · until ${m[3]}:${m[4]}` } : { open: false, text: `Closed · opens ${m[1]}:${m[2]}` }
+}
+
+function locate() {
+  locateMsg.value = ''
+  if (!('geolocation' in navigator)) {
+    locateMsg.value = 'Your browser cannot detect location.'
+    return
+  }
+  locating.value = true
+  navigator.geolocation.getCurrentPosition(
+    (p) => {
+      locating.value = false
+      me.value = { lat: p.coords.latitude, lng: p.coords.longitude }
+      sort.value = 'distance'
+      showMe()
+    },
+    () => {
+      locating.value = false
+      locateMsg.value = 'Location is blocked. Search by name or area instead.'
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+  )
+}
+
+// ── Map ──
+const mapEl = ref<HTMLDivElement | null>(null)
+let map: L.Map | null = null
+let layer: L.LayerGroup | null = null
+let meMarker: L.CircleMarker | null = null
+const markers = new Map<number, L.Marker>()
+
+const pin = (active: boolean) =>
+  L.divIcon({
+    className: 'eg-pin',
+    html: `<span class="eg-pin-dot${active ? ' on' : ''}"></span>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 30],
+  })
+
+function drawMarkers() {
+  if (!map || !layer) return
+  layer.clearLayers()
+  markers.clear()
+  const pts: L.LatLngExpression[] = []
+  for (const g of gyms.value) {
+    if (g.latitude == null || g.longitude == null) continue
+    const m = L.marker([g.latitude, g.longitude], { icon: pin(selected.value === g.id), title: g.name })
+      .bindTooltip(g.name, { direction: 'top', offset: [0, -26] })
+      .on('click', () => select(g.id, false))
+    m.addTo(layer)
+    markers.set(g.id, m)
+    pts.push([g.latitude, g.longitude])
+  }
+  if (pts.length && !selected.value) map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 15 })
+}
+
+function showMe() {
+  if (!map || !me.value) return
+  meMarker?.remove()
+  meMarker = L.circleMarker(me.value, { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 })
+    .bindTooltip('You are here')
+    .addTo(map)
+  map.setView(me.value, 13)
+}
+
+async function select(id: number, pan = true) {
+  selected.value = id
+  drawMarkers()
+  const g = d.value.accessible_gyms.find((x) => x.id === id)
+  if (pan && map && g?.latitude != null && g.longitude != null) map.setView([g.latitude, g.longitude], 16)
+  await nextTick()
+  document.getElementById(`gym-${id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+
+const mapsUrl = (g: PortalGym) =>
+  g.latitude != null && g.longitude != null
+    ? `https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([g.name, g.address, g.city].filter(Boolean).join(', '))}`
+
+let resize: ResizeObserver | null = null
+onMounted(() => {
+  if (!mapEl.value) return
+  map = L.map(mapEl.value, { center: DEFAULT_CENTER, zoom: 12, scrollWheelZoom: true })
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map)
+  layer = L.layerGroup().addTo(map)
+  drawMarkers()
+  resize = new ResizeObserver(() => map?.invalidateSize())
+  resize.observe(mapEl.value)
+})
+onBeforeUnmount(() => {
+  resize?.disconnect()
+  map?.remove()
+  map = null
+})
+watch(gyms, () => {
+  if (selected.value && !gyms.value.some((g) => g.id === selected.value)) selected.value = null
+  drawMarkers()
+})
+</script>
+
 <template>
-  <div class="page">
-
-    <!-- Loading -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading gyms�</p>
-    </div>
-
-    <template v-else-if="data">
-
-      <!-- Plan badge -->
-      <div class="plan-banner">
-        <div class="plan-banner-left">
-          <span class="plan-icon"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
-          <div>
-            <p class="plan-banner-label">Your Plan</p>
-            <p class="plan-banner-name">{{ data.pass.plan_name }}</p>
-          </div>
-        </div>
-        <div class="plan-banner-tiers">
-          <span
-            v-for="t in accessibleTiers"
-            :key="t"
-            class="tier-pill"
-            :class="tierPillClass(t)"
-          >{{ tierLabel(t) }}</span>
-        </div>
-      </div>
-
-      <!-- Search & filter -->
-      <div class="toolbar">
-        <div class="search-wrap">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input
-            v-model="search"
-            type="text"
-            class="search-input"
-            placeholder="Search gyms by name or location�"
-          />
-          <button v-if="search" class="clear-btn" @click="search = ''">✕</button>
-        </div>
-        <select v-model="filterTier" class="tier-select">
-          <option value="">All tiers</option>
-          <option v-for="t in accessibleTiers" :key="t" :value="t">{{ tierLabel(t) }}</option>
+  <div class="eg">
+    <div class="eg-bar">
+      <label class="eg-field grow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+        <input v-model="q" type="search" placeholder="Search for a gym or area" aria-label="Search gyms" />
+      </label>
+      <label class="eg-field">
+        <select v-model="facility" aria-label="Facility">
+          <option value="">All facilities</option>
+          <option v-for="f in facilities" :key="f" :value="f">{{ f }}</option>
         </select>
-      </div>
-
-      <!-- No results -->
-      <div v-if="filteredGyms.length === 0" class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.4"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <p>No gyms found{{ search ? ` for "${search}"` : '' }}.</p>
-      </div>
-
-      <!-- Gyms grid -->
-      <div v-else class="gym-grid">
-        <div
-          v-for="g in paginatedGyms"
-          :key="g.id"
-          class="gym-card"
-        >
-          <div class="gym-card-header">
-            <div class="gym-avatar" :class="tierPillClass(g.tier, 'gym-avatar--')">
-              {{ g.name.slice(0, 2).toUpperCase() }}
-            </div>
-            <span class="tier-tag" :class="tierPillClass(g.tier, 'tier-tag--')">{{ tierLabel(g.tier) }}</span>
-          </div>
-
-          <h3 class="gym-name">{{ g.name }}</h3>
-          <p class="gym-location">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            {{ g.sub_city }}<span v-if="g.city">, {{ g.city }}</span>
-          </p>
-          <p v-if="g.address" class="gym-address">{{ g.address }}</p>
-
-          <!-- Facilities -->
-          <div v-if="g.facilities?.length" class="facilities">
-            <span v-for="f in g.facilities.slice(0, 4)" :key="f" class="facility-chip">{{ f }}</span>
-            <span v-if="g.facilities.length > 4" class="facility-chip facility-chip--more">+{{ g.facilities.length - 4 }}</span>
-          </div>
-
-          <!-- Hours -->
-          <p v-if="hoursLabel(g.opening_hours)" class="gym-hours">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            {{ hoursLabel(g.opening_hours) }}
-          </p>
-        </div>
-      </div>
-
-      <AppPagination
-        v-model:page="gymPage"
-        :total-pages="gymTotalPages"
-        :total="filteredGyms.length"
-        :per-page="gymPerPage"
-      />
-
-    </template>
-
-    <!-- Error -->
-    <div v-else class="error-state">
-      <p>{{ error }}</p>
-      <button class="retry-btn" @click="load">Retry</button>
+      </label>
+      <label class="eg-field">
+        <select v-model="tier" aria-label="Package">
+          <option value="">All my packages</option>
+          <option v-for="t in tiers" :key="t" :value="t">{{ tierLabel(t) }}</option>
+        </select>
+      </label>
+      <label class="eg-field">
+        <select v-model="sort" aria-label="Sorting">
+          <option value="name">Sort: A–Z</option>
+          <option value="distance" :disabled="!me">Sort: nearest</option>
+        </select>
+      </label>
+      <button type="button" class="eg-near" :disabled="locating" @click="locate">
+        {{ locating ? 'Locating…' : 'Show nearest' }}
+      </button>
     </div>
+    <p v-if="locateMsg" class="eg-note">{{ locateMsg }}</p>
 
+    <div class="eg-split">
+      <div class="eg-list" aria-label="Gyms">
+        <p class="eg-count">{{ gyms.length }} {{ gyms.length === 1 ? 'gym' : 'gyms' }} on your plan</p>
+        <div v-if="!gyms.length" class="eg-empty">
+          <strong>No exact matches</strong>
+          <p>Try another name, area or facility.</p>
+        </div>
+        <article
+          v-for="g in gyms"
+          :id="`gym-${g.id}`"
+          :key="g.id"
+          class="eg-item"
+          :class="{ on: selected === g.id }"
+          tabindex="0"
+          @click="select(g.id)"
+          @keydown.enter="select(g.id)"
+        >
+          <h3>{{ g.name }}</h3>
+          <div v-if="g.facilities?.length" class="eg-tags">
+            <span v-for="f in g.facilities.slice(0, 3)" :key="f">{{ f }}</span>
+            <span v-if="g.facilities.length > 3" class="more">+{{ g.facilities.length - 3 }} more</span>
+          </div>
+          <p class="eg-line">📍 {{ [g.address, g.sub_city, g.city].filter(Boolean).join(', ') }}</p>
+          <p v-if="openState(g)" class="eg-line" :class="openState(g)!.open ? 'open' : 'closed'">
+            🕒 {{ openState(g)!.text }}
+          </p>
+          <div v-if="g.crowd" class="eg-crowd" @click.stop>
+            <GymCrowd :crowd="g.crowd" :gym-id="g.id" />
+          </div>
+          <div class="eg-foot">
+            <span class="eg-plan">FitAccess <b>{{ tierLabel(g.tier) }}</b></span>
+            <span v-if="dist(g) != null" class="eg-dist">{{ (dist(g)! / 1000).toFixed(1) }} km</span>
+            <a :href="mapsUrl(g)" target="_blank" rel="noopener" class="eg-dir" @click.stop>Directions</a>
+          </div>
+        </article>
+      </div>
+      <div ref="mapEl" class="eg-map" aria-label="Map of gyms"></div>
+    </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useApi } from '@/composables/useApi'
-import AppPagination from '@/components/AppPagination.vue'
-
-interface Gym {
-  id: number
-  name: string
-  tier: string
-  sub_city: string
-  city: string
-  address: string
-  facilities: string[]
-  opening_hours: string | null
-}
-
-interface DashboardData {
-  pass: {
-    plan_name: string
-    plan_key: string
-    accessible_tiers: string[]
-    plan_labels: Record<string, string>
-  }
-  accessible_gyms: Gym[]
-}
-
-const api     = useApi()
-const loading = ref(true)
-const error   = ref('')
-const data    = ref<DashboardData | null>(null)
-const search  = ref('')
-const filterTier = ref('')
-
-const accessibleTiers = computed(() =>
-  data.value?.pass.accessible_tiers ?? [data.value?.pass.plan_key ?? 'basic']
-)
-
-const gymPage    = ref(1)
-const gymPerPage = 10
-const gymTotalPages  = computed(() => Math.max(1, Math.ceil(filteredGyms.value.length / gymPerPage)))
-const paginatedGyms  = computed(() => filteredGyms.value.slice((gymPage.value - 1) * gymPerPage, gymPage.value * gymPerPage))
-
-const filteredGyms = computed(() => {
-  const gyms = data.value?.accessible_gyms ?? []
-  return gyms.filter(g => {
-    const matchTier   = !filterTier.value || g.tier === filterTier.value
-    const matchSearch = !search.value ||
-      g.name.toLowerCase().includes(search.value.toLowerCase()) ||
-      g.sub_city.toLowerCase().includes(search.value.toLowerCase()) ||
-      g.city?.toLowerCase().includes(search.value.toLowerCase())
-    return matchTier && matchSearch
-  })
-})
-
-async function load() {
-  loading.value = true
-  error.value   = ''
-  try {
-    data.value = await api.get<DashboardData>('employee/dashboard')
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Could not load gyms.'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(load)
-
-watch(filteredGyms, () => { gymPage.value = 1 })
-
-// Map known tiers to CSS suffix; unknown tiers fall back to 'basic' colour
-const TIER_CSS: Record<string, string> = {
-  platinum: 'platinum', premium: 'premium', basic_plus: 'basic_plus', basic: 'basic',
-}
-function tierPillClass(t: string, prefix = 'tier-pill--'): string {
-  return prefix + (TIER_CSS[t] ?? 'basic')
-}
-
-function tierLabel(t: string): string {
-  // Use plan label from API if available, otherwise humanise the tier key
-  const labels = data.value?.pass.plan_labels ?? {}
-  if (labels[t]) return labels[t]
-  return { platinum: 'Platinum', premium: 'Premium', basic_plus: 'Plus', basic: 'Basic' }[t]
-    ?? t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function hoursLabel(raw: string | null): string {
-  if (!raw) return ''
-  if (typeof raw === 'object') {
-    const h = raw as Record<string, string>
-    return h.summary ?? (h.weekdays ? `Weekdays ${h.weekdays}` + (h.weekends ? ` � Weekends ${h.weekends}` : '') : '')
-  }
-  try {
-    const parsed = JSON.parse(raw) as Record<string, string>
-    return parsed.summary ?? (parsed.weekdays ? `Weekdays ${parsed.weekdays}` + (parsed.weekends ? ` � Weekends ${parsed.weekends}` : '') : raw)
-  } catch {
-    return raw
-  }
-}
-</script>
-
 <style scoped>
-.page { display: flex; flex-direction: column; gap: 20px; font-family: 'Inter', system-ui, sans-serif; }
-
-/* Loading / Error */
-.loading-state, .error-state {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 14px; padding: 80px 20px; color: #94a3b8;
+.eg { display: flex; flex-direction: column; gap: 14px; margin: -16px 0 0; }
+.eg-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+.eg-field {
+  display: flex; align-items: center; gap: 8px; padding: 0 14px; background: #fff; border: 1px solid #e5e7eb;
+  border-radius: 12px; color: #4d7c0f;
 }
-.spinner {
-  width: 34px; height: 34px; border: 3px solid #e2e8f0;
-  border-top-color: #4CD964; border-radius: 50%; animation: spin 0.7s linear infinite;
+.eg-field.grow { flex: 1 1 260px; }
+.eg-field input, .eg-field select {
+  border: none; outline: none; background: transparent; padding: 12px 0; font-size: 14px; font-family: inherit;
+  color: #1f2937; min-width: 0; flex: 1;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-.retry-btn {
-  padding: 8px 20px; border-radius: 8px; border: 1.5px solid #e2e8f0;
-  background: #fff; font-size: 0.85rem; cursor: pointer; color: #334155;
+.eg-near {
+  padding: 12px 22px; border-radius: 12px; border: none; background: #0b0c10; color: #fff; font-weight: 700;
+  font-family: inherit; cursor: pointer;
 }
-
-/* Plan banner */
-.plan-banner {
-  display: flex; align-items: center; justify-content: space-between;
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
-  padding: 16px 20px; gap: 16px; flex-wrap: wrap;
+.eg-near:hover:not(:disabled) { background: #8be000; color: #0b0c10; }
+.eg-note { margin: 0; font-size: 13px; color: #b45309; }
+.eg-split { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; height: calc(100vh - 170px); min-height: 520px; }
+.eg-list { overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+.eg-count { margin: 0; font-size: 13px; color: #6b7280; }
+.eg-empty { background: #fff; border-radius: 14px; padding: 18px; }
+.eg-empty p { margin: 4px 0 0; color: #6b7280; font-size: 14px; }
+.eg-item {
+  background: #fff; border-radius: 14px; padding: 16px 18px; cursor: pointer; border: 2px solid transparent;
+  box-shadow: 0 1px 3px rgba(11, 12, 16, 0.05); transition: border-color 0.15s;
 }
-.plan-banner-left { display: flex; align-items: center; gap: 12px; }
-.plan-icon { font-size: 1.6rem; line-height: 1; }
-.plan-banner-label { font-size: 0.68rem; color: #94a3b8; letter-spacing: 0.08em; margin: 0 0 2px; text-transform: uppercase; }
-.plan-banner-name  { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; }
-.plan-banner-tiers { display: flex; gap: 8px; flex-wrap: wrap; }
-.tier-pill {
-  padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+.eg-item:hover, .eg-item:focus-visible { border-color: #d9f99d; outline: none; }
+.eg-item.on { border-color: #8be000; }
+.eg-item h3 { margin: 0 0 8px; font-size: 18px; color: #0b0c10; font-weight: 700; }
+.eg-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.eg-tags span { font-size: 12px; padding: 4px 8px; border-radius: 8px; background: #f3fce6; color: #3f6212; border: 1px solid #e2f5c4; }
+.eg-tags span.more { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+.eg-line { margin: 4px 0; font-size: 13px; color: #4b5563; }
+.eg-crowd { margin: 6px 0 2px; }
+.eg-line.open { color: #15803d; }
+.eg-line.closed { color: #b91c1c; }
+.eg-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.eg-plan { font-size: 12px; color: #4b5563; }
+.eg-plan b { background: #eef9dc; color: #3f6212; padding: 2px 8px; border-radius: 6px; margin-left: 2px; }
+.eg-dist { font-size: 12px; color: #6b7280; }
+.eg-dir { margin-left: auto; font-size: 13px; font-weight: 700; color: #4d7c0f; text-decoration: none; }
+.eg-dir:hover { text-decoration: underline; }
+.eg-map { border-radius: 16px; overflow: hidden; z-index: 0; background: #e5e7eb; }
+.eg :deep(.eg-pin) { background: none; border: none; }
+.eg :deep(.eg-pin-dot) {
+  display: block; width: 100%; height: 100%; box-sizing: border-box; background: #0b0c10; border: 3px solid #8be000;
+  border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
-.tier-pill--platinum   { background: #EBFAEE; color: #2EB84B; }
-.tier-pill--premium    { background: #EBFAEE; color: #4CD964; }
-.tier-pill--basic_plus { background: #e0f2fe; color: #2EB84B; }
-.tier-pill--basic      { background: #f1f5f9; color: #64748b; }
-
-/* Toolbar */
-.toolbar {
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-}
-.search-wrap {
-  position: relative; flex: 1; min-width: 220px;
-}
-.search-icon {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-  color: #94a3b8; pointer-events: none;
-}
-.search-input {
-  width: 100%; padding: 10px 36px 10px 36px;
-  border: 1.5px solid #e2e8f0; border-radius: 10px;
-  font-size: 0.9rem; color: #1e293b; background: #fff;
-  outline: none; transition: border-color 0.2s;
-  font-family: inherit;
-}
-.search-input:focus { border-color: #4CD964; }
-.search-input::placeholder { color: #94a3b8; }
-.clear-btn {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.8rem;
-  line-height: 1; padding: 2px 4px;
-}
-.clear-btn:hover { color: #334155; }
-
-.tier-select {
-  padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px;
-  font-size: 0.88rem; color: #1e293b; background: #fff;
-  outline: none; cursor: pointer; font-family: inherit;
-  transition: border-color 0.2s;
-}
-.tier-select:focus { border-color: #4CD964; }
-
-/* Empty */
-.empty-state {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 12px; padding: 60px 20px; color: #94a3b8; font-size: 0.9rem;
-}
-
-/* Gym grid */
-.gym-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.gym-card {
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
-  padding: 20px; display: flex; flex-direction: column; gap: 8px;
-  transition: box-shadow 0.2s, transform 0.2s;
-}
-.gym-card:hover {
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  transform: translateY(-2px);
-}
-
-.gym-card-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
-}
-.gym-avatar {
-  width: 44px; height: 44px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em;
-}
-.gym-avatar--platinum   { background: #EBFAEE; color: #2EB84B; }
-.gym-avatar--premium    { background: #EBFAEE; color: #4CD964; }
-.gym-avatar--basic_plus { background: #e0f2fe; color: #2EB84B; }
-.gym-avatar--basic      { background: #f1f5f9; color: #64748b; }
-
-.tier-tag {
-  padding: 3px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600;
-}
-.tier-tag--platinum   { background: #EBFAEE; color: #2EB84B; }
-.tier-tag--premium    { background: #EBFAEE; color: #4CD964; }
-.tier-tag--basic_plus { background: #e0f2fe; color: #2EB84B; }
-.tier-tag--basic      { background: #f1f5f9; color: #64748b; }
-
-.gym-name {
-  font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0;
-  line-height: 1.3;
-}
-.gym-location {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 0.8rem; color: #64748b; margin: 0;
-}
-.gym-address {
-  font-size: 0.76rem; color: #94a3b8; margin: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.facilities {
-  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px;
-}
-.facility-chip {
-  padding: 3px 9px; background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 20px; font-size: 0.72rem; color: #475569;
-}
-.facility-chip--more { background: #f0f2f5; color: #94a3b8; }
-
-.gym-hours {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 0.76rem; color: #94a3b8; margin: 4px 0 0;
+.eg :deep(.eg-pin-dot.on) { background: #8be000; border-color: #0b0c10; }
+@media (max-width: 900px) {
+  .eg { margin-top: 0; }
+  .eg-split { grid-template-columns: 1fr; height: auto; }
+  .eg-map { height: 340px; order: -1; }
+  .eg-list { overflow: visible; }
 }
 </style>

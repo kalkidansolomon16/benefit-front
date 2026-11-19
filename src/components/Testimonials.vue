@@ -166,7 +166,7 @@ const next = () => { active.value = (active.value + 1) % testimonials.length }
 .quote-icon {
   font-size: 6rem;
   line-height: 0.6;
-  color: rgba(27, 58, 107, 0.12);
+  color: rgba(11, 12, 16, 0.12);
   font-family: Georgia, serif;
   margin-bottom: 16px;
 }
@@ -219,7 +219,7 @@ const next = () => { active.value = (active.value + 1) % testimonials.length }
   width: 40px; height: 40px;
   border-radius: 50%;
   background: rgba(255,255,255,0.6);
-  border: 1.5px solid rgba(27,58,107,0.15);
+  border: 1.5px solid rgba(11, 12, 16,0.15);
   display: flex; align-items: center; justify-content: center;
   color: var(--color-primary);
   transition: var(--transition);
@@ -234,7 +234,7 @@ const next = () => { active.value = (active.value + 1) % testimonials.length }
 .nav-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: rgba(27,58,107,0.2);
+  background: rgba(11, 12, 16,0.2);
   transition: var(--transition);
   border: none;
 }

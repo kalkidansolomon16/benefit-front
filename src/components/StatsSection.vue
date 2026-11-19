@@ -8,7 +8,7 @@ const stats = [
     label: 'of Ethiopian corporate employees had no gym access before FitAccess',
     icon: '🏅',
     color: '#EBFAEE',
-    accent: '#4CD964',
+    accent: '#8BE000',
   },
   {
     value: 40,
@@ -127,7 +127,7 @@ onMounted(() => {
 .stats-bg-shape {
   position: absolute;
   width: 800px; height: 800px;
-  background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(139,224,0,0.05) 0%, transparent 70%);
   top: -200px; right: -200px;
 }
 

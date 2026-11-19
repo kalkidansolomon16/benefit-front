@@ -1,23 +1,23 @@
 <script setup lang="ts">
 const reasons = [
   {
-    icon: '????',
+    icon: '🇪🇹',
     title: 'Built for Ethiopia',
     description:
-      'FitAccess is designed specifically for Ethiopian organisations � ETB billing, FAN-number check-in, and Addis Ababa partners. No foreign subscriptions or dollar conversions.',
+      'FitAccess is designed specifically for Ethiopian organisations — ETB billing, FAN-number check-in, and Addis Ababa partners. No foreign subscriptions or dollar conversions.',
     color: '#dcfce7',
     accent: '#16a34a',
   },
   {
-    icon: '??',
-    title: 'Affordable ETB Pricing',
+    icon: '💰',
+    title: 'One Simple ETB Invoice',
     description:
-      'Plans start at ETB 3,800 per employee per month � far cheaper than individual hotel gym memberships. One quarterly invoice covers your entire team.',
+      'One quarterly invoice in ETB covers your entire team, with prices agreed directly with your company. No individual gym memberships to manage.',
     color: '#EBFAEE',
-    accent: '#4CD964',
+    accent: '#8BE000',
   },
   {
-    icon: '??',
+    icon: '🏆',
     title: 'Grade-Based Access Tiers',
     description:
       'Staff and managers get Basic gyms, directors get mid-tier facilities and group classes, chiefs get full platinum access including spas and personal coaches.',
@@ -25,23 +25,23 @@ const reasons = [
     accent: '#db2777',
   },
   {
-    icon: '??',
+    icon: '📊',
     title: 'Real-Time HR Analytics',
     description:
-      'Track check-ins, utilisation rates, and wellness trends across your Addis workforce with our live HR dashboard � exportable for board reports.',
+      'Track check-ins, utilisation rates, and wellness trends across your Addis workforce with our live HR dashboard — exportable for board reports.',
     color: '#fef3c7',
     accent: '#d97706',
   },
   {
-    icon: '??',
+    icon: '🧘',
     title: 'Beyond the Gym',
     description:
-      'FitAccess covers nutrition clinics, mental health centres, and medical facilities across Addis � addressing the full spectrum of employee wellbeing.',
+      'FitAccess covers nutrition clinics, mental health centres, and medical facilities across Addis — addressing the full spectrum of employee wellbeing.',
     color: '#f3e8ff',
-    accent: '#2EB84B',
+    accent: '#72B800',
   },
   {
-    icon: '??',
+    icon: '🤝',
     title: 'Local Dedicated Support',
     description:
       'Our Addis-based account managers speak Amharic and understand Ethiopian corporate culture. We are here from onboarding day to every quarterly renewal.',
@@ -61,7 +61,7 @@ const reasons = [
         <span class="section-tag">Why FitAccess</span>
         <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
         <p class="section-subtitle">
-          Built with both HR teams and employees in mind � FitAccess makes corporate
+          Built with both HR teams and employees in mind — FitAccess makes corporate
           wellness simple, affordable, and genuinely effective.
         </p>
       </div>
@@ -110,7 +110,7 @@ const reasons = [
 .why-bg-blob {
   position: absolute;
   width: 700px; height: 700px;
-  background: radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(139,224,0,0.2) 0%, transparent 70%);
   top: -200px; right: -200px;
 }
 

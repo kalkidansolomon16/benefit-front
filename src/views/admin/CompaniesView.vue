@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page">
     <!-- Header -->
     <div class="page-actions">
@@ -29,12 +29,6 @@
         />
         <button v-if="search" class="search-clear" @click="clearSearch" title="Clear">✕</button>
       </div>
-      <select v-model="filterTier" class="select-box" @change="resetAndLoad">
-        <option value="">All Tiers</option>
-        <option value="basic">Basic</option>
-        <option value="basic_plus">Basic Plus</option>
-        <option value="platinum">Platinum</option>
-      </select>
       <select v-model="filterLicense" class="select-box" @change="resetAndLoad">
         <option value="">All License States</option>
         <option value="pending">Pending</option>
@@ -92,7 +86,6 @@
             {{ c.contact_email ?? '—' }}
           </p>
           <div class="cc-badges">
-            <span class="badge tier-badge" :class="'tier-' + c.tier">{{ tierLabel(c.tier) }}</span>
             <span class="badge lic-badge" :class="'lic-' + c.business_license_status">{{
               c.business_license_status ?? 'No License'
             }}</span>
@@ -175,7 +168,7 @@
                 <div>
                   <h2 class="drawer-title">{{ drawer.company?.name }}</h2>
                   <p class="drawer-sub">
-                    {{ drawer.company?.city }} · {{ tierLabel(drawer.company?.tier ?? '') }}
+                    {{ drawer.company?.city }}
                   </p>
                 </div>
               </div>
@@ -193,6 +186,16 @@
               </button>
             </div>
 
+            <!-- Onboarding: contract pack + bulk card numbers -->
+            <div v-if="drawer.company" class="drawer-onb">
+              <button type="button" class="onb-btn" :disabled="onbBusy !== ''" @click="sendContract">
+                {{ onbBusy === 'contract' ? 'Sending…' : 'Send consent form & Excel template' }}
+              </button>
+              <button type="button" class="onb-btn lime" :disabled="onbBusy !== ''" @click="sendAllCards">
+                {{ onbBusy === 'cards' ? 'Sending…' : 'E-mail all new cards to employees' }}
+              </button>
+            </div>
+
             <!-- Stat strip -->
             <div class="drawer-stats">
               <div class="ds-stat">
@@ -202,7 +205,7 @@
               <div class="ds-divider"></div>
               <div class="ds-stat">
                 <p class="ds-val teal">
-                  {{ drawer.employees.filter((e) => e.is_enrolled).length }}
+                  {{ drawer.employees.filter((e) => e.is_enrolled && !e.is_banned).length }}
                 </p>
                 <p class="ds-lbl">Enrolled</p>
               </div>
@@ -219,6 +222,20 @@
                   {{ drawer.employees.filter((e) => e.package === 'platinum').length }}
                 </p>
                 <p class="ds-lbl">Platinum</p>
+              </div>
+            </div>
+
+            <!-- Branches -->
+            <div v-if="drawer.branches.length" class="drawer-branches">
+              <p class="drawer-branches-title">Branches ({{ drawer.branches.length }})</p>
+              <div v-for="b in drawer.branches" :key="b.id" class="drawer-branch-row">
+                <div>
+                  <strong>{{ b.name }}</strong>
+                  <span class="drawer-branch-meta">
+                    {{ b.city }} · {{ b.employee_count }} employee(s) · {{ b.is_active ? 'Active' : 'Inactive' }}
+                  </span>
+                  <span class="drawer-branch-meta">Login: {{ b.login_email ?? '—' }}</span>
+                </div>
               </div>
             </div>
 
@@ -276,6 +293,10 @@
                     <span v-if="emp.department">{{ emp.department }}</span>
                   </p>
                   <p class="emp-fan">FAN: {{ emp.fan_number ?? '—' }}</p>
+                  <p v-if="emp.card_number" class="emp-card">Card: {{ emp.card_number }}</p>
+                  <p v-if="emp.is_banned" class="emp-ban">
+                    ⛔ {{ emp.ban_indefinite ? 'Banned until lifted' : `Banned until ${fmtBanDate(emp.banned_until)}` }} · card blocked
+                  </p>
                 </div>
 
                 <!-- Badges -->
@@ -380,16 +401,6 @@
               </div>
               <div class="form-row">
                 <div class="field">
-                  <label class="field-label">Package Tier *</label>
-                  <select v-model="form.tier" class="input" :class="{ err: fe.tier }">
-                    <option value="">Select tier…</option>
-                    <option value="basic">Basic</option>
-                    <option value="basic_plus">Basic Plus</option>
-                    <option value="platinum">Platinum</option>
-                  </select>
-                  <p v-if="fe.tier" class="err-msg">{{ fe.tier }}</p>
-                </div>
-                <div class="field">
                   <label class="field-label">TIN Number</label>
                   <input v-model="form.tin_number" class="input" placeholder="Optional" />
                 </div>
@@ -459,53 +470,12 @@
 
             <!-- HR Account -->
             <div class="form-section">
-              <p class="section-label">HR ACCOUNT PASSWORD</p>
+              <p class="section-label">HR ACCOUNT</p>
               <div class="form-row">
                 <div class="field">
-                  <label class="field-label">Initial Password *</label>
-                  <div class="pw-wrap">
-                    <input
-                      v-model="form.hr_password"
-                      :type="showPw ? 'text' : 'password'"
-                      class="input"
-                      :class="{ err: fe.hr_password }"
-                      placeholder="Minimum 6 characters"
-                    />
-                    <button type="button" class="pw-toggle" @click="showPw = !showPw">
-                      <svg
-                        v-if="!showPw"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                      <svg
-                        v-else
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path
-                          d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
-                        />
-                        <path
-                          d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
-                        />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p v-if="fe.hr_password" class="err-msg">{{ fe.hr_password }}</p>
                   <p class="field-hint">
-                    The HR user will log in with the contact email and this password.
+                    A temporary password will be generated automatically and shown once after
+                    creation. The HR user must set a new password on first login.
                   </p>
                 </div>
                 <div class="field field-center">
@@ -591,11 +561,45 @@
     </Transition>
   </Teleport>
 
+  <!-- Temp password reveal modal -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="tempPwModal.show" class="modal-backdrop">
+        <div class="modal">
+          <div class="modal-header">
+            <div>
+              <p class="modal-title">Company Registered</p>
+              <p class="modal-sub">
+                Share this password with <strong>{{ tempPwModal.email }}</strong>. It won't be
+                shown again.
+              </p>
+            </div>
+          </div>
+          <div class="modal-body">
+            <div class="pw-reveal">
+              <span class="pw-text">{{ tempPwModal.password }}</span>
+              <button type="button" class="copy-btn" @click="copyTempPw">
+                {{ copiedPw ? '✓ Copied!' : 'Copy' }}
+              </button>
+            </div>
+            <p class="pw-note">The HR user must set a new password on first login.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-approve-confirm" @click="tempPwModal.show = false">
+              I've Saved It
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { confirmDialog } from '@/composables/useDialog'
 import { useAuthStore } from '@/stores/auth'
 import AppPagination from '@/components/AppPagination.vue'
 
@@ -744,6 +748,16 @@ async function toggleActive(c: Company) {
   c.is_active = res.is_active
 }
 
+async function resetTwoFactor(c: Company) {
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for the HR account of ${c.name}? They must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
+  try {
+    const res = await api.post<{ message: string }>(`companies/${c.id}/reset-2fa`, {})
+    showToast(res.message)
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Failed to reset two-factor authentication.', 'error')
+  }
+}
+
 /* -- Toast ------------------------------------------------------ */
 const toast = reactive({ show: false, type: 'success', message: '' })
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -771,6 +785,24 @@ interface Employee {
   membership_status: string
   is_enrolled: boolean
   enrolled_at: string
+  is_banned?: boolean
+  banned_until?: string | null
+  ban_indefinite?: boolean
+  card_number?: string | null
+}
+
+function fmtBanDate(d?: string | null): string {
+  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+}
+
+interface CompanyBranchRow {
+  id: number
+  name: string
+  contact_person: string | null
+  city: string | null
+  is_active: boolean
+  login_email: string | null
+  employee_count: number
 }
 
 const drawer = reactive<{
@@ -778,9 +810,37 @@ const drawer = reactive<{
   loading: boolean
   company: Company | null
   employees: Employee[]
-}>({ open: false, loading: false, company: null, employees: [] })
+  branches: CompanyBranchRow[]
+}>({ open: false, loading: false, company: null, employees: [], branches: [] })
 
 const drawerSearch = ref('')
+
+// ── Onboarding actions (contract pack, bulk card issue) ──────
+const onbBusy = ref<'' | 'contract' | 'cards'>('')
+async function sendContract() {
+  const c = drawer.company
+  if (!c) return
+  if (!(await confirmDialog({ title: 'Send contract & template?', message: `Email the employee contract and the Excel template to ${c.name}? A new import deadline is set from today.`, confirmText: 'Send' }))) return
+  onbBusy.value = 'contract'
+  try {
+    const r = await api.post<{ message: string }>(`companies/${c.id}/send-contract`)
+    showToast(r.message)
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : 'Could not send.', 'error')
+  } finally { onbBusy.value = '' }
+}
+async function sendAllCards() {
+  const c = drawer.company
+  if (!c) return
+  if (!(await confirmDialog({ title: 'E-mail all new cards?', message: `E-mail every approved employee of ${c.name} whose card number has not been sent yet? Each employee receives their own number.`, confirmText: 'Send cards' }))) return
+  onbBusy.value = 'cards'
+  try {
+    const r = await api.post<{ message: string }>('employees/issue-cards', { company_id: c.id })
+    showToast(r.message)
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : 'Could not send the cards.', 'error')
+  } finally { onbBusy.value = '' }
+}
 
 const filteredDrawerEmployees = computed(() => {
   if (!drawerSearch.value) return drawer.employees
@@ -797,9 +857,13 @@ const filteredDrawerEmployees = computed(() => {
 async function openDrawer(c: Company) {
   drawer.company = c
   drawer.employees = []
+  drawer.branches = []
   drawer.open = true
   drawer.loading = true
   drawerSearch.value = ''
+  api.get<{ data: CompanyBranchRow[] }>(`companies/${c.id}/branches`)
+    .then((r) => { if (drawer.company?.id === c.id) drawer.branches = r.data })
+    .catch(() => { /* branches are optional */ })
   try {
     const res = await api.get<{ data?: { employees?: Employee[] }; employees?: Employee[] }>(
       `companies/${c.id}`
@@ -807,6 +871,17 @@ async function openDrawer(c: Company) {
     drawer.employees = res.data?.employees ?? res.employees ?? []
   } finally {
     drawer.loading = false
+  }
+}
+
+async function resetBranchTwoFactor(b: CompanyBranchRow) {
+  if (!drawer.company) return
+  if (!(await confirmDialog({ title: 'Reset sign-in security?', message: `Reset two-factor authentication for the "${b.name}" branch login? They must scan a new QR code on their next login.`, confirmText: 'Reset', danger: true }))) return
+  try {
+    const res = await api.post<{ message: string }>(`companies/${drawer.company.id}/branches/${b.id}/reset-2fa`, {})
+    showToast(res.message)
+  } catch (e: unknown) {
+    showToast(e instanceof Error ? e.message : 'Failed to reset two-factor authentication.', 'error')
   }
 }
 
@@ -829,8 +904,17 @@ function packageLabel(pkg: string) {
 const showForm = ref(false)
 const formLoading = ref(false)
 const formError = ref('')
-const showPw = ref(false)
 const fe = reactive<Record<string, string>>({})
+const tempPwModal = ref({ show: false, email: '', password: '' })
+const copiedPw = ref(false)
+
+function copyTempPw() {
+  navigator.clipboard.writeText(tempPwModal.value.password).catch(() => {})
+  copiedPw.value = true
+  setTimeout(() => {
+    copiedPw.value = false
+  }, 2000)
+}
 
 const industries = [
   { value: 'banking', label: 'Banking & Finance' },
@@ -857,7 +941,6 @@ const form = reactive({
   city: 'Addis Ababa',
   tin_number: '',
   preferred_payment_method: '',
-  hr_password: '',
   is_active: true,
 })
 
@@ -877,7 +960,6 @@ function closeModal() {
     city: 'Addis Ababa',
     tin_number: '',
     preferred_payment_method: '',
-    hr_password: '',
     is_active: true,
   })
 }
@@ -889,12 +971,9 @@ async function submitForm() {
   // Client-side validation
   if (!form.name) fe.name = 'Company name is required.'
   if (!form.industry) fe.industry = 'Industry is required.'
-  if (!form.tier) fe.tier = 'Tier is required.'
   if (!form.contact_person) fe.contact_person = 'Contact person is required.'
   if (!form.contact_email) fe.contact_email = 'Email is required.'
   if (!form.contact_phone) fe.contact_phone = 'Phone is required.'
-  if (!form.hr_password) fe.hr_password = 'Password is required.'
-  else if (form.hr_password.length < 6) fe.hr_password = 'Minimum 6 characters.'
   if (Object.keys(fe).length) return
 
   formLoading.value = true
@@ -925,6 +1004,7 @@ async function submitForm() {
     closeModal()
     await load()
     showToast(data.message ?? 'Company registered successfully.')
+    tempPwModal.value = { show: true, email: data.hr_email, password: data.temp_password }
   } catch (err) {
     formLoading.value = false
     throw err
@@ -951,7 +1031,7 @@ async function submitForm() {
 }
 .btn-primary {
   padding: 9px 18px;
-  background: #4cd964;
+  background: #8BE000;
   color: white;
   border: none;
   border-radius: 10px;
@@ -997,7 +1077,7 @@ async function submitForm() {
   transition: border-color 0.15s;
 }
 .search-box:focus {
-  border-color: #4cd964;
+  border-color: #8BE000;
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.08);
 }
 .search-clear {
@@ -1077,7 +1157,7 @@ async function submitForm() {
   height: 44px;
   background: #f0fdf9;
   border-radius: 10px;
-  color: #4cd964;
+  color: #8BE000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1124,11 +1204,11 @@ async function submitForm() {
 }
 .tier-basic_plus {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .tier-platinum {
   background: #ede9fe;
-  color: #2eb84b;
+  color: #72B800;
 }
 .lic-pending {
   background: #fef9c3;
@@ -1136,7 +1216,7 @@ async function submitForm() {
 }
 .lic-approved {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .lic-rejected {
   background: #fee2e2;
@@ -1144,7 +1224,7 @@ async function submitForm() {
 }
 .status-badge.active {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .status-badge.inactive {
   background: #fee2e2;
@@ -1165,7 +1245,7 @@ async function submitForm() {
   color: #0f172a;
 }
 .cc-num.teal {
-  color: #4cd964;
+  color: #8BE000;
 }
 .cc-sub {
   display: block;
@@ -1192,7 +1272,7 @@ async function submitForm() {
 }
 .approve {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .reject {
   background: #fee2e2;
@@ -1200,11 +1280,11 @@ async function submitForm() {
 }
 .toggle {
   background: #ebfaee;
-  color: #3b82f6;
+  color: #4D7C0F;
 }
 .act-link {
   font-size: 0.72rem;
-  color: #3b82f6;
+  color: #4D7C0F;
   text-decoration: none;
   align-self: center;
 }
@@ -1276,7 +1356,7 @@ async function submitForm() {
   background: #d1fae5;
   border: 1px solid #a7f3d0;
   border-radius: 8px;
-  color: #2eb84b;
+  color: #72B800;
   font-size: 0.84rem;
 }
 .banner-error {
@@ -1327,7 +1407,7 @@ async function submitForm() {
   resize: vertical;
   transition: border-color 0.15s;
 }
-.field textarea:focus { border-color: #4CD964; }
+.field textarea:focus { border-color: #8BE000; }
 .field textarea::placeholder { color: #94a3b8; }
 .field-label {
   font-size: 0.75rem;
@@ -1356,7 +1436,7 @@ async function submitForm() {
   transition: border-color 0.15s;
 }
 .input:focus {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: white;
 }
 .input.err {
@@ -1424,7 +1504,7 @@ async function submitForm() {
   transition: left 0.2s;
 }
 .toggle-cb:checked + .toggle-track {
-  background: #4cd964;
+  background: #8BE000;
 }
 .toggle-cb:checked + .toggle-track::after {
   left: 21px;
@@ -1458,7 +1538,7 @@ async function submitForm() {
 }
 .btn-submit {
   padding: 9px 24px;
-  background: #4cd964;
+  background: #8BE000;
   border: none;
   border-radius: 9px;
   color: white;
@@ -1487,11 +1567,11 @@ async function submitForm() {
 .req { color: #ef4444; margin-left: 2px; }
 .form-error { font-size: 0.8rem; color: #ef4444; margin: 6px 0 0; }
 .btn-approve-confirm {
-  padding: 9px 18px; background: #4CD964; color: white;
+  padding: 9px 18px; background: #8BE000; color: white;
   border: none; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer;
   transition: background .15s;
 }
-.btn-approve-confirm:hover:not(:disabled) { background: #2EB84B; }
+.btn-approve-confirm:hover:not(:disabled) { background: #72B800; }
 .btn-approve-confirm:disabled { opacity: .55; cursor: not-allowed; }
 .btn-reject-confirm {
   padding: 9px 18px; background: #ef4444; color: white;
@@ -1606,7 +1686,7 @@ async function submitForm() {
   height: 40px;
   border-radius: 10px;
   background: #f0fdf9;
-  color: #4cd964;
+  color: #8BE000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1645,6 +1725,14 @@ async function submitForm() {
 }
 
 /* Stat strip */
+.drawer-onb { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px; border-bottom: 1px solid #f1f5f9; }
+.onb-btn {
+  padding: 8px 14px; border-radius: 999px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a;
+  font-size: 0.76rem; font-weight: 700; cursor: pointer;
+}
+.onb-btn:hover:not(:disabled) { border-color: #0b0c10; }
+.onb-btn.lime { background: #8BE000; border-color: #8BE000; color: #0b0c10; }
+.onb-btn:disabled { opacity: .6; cursor: default; }
 .drawer-stats {
   display: flex;
   align-items: center;
@@ -1665,7 +1753,7 @@ async function submitForm() {
   line-height: 1;
 }
 .ds-val.teal {
-  color: #4cd964;
+  color: #8BE000;
 }
 .ds-val.amber {
   color: #d97706;
@@ -1710,7 +1798,7 @@ async function submitForm() {
   font-family: inherit;
 }
 .drawer-search:focus {
-  border-color: #4cd964;
+  border-color: #8BE000;
   background: #fff;
 }
 .drawer-search::placeholder {
@@ -1733,7 +1821,7 @@ async function submitForm() {
   width: 30px;
   height: 30px;
   border: 3px solid #e2e8f0;
-  border-top-color: #4cd964;
+  border-top-color: #8BE000;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -1769,8 +1857,8 @@ async function submitForm() {
   height: 40px;
   border-radius: 10px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #e0f2fe, #b8f0c0);
-  color: #1e40af;
+  background: linear-gradient(135deg, #EEF9DC, #b8f0c0);
+  color: #4D7C0F;
   font-size: 0.82rem;
   font-weight: 700;
   display: flex;
@@ -1825,11 +1913,11 @@ async function submitForm() {
 }
 .pkg-platinum {
   background: #ede9fe;
-  color: #2eb84b;
+  color: #72B800;
 }
 .pkg-basic_plus {
   background: #d1fae5;
-  color: #2eb84b;
+  color: #72B800;
 }
 .pkg-basic {
   background: #f1f5f9;
@@ -1877,6 +1965,22 @@ async function submitForm() {
   background: #fff7ed;
   color: #c2410c;
 }
+.mem-banned {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.emp-card {
+  margin: 2px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  color: #475569;
+}
+.emp-ban {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #dc2626;
+}
 
 /* Drawer slide transition */
 .drawer-enter-active {
@@ -1889,4 +1993,49 @@ async function submitForm() {
 .drawer-leave-to {
   transform: translateX(100%);
 }
+
+/* Temp password reveal modal */
+.pw-reveal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.pw-text {
+  flex: 1;
+  font-family: monospace;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #1a9e38;
+}
+.copy-btn {
+  background: #ebfaee;
+  border: 1.5px solid #b8f0c0;
+  color: #1a9e38;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.copy-btn:hover {
+  background: #8BE000;
+  border-color: #8BE000;
+  color: #fff;
+}
+.pw-note {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: 10px;
+}
+.drawer-branches { padding: 12px 24px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #f1f5f9; }
+.drawer-branches-title { margin: 0; font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; }
+.drawer-branch-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: #f8fafc; font-size: 0.85rem; }
+.drawer-branch-meta { display: block; font-size: 0.75rem; color: #64748b; }
 </style>

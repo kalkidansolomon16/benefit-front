@@ -18,6 +18,12 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
       path: '/forgot-password',
       name: 'forgot-password',
       component: () => import('../views/ForgotPasswordView.vue'),
@@ -48,6 +54,28 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      // Employees imported by their company create their account from the invitation link
+      path: '/join',
+      name: 'join',
+      component: () => import('../views/JoinView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      path: '/for-employers',
+      name: 'for-employers',
+      component: () => import('../views/ForEmployersView.vue'),
+    },
+    {
+      path: '/for-employees',
+      name: 'for-employees',
+      component: () => import('../views/ForEmployeesView.vue'),
+    },
+    {
+      path: '/for-partners',
+      name: 'for-partners',
+      component: () => import('../views/ForPartnersView.vue'),
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
@@ -66,9 +94,29 @@ const router = createRouter({
           component: () => import('../views/employee/EmployeeDashboard.vue'),
         },
         {
+          path: 'cards',
+          name: 'employee-cards',
+          component: () => import('../views/employee/EmployeeCards.vue'),
+        },
+        {
           path: 'gyms',
           name: 'employee-gyms',
           component: () => import('../views/employee/EmployeeGyms.vue'),
+        },
+        {
+          path: 'trainings',
+          name: 'employee-trainings',
+          component: () => import('../views/employee/EmployeeTrainings.vue'),
+        },
+        {
+          path: 'news',
+          name: 'employee-news',
+          component: () => import('../views/employee/EmployeeNews.vue'),
+        },
+        {
+          path: 'help',
+          name: 'employee-help',
+          component: () => import('../views/employee/EmployeeHelp.vue'),
         },
         {
           path: 'checkins',
@@ -99,7 +147,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'partner-dashboard',
           component: () => import('../views/partner/PartnerDashboard.vue'),
-          meta: { requiresPermission: 'gym.dashboard.view' },
+          meta: {},
         },
         {
           path: 'checkins',
@@ -108,10 +156,20 @@ const router = createRouter({
           meta: { requiresPermission: 'gym.checkins.view' },
         },
         {
+          path: 'statements',
+          name: 'partner-statements',
+          component: () => import('../views/partner/PartnerStatementsView.vue'),
+        },
+        {
           path: 'facility',
           name: 'partner-facility',
           component: () => import('../views/partner/PartnerFacility.vue'),
           meta: { requiresPermission: 'gym.facility.view' },
+        },
+        {
+          path: 'branches',
+          name: 'partner-branches',
+          component: () => import('../views/partner/PartnerBranches.vue'),
         },
         {
           path: 'team',
@@ -138,13 +196,13 @@ const router = createRouter({
           path: 'dashboard',
           name: 'hr-dashboard',
           component: () => import('../views/hr/HRDashboard.vue'),
-          meta: { requiresPermission: 'co.dashboard.view' },
+          meta: {},
         },
         {
+          // Employees are added by importing the company's Excel list; old links open the import
           path: 'register',
           name: 'hr-register',
-          component: () => import('../views/hr/RegisterEmployee.vue'),
-          meta: { requiresPermission: 'co.employees.register' },
+          redirect: { path: '/hr/employees', query: { import: '1' } },
         },
         {
           path: 'employees',
@@ -163,6 +221,12 @@ const router = createRouter({
           name: 'hr-chapa-return',
           component: () => import('../views/hr/ChapaReturnView.vue'),
           meta: { requiresHR: true },
+        },
+        {
+          path: 'branches',
+          name: 'hr-branches',
+          component: () => import('../views/hr/HRBranches.vue'),
+          meta: {},
         },
         {
           path: 'team',
@@ -189,12 +253,18 @@ const router = createRouter({
           path: 'dashboard',
           name: 'admin-dashboard',
           component: () => import('../views/admin/DashboardView.vue'),
-          meta: { requiresPermission: 'dashboard.view' },
+          meta: {},
         },
         {
           path: 'companies',
           name: 'admin-companies',
           component: () => import('../views/admin/CompaniesView.vue'),
+          meta: { requiresPermission: 'companies.view' },
+        },
+        {
+          path: 'company-applications',
+          name: 'admin-company-applications',
+          component: () => import('../views/admin/CompanyApplicationsView.vue'),
           meta: { requiresPermission: 'companies.view' },
         },
         {
@@ -246,6 +316,24 @@ const router = createRouter({
           meta: { requiresPermission: 'payment_methods.view' },
         },
         {
+          path: 'billing/partner-statements',
+          name: 'admin-partner-statements',
+          component: () => import('../views/admin/AdminPartnerStatementsView.vue'),
+          meta: { requiresPermission: 'billing.view' },
+        },
+        {
+          path: 'content',
+          name: 'admin-content',
+          component: () => import('../views/admin/AdminContentView.vue'),
+          meta: { requiresPermission: 'content.view' },
+        },
+        {
+          path: 'rules',
+          name: 'admin-rules',
+          component: () => import('../views/admin/AdminRulesView.vue'),
+          meta: { requiresPermission: 'billing.view' },
+        },
+        {
           path: 'team',
           name: 'admin-team',
           component: () => import('../views/admin/AdminTeamView.vue'),
@@ -283,7 +371,7 @@ const router = createRouter({
       redirect: '/',
     },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to) => (to.hash ? { el: to.hash, top: 90, behavior: 'smooth' } : { top: 0 }),
 })
 
 // ── Navigation guard ────────────────────────────────────────────

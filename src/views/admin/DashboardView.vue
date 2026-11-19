@@ -106,17 +106,17 @@
             >{{ d.date.slice(5) }}</text>
           </template>
           <!-- Area fill -->
-          <polygon v-if="trendData.length" :points="areaPoints" fill="#2EB84B" fill-opacity="0.07"/>
+          <polygon v-if="trendData.length" :points="areaPoints" fill="#72B800" fill-opacity="0.07"/>
           <!-- Line -->
-          <polyline v-if="trendData.length" :points="linePoints" fill="none" stroke="#2EB84B" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <polyline v-if="trendData.length" :points="linePoints" fill="none" stroke="#72B800" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
           <!-- Hover -->
           <template v-if="hoverIdx >= 0">
-            <line :x1="lx(hoverIdx)" y1="0" :x2="lx(hoverIdx)" :y2="LH" stroke="#2EB84B" stroke-width="1" stroke-dasharray="4,3"/>
-            <circle :cx="lx(hoverIdx)" :cy="ly(trendData[hoverIdx]?.count ?? 0)" r="5" fill="#2EB84B" stroke="white" stroke-width="2"/>
+            <line :x1="lx(hoverIdx)" y1="0" :x2="lx(hoverIdx)" :y2="LH" stroke="#72B800" stroke-width="1" stroke-dasharray="4,3"/>
+            <circle :cx="lx(hoverIdx)" :cy="ly(trendData[hoverIdx]?.count ?? 0)" r="5" fill="#72B800" stroke="white" stroke-width="2"/>
             <!-- Tooltip box -->
             <rect :x="tooltipX" :y="tooltipY" width="110" height="38" rx="6" fill="white" filter="url(#shadow)"/>
             <text :x="tooltipX + 8" :y="tooltipY + 15" fill="#0f172a" font-size="11" font-weight="600">{{ trendData[hoverIdx]?.date }}</text>
-            <text :x="tooltipX + 8" :y="tooltipY + 29" fill="#2EB84B" font-size="11">Check-ins: {{ trendData[hoverIdx]?.count }}</text>
+            <text :x="tooltipX + 8" :y="tooltipY + 29" fill="#72B800" font-size="11">Check-ins: {{ trendData[hoverIdx]?.count }}</text>
           </template>
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -192,15 +192,15 @@ onMounted(() => {
 
 /* -- Stat cards ------------------------------------------------- */
 const statCards = computed(() => [
-  { label: 'Total Companies',    value: stats.value?.overview.total_companies   ?? 0, sub: `${stats.value?.overview.active_companies ?? 0} active`,       bg: '#EBFAEE', color: '#3b82f6', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
-  { label: 'Partner Gyms',       value: stats.value?.overview.total_gyms        ?? 0, sub: `${stats.value?.overview.partner_gyms ?? 0} partners`,         bg: '#EBFAEE', color: '#2EB84B', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>` },
-  { label: 'Total Employees',    value: stats.value?.overview.total_employees   ?? 0, sub: `${stats.value?.overview.enrolled_employees ?? 0} enrolled`,  bg: '#f0fdf4', color: '#4CD964', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
+  { label: 'Total Companies',    value: stats.value?.overview.total_companies   ?? 0, sub: `${stats.value?.overview.active_companies ?? 0} active`,       bg: '#EBFAEE', color: '#0B0C10', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
+  { label: 'Partner Gyms',       value: stats.value?.overview.total_gyms        ?? 0, sub: `${stats.value?.overview.partner_gyms ?? 0} partners`,         bg: '#EBFAEE', color: '#72B800', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>` },
+  { label: 'Total Employees',    value: stats.value?.overview.total_employees   ?? 0, sub: `${stats.value?.overview.enrolled_employees ?? 0} enrolled`,  bg: '#f0fdf4', color: '#8BE000', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
   { label: "Today's Check-ins",  value: stats.value?.activity.checkins_today    ?? 0, sub: `${stats.value?.activity.checkins_month ?? 0} this month`,    bg: '#fff7ed', color: '#f59e0b', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>` },
 ])
 
 /* -- Donut chart ------------------------------------------------ */
 const circumference = 2 * Math.PI * 58
-const donutPalette  = ['#3b82f6', '#2EB84B', '#f59e0b']
+const donutPalette  = ['#0B0C10', '#72B800', '#f59e0b']
 const donutLabels   = ['Basic', 'Basic Plus', 'Platinum']
 const totalPkg      = computed(() => pkgDist.value.basic + pkgDist.value.basic_plus + pkgDist.value.platinum)
 
@@ -217,7 +217,7 @@ const donutSegments = computed(() => {
 })
 
 /* -- Bar chart -------------------------------------------------- */
-const barPalette = ['#4CD964','#2EB84B','#3b82f6','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16']
+const barPalette = ['#8BE000','#72B800','#0B0C10','#f59e0b','#ef4444','#4D7C0F','#ec4899','#84cc16']
 const barStep = 58; const barPad = 12; const barW = 36
 const barSvgW = computed(() => Math.max(revenueData.value.length * barStep + barPad * 2, 300))
 const maxRev  = computed(() => Math.max(...revenueData.value.map(d => d.revenue), 1))
@@ -278,7 +278,7 @@ function onTrendMove(e: MouseEvent) {
 }
 
 /* -- Recent Registrations helpers ------------------------------ */
-const AVATAR_COLORS = ['#3b82f6','#2EB84B','#4CD964','#f59e0b','#ef4444','#06b6d4','#ec4899']
+const AVATAR_COLORS = ['#0B0C10','#72B800','#8BE000','#f59e0b','#ef4444','#4D7C0F','#ec4899']
 function avatarBg(name: string) {
   let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xff
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
@@ -317,7 +317,7 @@ function tierLabel(t: string) {
 }
 .stat-value { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
 .stat-label { font-size: 0.78rem; color: #64748b; margin: 0; }
-.stat-sub   { font-size: 0.72rem; color: #4CD964; margin: 2px 0 0; }
+.stat-sub   { font-size: 0.72rem; color: #8BE000; margin: 2px 0 0; }
 
 /* Cards */
 .card {
@@ -389,8 +389,8 @@ function tierLabel(t: string) {
   font-size: 0.72rem; font-weight: 600;
 }
 .tier-basic      { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.tier-basic_plus { background: #d1fae5; color: #2EB84B; border: 1px solid #a7f3d0; }
-.tier-platinum   { background: #ede9fe; color: #2EB84B; border: 1px solid #B8F0C0; }
+.tier-basic_plus { background: #d1fae5; color: #72B800; border: 1px solid #a7f3d0; }
+.tier-platinum   { background: #ede9fe; color: #72B800; border: 1px solid #B8F0C0; }
 
 @media (max-width: 900px) {
   .row-2 { grid-template-columns: 1fr; }

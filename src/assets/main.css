@@ -1,4 +1,5 @@
 @import './base.css';
+@import './landing.css';
 
 /* Global textarea styling */
 textarea {
@@ -15,7 +16,7 @@ textarea {
   box-sizing: border-box;
   transition: border-color 0.15s;
 }
-textarea:focus { border-color: #4CD964; }
+textarea:focus { border-color: #8BE000; }
 textarea::placeholder { color: #94a3b8; }
 
 #app {
@@ -70,7 +71,7 @@ textarea::placeholder { color: #94a3b8; }
 .btn-primary:hover {
   background: var(--color-green-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(76, 217, 100, 0.35);
+  box-shadow: 0 6px 20px rgba(139, 224, 0, 0.35);
 }
 
 .btn-outline {

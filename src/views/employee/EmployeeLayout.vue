@@ -1,150 +1,120 @@
 ﻿<template>
-  <div class="emp-shell">
+  <div class="ep-shell">
+    <!-- Sidebar -->
+    <aside class="ep-side" :class="{ open: mobileOpen }" aria-label="Employee navigation">
+      <RouterLink to="/employee/dashboard" class="ep-logo" @click="mobileOpen = false">
+        <img src="/logo.png" alt="" />
+        <span>FitAccess</span>
+      </RouterLink>
 
-    <!-- ── Sidebar ──────────────────────────────────────────────── -->
-    <aside class="sidebar" :class="{ 'sidebar--open': mobileOpen }">
-
-      <!-- Logo -->
-      <div class="sidebar-logo">
-        <img src="/logo.png" alt="FitAccess" class="logo-img" />
-        <div>
-          <p class="logo-name">FitAccess</p>
-          <p class="logo-sub">ETHIOPIA</p>
-        </div>
-      </div>
-
-      <!-- Employee chip -->
-      <div class="emp-chip">
-        <p class="chip-label">MEMBER</p>
-        <p class="chip-name" :title="employeeName">{{ employeeName }}</p>
-        <p class="chip-plan">{{ planName }}</p>
-      </div>
-
-      <!-- Nav -->
-      <nav class="sidebar-nav">
+      <nav class="ep-nav">
         <RouterLink
-          v-for="item in navItems"
-          :key="item.name"
+          v-for="item in mainNav"
+          :key="item.to"
           :to="item.to"
-          class="nav-item"
-          active-class="nav-item--active"
+          class="ep-link"
+          active-class="active"
           @click="mobileOpen = false"
         >
-          <span class="nav-icon" v-html="item.icon"></span>
-          <span class="nav-label">{{ item.label }}</span>
+          <span class="ep-ico" v-html="item.icon"></span>
+          {{ item.label }}
         </RouterLink>
       </nav>
 
-      <!-- Sign out -->
-      <div class="sidebar-footer">
-        <button class="signout-btn" @click="handleLogout">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          Sign out
+      <nav class="ep-nav ep-nav--bottom">
+        <RouterLink
+          v-for="item in bottomNav"
+          :key="item.to"
+          :to="item.to"
+          class="ep-link"
+          active-class="active"
+          @click="mobileOpen = false"
+        >
+          <span class="ep-ico" v-html="item.icon"></span>
+          {{ item.label }}
+        </RouterLink>
+        <button type="button" class="ep-link" @click="handleLogout">
+          <span class="ep-ico" v-html="ICONS.logout"></span>
+          Logout
         </button>
-      </div>
+      </nav>
     </aside>
 
-    <!-- Mobile overlay -->
-    <div v-if="mobileOpen" class="mobile-overlay" @click="mobileOpen = false"></div>
+    <div v-if="mobileOpen" class="ep-overlay" @click="mobileOpen = false"></div>
 
-    <!-- ── Main ─────────────────────────────────────────────────── -->
-    <div class="main-wrap">
-      <header class="top-bar">
-        <button class="hamburger" @click="mobileOpen = !mobileOpen">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
+    <div class="ep-main">
+      <header class="ep-topbar">
+        <button type="button" class="ep-burger" aria-label="Open menu" @click="mobileOpen = true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
         </button>
-        <div class="top-bar-text">
-          <h1 class="page-title">{{ currentTitle }}</h1>
-          <p v-if="currentSubtitle" class="page-sub">{{ currentSubtitle }}</p>
-        </div>
+        <RouterLink to="/employee/dashboard" class="ep-logo small">
+          <img src="/logo.png" alt="" />
+          <span>FitAccess</span>
+        </RouterLink>
       </header>
 
-      <main class="page-content">
-        <RouterView />
+      <!-- Notifications (also emailed): bell top-right + pop-up after sign-in -->
+      <div class="ep-bell"><NotificationBell /></div>
+
+      <main class="ep-content">
+        <div v-if="portal.loading.value && !portal.data.value" class="ep-state">
+          <span class="ep-spinner" aria-hidden="true"></span>
+          Loading your portal…
+        </div>
+        <div v-else-if="portal.error.value && !portal.data.value" class="ep-state error">
+          {{ portal.error.value }}
+          <button type="button" class="ep-retry" @click="portal.load(true)">Try again</button>
+        </div>
+        <RouterView v-else />
       </main>
     </div>
 
+    <CardLockModal />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useApi } from '@/composables/useApi'
+import { useEmployeePortal } from '@/composables/useEmployeePortal'
+import CardLockModal from '@/components/employee/CardLockModal.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 
-const auth   = useAuthStore()
+const auth = useAuthStore()
 const router = useRouter()
-const route  = useRoute()
-const api    = useApi()
+const portal = useEmployeePortal()
+const mobileOpen = ref(false)
 
-const mobileOpen   = ref(false)
-const employeeName = ref('Loading…')
-const planName     = ref('')
+onMounted(() => portal.load())
 
-onMounted(async () => {
-  try {
-    const res = await api.get<{ profile: { name: string }; pass: { plan_name: string } }>('employee/dashboard')
-    employeeName.value = res.profile?.name ?? auth.user?.name ?? 'Member'
-    planName.value     = res.pass?.plan_name ?? ''
-  } catch {
-    employeeName.value = auth.user?.name ?? 'Member'
-  }
-})
+const svg = (d: string) =>
+  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 
-const navItems = [
-  {
-    name: 'dashboard',
-    label: 'My Dashboard',
-    to: '/employee/dashboard',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`,
-  },
-  {
-    name: 'gyms',
-    label: 'Find Gyms',
-    to: '/employee/gyms',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  },
-  {
-    name: 'barcode',
-    label: 'My Gym Pass',
-    to: '/employee/barcode',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="7" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="13" y1="9" x2="13" y2="15"/><line x1="17" y1="9" x2="17" y2="15"/></svg>`,
-  },
-  {
-    name: 'checkins',
-    label: 'My Check-ins',
-    to: '/employee/checkins',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
-  },
-  {
-    name: 'settings',
-    label: 'Settings',
-    to: '/employee/settings',
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
-  },
-]
-
-const pageMeta: Record<string, { title: string; sub?: string }> = {
-  'employee-dashboard': { title: 'My Dashboard',  sub: 'Your wellness membership overview' },
-  'employee-gyms':      { title: 'Find Gyms',     sub: 'Gyms available on your plan' },
-  'employee-checkins':  { title: 'My Check-ins',  sub: 'Your attendance history' },
-  'employee-barcode':   { title: 'My Gym Pass',   sub: 'Scan this barcode at any partner gym' },
+const ICONS = {
+  start: svg('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  cards: svg('<rect x="2.5" y="5" width="19" height="14" rx="2"/><rect x="5.5" y="9" width="5" height="4" rx=".5"/><path d="M13.5 9.5h5M13.5 12.5h5M5.5 16h13"/>'),
+  gyms: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'),
+  trainings: svg('<rect x="6" y="6" width="15" height="13" rx="2"/><path d="M3 15V5a2 2 0 0 1 2-2h11"/><path d="m12 10 4 2.5-4 2.5z"/>'),
+  news: svg('<path d="M6 3h9l5 5v13H6z"/><path d="M14 3v6h6M9 13h8M9 17h8"/>'),
+  visits: svg('<path d="M8 2v3M16 2v3"/><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 15l2 2 4-4"/>'),
+  help: svg('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>'),
+  account: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  logout: svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'),
 }
 
-const currentTitle    = computed(() => {
-  if (route.name === 'employee-dashboard') return `Welcome, ${employeeName.value.split(' ')[0]}`
-  return pageMeta[route.name as string]?.title ?? 'Employee Portal'
-})
-const currentSubtitle = computed(() => pageMeta[route.name as string]?.sub ?? '')
+const mainNav = [
+  { label: 'Start', to: '/employee/dashboard', icon: ICONS.start },
+  { label: 'Cards', to: '/employee/cards', icon: ICONS.cards },
+  { label: 'Gyms', to: '/employee/gyms', icon: ICONS.gyms },
+  { label: 'Trainings', to: '/employee/trainings', icon: ICONS.trainings },
+  { label: 'News', to: '/employee/news', icon: ICONS.news },
+  { label: 'Visits', to: '/employee/checkins', icon: ICONS.visits },
+]
+const bottomNav = [
+  { label: 'Help', to: '/employee/help', icon: ICONS.help },
+  { label: 'My account', to: '/employee/settings', icon: ICONS.account },
+]
 
 async function handleLogout() {
   await auth.logout()
@@ -153,113 +123,60 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.emp-shell {
-  display: flex;
-  min-height: 100vh;
-  background: #f0f2f5;
-  font-family: 'Inter', system-ui, sans-serif;
+.ep-shell {
+  --ep-bg: #f7f8f5;
+  --ep-ink: #1f2937;
+  --ep-muted: #6b7280;
+  display: flex; min-height: 100vh; background: var(--ep-bg);
+  font-family: var(--font-body); color: var(--ep-ink);
 }
 
-/* ── Sidebar ───────────────────────────────────────────────────── */
-.sidebar {
-  width: 240px;
-  min-height: 100vh;
-  background: #0d1b2e;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0; left: 0; bottom: 0;
-  z-index: 100;
-  overflow-y: auto;
+/* Sidebar */
+.ep-side {
+  position: fixed; inset: 0 auto 0 0; z-index: 100; width: 232px; box-sizing: border-box;
+  background: #fff; border-right: 1px solid #eef0ea; padding: 22px 16px;
+  display: flex; flex-direction: column; gap: 26px; overflow-y: auto;
 }
+.ep-logo { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; padding: 0 8px; }
+.ep-logo img { width: 30px; height: 30px; border-radius: 9px; }
+.ep-logo span { font-family: var(--font-heading); font-weight: 800; font-size: 22px; color: #0b0c10; letter-spacing: -0.02em; }
+.ep-logo.small span { font-size: 18px; }
+.ep-nav { display: flex; flex-direction: column; gap: 4px; }
+.ep-nav--bottom { margin-top: auto; }
+.ep-link {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px;
+  color: #4b5563; text-decoration: none; font-size: 15px; font-weight: 500; font-family: inherit;
+  background: none; border: none; cursor: pointer; text-align: left; width: 100%;
+  transition: background 0.15s, color 0.15s;
+}
+.ep-link:hover { background: #f5f7f0; color: #0b0c10; }
+.ep-link.active { background: #eef9dc; color: #0b0c10; font-weight: 600; }
+.ep-link.active .ep-ico { color: #4d7c0f; }
+.ep-ico { display: flex; color: #6b7280; }
 
-.sidebar-logo {
-  display: flex; align-items: center; gap: 12px;
-  padding: 22px 20px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.logo-img  { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; object-fit: cover; }
-.logo-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
-.logo-sub  { font-size: 0.65rem; color: #4CD964; letter-spacing: 0.12em; margin: 1px 0 0; text-transform: uppercase; }
+/* Main */
+.ep-main { flex: 1; min-width: 0; margin-left: 232px; display: flex; flex-direction: column; position: relative; }
+.ep-bell { position: absolute; top: 32px; right: 40px; z-index: 50; }
+@media (max-width: 900px) { .ep-bell { top: 12px; right: 16px; } }
+.ep-topbar { display: none; }
+.ep-content { padding: 40px 48px 64px; width: 100%; max-width: 1320px; box-sizing: border-box; }
+.ep-state { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 80px 0; color: var(--ep-muted); }
+.ep-state.error { flex-direction: column; color: #dc2626; }
+.ep-retry { border: 1.5px solid #0b0c10; background: #fff; border-radius: 12px; padding: 10px 18px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.ep-spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid #e5e7eb; border-top-color: #8be000; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ep-overlay { display: none; }
 
-/* Employee chip */
-.emp-chip {
-  padding: 14px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.chip-label { font-size: 0.65rem; color: #64748b; letter-spacing: 0.1em; margin: 0 0 3px; text-transform: uppercase; }
-.chip-name  {
-  font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0 0 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.chip-plan {
-  font-size: 0.72rem; color: #4CD964; font-weight: 600; margin: 0;
-  text-transform: uppercase; letter-spacing: 0.05em;
-}
-
-/* Nav */
-.sidebar-nav {
-  flex: 1; padding: 12px 10px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.nav-item {
-  display: flex; align-items: center; gap: 11px;
-  padding: 10px 12px; border-radius: 8px;
-  color: #64748b; text-decoration: none;
-  font-size: 0.84rem; font-weight: 500;
-  transition: color .15s, background .15s;
-}
-.nav-item:hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
-.nav-item--active { color: #4CD964; background: rgba(76,217,100,0.1); }
-.nav-icon { flex-shrink: 0; display: flex; align-items: center; }
-.nav-label { white-space: nowrap; }
-
-/* Footer */
-.sidebar-footer { padding: 14px 10px; border-top: 1px solid rgba(255,255,255,0.06); }
-.signout-btn {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 10px 12px; background: transparent; border: none;
-  border-radius: 8px; color: #64748b; font-size: 0.84rem; cursor: pointer;
-  transition: color .15s, background .15s;
-}
-.signout-btn:hover { color: #f87171; background: rgba(239,68,68,0.08); }
-
-/* Mobile overlay */
-.mobile-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5); z-index: 99;
-}
-
-/* ── Main ──────────────────────────────────────────────────────── */
-.main-wrap {
-  flex: 1; margin-left: 240px;
-  display: flex; flex-direction: column; min-width: 0;
-}
-
-.top-bar {
-  display: flex; align-items: flex-start;
-  padding: 28px 32px 0;
-  background: #f0f2f5;
-  gap: 12px;
-}
-.hamburger {
-  display: none; background: none; border: none;
-  color: #475569; cursor: pointer; padding: 4px; border-radius: 6px; flex-shrink: 0;
-}
-.top-bar-text { flex: 1; }
-.page-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
-.page-sub   { font-size: 0.82rem; color: #94a3b8; margin: 0; }
-
-.page-content {
-  flex: 1; padding: 20px 32px 32px;
-}
-
-/* Responsive */
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); transition: transform .25s; }
-  .sidebar--open { transform: translateX(0); }
-  .mobile-overlay { display: block; }
-  .main-wrap { margin-left: 0; }
-  .hamburger { display: block; }
+  .ep-side { transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: 0 0 40px rgba(0, 0, 0, 0.15); }
+  .ep-side.open { transform: none; }
+  .ep-overlay { display: block; position: fixed; inset: 0; z-index: 99; background: rgba(11, 12, 16, 0.35); }
+  .ep-main { margin-left: 0; }
+  .ep-topbar {
+    display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 50;
+    padding: 12px 16px; background: #fff; border-bottom: 1px solid #eef0ea;
+  }
+  .ep-burger { border: none; background: none; padding: 4px; cursor: pointer; color: #0b0c10; display: flex; }
+  .ep-content { padding: 24px 16px 48px; }
 }
 </style>

@@ -5,14 +5,14 @@ const categories = [
     icon: '🏋️',
     items: ['Sheraton Addis Gym', 'Intercontinental Fitness', 'Elilly Hotel Gym', 'Monarch Gym', 'Atlas Gym'],
     color: '#EBFAEE',
-    accent: '#4CD964',
+    accent: '#8BE000',
   },
   {
     label: 'Yoga & Mindfulness',
     icon: '🧘',
     items: ['Addis Yoga Studio', 'Zen Wellness Addis', 'Hilton Pool & Spa', 'Balance Studio', 'Serenity Centre'],
     color: '#f3e8ff',
-    accent: '#2EB84B',
+    accent: '#72B800',
   },
   {
     label: 'Cardio & Group Classes',
