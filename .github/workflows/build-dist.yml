@@ -1,0 +1,41 @@
+# Builds the website on every push to `dev` and saves the finished files
+# (the `dist` folder) to the `dev-dist` branch. The cPanel server has no
+# Node, so it only pulls `dev-dist` and copies the files into public_html.
+name: Build website (dev → dev-dist)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-dev-dist
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Uses .env.production (API: https://fit-access.com/api/v1)
+      - run: npm run build
+
+      - name: Publish dist to the dev-dist branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: dev-dist
+          publish_dir: ./dist
+          force_orphan: true
+          commit_message: "Website build from dev ${{ github.sha }}"
